@@ -1,0 +1,269 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import App from "../App";
+import type { QuoteProcessResponse } from "../types/quote";
+
+const processQuote = vi.fn();
+const processQuoteCsv = vi.fn();
+const downloadBlob = vi.fn();
+
+vi.mock("../services/api", () => ({
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
+  processQuote: (...args: unknown[]) => processQuote(...args),
+  processQuoteCsv: (...args: unknown[]) => processQuoteCsv(...args),
+  downloadBlob: (...args: unknown[]) => downloadBlob(...args),
+}));
+
+const sample: QuoteProcessResponse = {
+  summary: { total: 3, matched: 1, review_required: 2, no_match: 0 },
+  results: [
+    {
+      source_row: 2,
+      requested_description: "120V LIGHTING WHIP W/PAULEX",
+      quantity: 5,
+      matched_part_number: null,
+      matched_description: null,
+      matching_percentage: 100,
+      part_number_match_score: null,
+      description_match_score: 100,
+      overall_match_score: 100,
+      confidence: "REVIEW",
+      match_status: "REVIEW_REQUIRED",
+      match_reason: "Multiple Atkore products have equivalent descriptions.",
+      candidate_count: 3,
+      candidates: [
+        {
+          official_part_number: "1LAP-W",
+          description: "120V LTG WHIP W/PAULEX",
+          salsify_id: "NA1-1LAP-W",
+          score: 100,
+          match_reasons: ["Exact match"],
+        },
+        {
+          official_part_number: "1LBP-W",
+          description: "120V LIGHTING WHIP W/PAULEX",
+          salsify_id: "NA1-1LBP-W",
+          score: 100,
+          match_reasons: ["Exact match"],
+        },
+        {
+          official_part_number: "1LCP-W",
+          description: "120V LIGHTING WHIP W/PAULEX",
+          salsify_id: "NA1-1LCP-W",
+          score: 100,
+          match_reasons: ["Exact match"],
+        },
+      ],
+    },
+  ],
+};
+
+describe("QuoteIQ app", () => {
+  beforeEach(() => {
+    processQuote.mockReset();
+    processQuoteCsv.mockReset();
+    downloadBlob.mockReset();
+  });
+
+  it("renders the dashboard upload area and empty state", () => {
+    render(<App />);
+    expect(screen.getAllByText("QuoteIQ").length).toBeGreaterThan(0);
+    expect(screen.getByText("Product")).toBeInTheDocument();
+    expect(screen.getByText("Resources")).toBeInTheDocument();
+    expect(screen.getByText("About")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Atkore" })).toBeInTheDocument();
+    expect(screen.getByText("Upload a Quote")).toBeInTheDocument();
+    expect(screen.getByText("Quote Summary")).toBeInTheDocument();
+    expect(screen.getByText(/Making/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
+    expect(screen.queryByText(/PDF/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Upload your Excel documents/)).toBeInTheDocument();
+  });
+
+  it("rejects unsupported files", async () => {
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const bad = new File(["x"], "notes.txt", { type: "text/plain" });
+    fireEvent.change(input, { target: { files: [bad] } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Unable to process quote");
+    expect(screen.getByRole("alert")).toHaveTextContent("Only .xlsx Excel files are supported.");
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
+  });
+
+  it("selects an xlsx file and enables process", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["abc"], "inputfile.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    Object.defineProperty(file, "size", { value: 2048 });
+    await user.upload(input, file);
+    expect(screen.getByText("inputfile.xlsx")).toBeInTheDocument();
+    expect(screen.getByText(/2\.0 KB/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeEnabled();
+  });
+
+  it("shows loading, KPIs, review details, download, and API errors", async () => {
+    const user = userEvent.setup();
+    let resolveProcess: (value: QuoteProcessResponse) => void = () => undefined;
+    processQuote.mockImplementation(
+      () =>
+        new Promise<QuoteProcessResponse>((resolve) => {
+          resolveProcess = resolve;
+        }),
+    );
+    processQuoteCsv.mockResolvedValue(new Blob(["csv"]));
+
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(screen.getByRole("button", { name: "Processing Quote..." })).toBeDisabled();
+    expect(screen.getByText("Uploading...")).toBeInTheDocument();
+    expect(screen.getByText("Analyzing Matches...")).toBeInTheDocument();
+    resolveProcess(sample);
+    expect(await screen.findByText("120V LIGHTING WHIP W/PAULEX")).toBeInTheDocument();
+    expect(screen.getByText("Total Lines")).toBeInTheDocument();
+    expect(screen.getByText("Match Rate")).toBeInTheDocument();
+    expect(screen.getByText("33%")).toBeInTheDocument();
+    expect(screen.getByText(/3 line items detected/)).toBeInTheDocument();
+    expect(screen.getByText("Matched Part Number")).toBeInTheDocument();
+    expect(screen.queryByText("Matched Atkore Part Number")).not.toBeInTheDocument();
+    expect(screen.queryByText("Matched Salsify ID")).not.toBeInTheDocument();
+    expect(screen.getByText("Description Match")).toBeInTheDocument();
+    expect(screen.getByText("Overall Match")).toBeInTheDocument();
+    expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getByText("Multiple possible matches")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Review Match" }));
+    expect(screen.getByText("Match Details")).toBeInTheDocument();
+    expect(screen.getByText("Top Candidates")).toBeInTheDocument();
+    expect(screen.getByText("NA1-1LAP-W")).toBeInTheDocument();
+    expect(screen.getByText("NA1-1LBP-W")).toBeInTheDocument();
+    expect(screen.getByText("NA1-1LCP-W")).toBeInTheDocument();
+    expect(screen.queryByText("1LAP-W")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
+    expect(processQuoteCsv).toHaveBeenCalled();
+    expect(downloadBlob).toHaveBeenCalled();
+
+    const { ApiError } = await import("../services/api");
+    processQuote.mockRejectedValueOnce(
+      new ApiError("The QuoteIQ service is unavailable. Confirm the backend is running and try again.", 0),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("QuoteIQ service unavailable");
+    expect(screen.getByRole("alert")).toHaveTextContent("Confirm the backend is running");
+  });
+
+  it("shows matched part numbers and candidate details without fabricating SKUs", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue({
+      summary: { total: 1, matched: 1, review_required: 0, no_match: 0 },
+      results: [
+        {
+          source_row: 2,
+          requested_description: "120V DBL HEAD EXT CABLE",
+          quantity: 5,
+          matched_part_number: "1EEC",
+          matched_salsify_id: "NA1-1EEC",
+          matched_description: "120V DBL HEAD EXT CABLE",
+          matching_percentage: 86,
+          part_number_match_score: null,
+          description_match_score: 86,
+          overall_match_score: 86,
+          confidence: "HIGH",
+          match_status: "HIGH_CONFIDENCE",
+          match_reason: "Top candidate is above the high-confidence threshold",
+          candidate_count: 2,
+          candidates: [
+            {
+              official_part_number: "1EEC",
+              description: "120V DBL HEAD EXT CABLE",
+              salsify_id: "NA1-1EEC",
+              score: 86,
+              match_reasons: ["Shared tokens: 120V, DBL, HEAD, EXT, CABLE"],
+            },
+            {
+              official_part_number: "1EAG/A",
+              description: "120V DBL HEAD EXT CABLE W/MOLEX",
+              salsify_id: "NA1-1EAG/A",
+              score: 72,
+              match_reasons: ["Shared tokens: 120V, DBL, HEAD"],
+            },
+          ],
+        },
+      ],
+    });
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(await screen.findByText("NA1-1EEC")).toBeInTheDocument();
+    expect(screen.queryByText("1EEC")).not.toBeInTheDocument();
+    expect(screen.getByText("MATCHED")).toBeInTheDocument();
+    expect(screen.getAllByText("86%").length).toBeGreaterThan(1);
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("Match Details")).toBeInTheDocument();
+    expect(screen.getByText("NA1-1EAG/A")).toBeInTheDocument();
+    expect(screen.queryByText("1EAG/A")).not.toBeInTheDocument();
+    expect(screen.getByText("72%")).toBeInTheDocument();
+  });
+
+  it("renders no-match copy without inventing candidates", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue({
+      summary: { total: 1, matched: 0, review_required: 0, no_match: 1 },
+      results: [
+        {
+          source_row: 4,
+          requested_description: "UNKNOWN WIDGET",
+          quantity: 1,
+          matched_part_number: null,
+          matched_description: null,
+          matching_percentage: 12,
+          confidence: "LOW",
+          match_status: "NO_MATCH",
+          match_reason: "",
+          candidate_count: 0,
+          candidates: [],
+        },
+      ],
+    });
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "quote.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(await screen.findByText("UNKNOWN WIDGET")).toBeInTheDocument();
+    expect(screen.getByText("NO MATCH")).toBeInTheDocument();
+    expect(screen.getAllByText("0%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("No matching Atkore part found").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("No catalog candidates were returned for this line.")).toBeInTheDocument();
+  });
+});
