@@ -8,20 +8,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Add corporate Zscaler CA certificate
-COPY backend/ZscalerRootCertificate-2048-SHA256-Feb2025.crt /usr/local/share/ca-certificates/zscaler-root.crt
+COPY ZscalerRootCertificate-2048-SHA256-Feb2025.crt /usr/local/share/ca-certificates/zscaler-root.crt
 
+# Update the Linux trusted certificate store
 RUN update-ca-certificates
 
 # Install Python dependencies
-COPY backend/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy backend application
-COPY backend/ /app/
-
-# Copy product catalog
-COPY data/ /app/data/
+COPY . /app
 
 ENV PYTHONPATH=/app
 
