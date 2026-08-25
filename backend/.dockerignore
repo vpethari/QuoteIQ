@@ -1,0 +1,7 @@
+ZscalerRootCertificate-2048-SHA256-Feb2025.crt
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
