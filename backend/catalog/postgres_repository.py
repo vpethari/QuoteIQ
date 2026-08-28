@@ -1,0 +1,472 @@
+from __future__ import annotations
+
+import re
+
+from sqlalchemy import bindparam, inspect, text
+from sqlalchemy.engine import Engine
+
+from catalog.search_query import retrieval_search_string, retrieval_search_tokens
+from matching.models import ProductRecord
+from matching.normalizer import part_number_lookup_keys
+from matching.productcode import compact_code, productcode_as_text
+from matching.timing_diag import _ms, _pool_snapshot, active
+
+_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+FAMILY_PRODUCTCODE_PLACEHOLDER = "-"
+PRODUCT_RECORD_TYPE = "product"
+
+
+def _quote(identifier: str) -> str:
+    if not _IDENT.fullmatch(identifier):
+        raise ValueError(f"Invalid SQL identifier: {identifier}")
+    return f'"{identifier}"'
+
+
+def product_from_postgres_row(
+    *,
+    productcode: object,
+    name: object = None,
+    description: object = None,
+    description2: object = None,
+    row_id: object = None,
+    record_type: object = None,
+) -> ProductRecord | None:
+    sellable = productcode_as_text(productcode)
+    name_text = str(name).strip() if name is not None and str(name).strip() else ""
+    if not sellable or sellable == FAMILY_PRODUCTCODE_PLACEHOLDER:
+        return None
+    internal_id = productcode_as_text(row_id) or None
+    kind = str(record_type).strip().lower() if record_type is not None and str(record_type).strip() else PRODUCT_RECORD_TYPE
+    if kind != PRODUCT_RECORD_TYPE:
+        return None
+    return ProductRecord(
+        salsify_id=sellable,
+        official_part_number=sellable,
+        description=str(description).strip() if description else None,
+        record_type=PRODUCT_RECORD_TYPE,
+        name=name_text or None,
+        description2=str(description2).strip() if description2 else None,
+        catalog_row_id=internal_id,
+    )
+
+
+class PostgresCatalogRepository:
+    """Load catalog products from PostgreSQL without touching the matcher."""
+
+    def __init__(
+        self,
+        engine: Engine,
+        *,
+        table: str = "productmaster",
+        id_column: str = "id",
+        productcode_column: str = "Productcode",
+        name_column: str = "name",
+        description_column: str = "description",
+        description2_column: str = "description2",
+        record_type_column: str = "record_type",
+        search_text_column: str = "search_text",
+        identifier_search_column: str = "identifier_search",
+        retrieval_limit: int = 100,
+    ) -> None:
+        self.engine = engine
+        self.table = table
+        self.id_column = id_column
+        self.productcode_column = productcode_column
+        self.name_column = name_column
+        self.description_column = description_column
+        self.description2_column = description2_column
+        self.record_type_column = record_type_column
+        self.search_text_column = search_text_column
+        self.identifier_search_column = identifier_search_column
+        self.retrieval_limit = retrieval_limit
+        self._cached_column_names: set[str] | None = None
+
+    def _productcode_sql(self) -> str:
+        return f"CAST({_quote(self.productcode_column)} AS TEXT)"
+
+    def _is_postgres(self) -> bool:
+        return self.engine.dialect.name in {"postgresql", "postgres"}
+
+    def _search_text_expr(self) -> str:
+        """search_text is required (migration 20260827_productmaster_search_text)."""
+        return _quote(self.search_text_column)
+
+    def _select_catalog_sql(self) -> str:
+        table_sql = _quote(self.table)
+        code_sql = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        return (
+            f"SELECT {code_sql} AS productcode, {name_sql} AS name, "
+            f"{desc_sql} AS description, {desc2_sql} AS description2 "
+            f"FROM {table_sql}"
+        )
+
+    def _timed_fetch(self, sql, params: dict[str, object], *, search: str) -> list[dict[str, object]]:
+        from time import perf_counter
+
+        session = active()
+        if session is not None:
+            session.add(search=search)
+        t0 = perf_counter()
+        with self.engine.connect() as connection:
+            connect_ms = _ms(perf_counter() - t0)
+            t1 = perf_counter()
+            result = connection.execute(sql, params)
+            query_ms = _ms(perf_counter() - t1)
+            t2 = perf_counter()
+            rows = [dict(row) for row in result.mappings()]
+            map_ms = _ms(perf_counter() - t2)
+        if session is not None:
+            session.add(
+                db_connect_ms=connect_ms,
+                db_query_ms=query_ms,
+                db_map_ms=map_ms,
+                connect_calls=1,
+                sql_queries=1,
+            )
+            session.pool_status.append(_pool_snapshot(self.engine))
+        return rows
+
+    def _rows_to_products(self, rows: list[dict[str, object]]) -> list[ProductRecord]:
+        from time import perf_counter
+
+        session = active()
+        t0 = perf_counter()
+        records: list[ProductRecord] = []
+        for row in rows:
+            product = product_from_postgres_row(
+                productcode=row.get("productcode"),
+                name=row.get("name"),
+                description=row.get("description"),
+                description2=row.get("description2"),
+                row_id=row.get("row_id"),
+                record_type=row.get("record_type"),
+            )
+            if product is not None:
+                records.append(product)
+        if session is not None:
+            session.add(db_map_ms=_ms(perf_counter() - t0))
+        return records
+
+    def search_text_sql(self, token_count: int) -> str:
+        """Candidate retrieval SQL against search_text (or a concat fallback)."""
+        like_op = "ILIKE" if self._is_postgres() else "LIKE"
+        search_expr = self._search_text_expr()
+        where_parts = [f"{search_expr} {like_op} :tok{index}" for index in range(token_count)]
+        if not where_parts:
+            where_parts = [f"{search_expr} {like_op} :normalized"]
+        order_sql = "1"
+        if self._is_postgres() and token_count:
+            order_sql = f"similarity({search_expr}, :normalized) DESC"
+        return (
+            f"{self._select_catalog_sql()} "
+            f"WHERE {' AND '.join(where_parts)} "
+            f"ORDER BY {order_sql} "
+            "LIMIT :limit"
+        )
+
+    def search_text_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
+        """Return a limited candidate set from PostgreSQL search_text."""
+        cap = self.retrieval_limit if limit is None else limit
+        tokens = retrieval_search_tokens(query)
+        normalized = retrieval_search_string(query)
+        if not normalized:
+            return []
+        sql = text(self.search_text_sql(len(tokens)))
+        params: dict[str, object] = {"limit": cap, "normalized": normalized}
+        if tokens:
+            for index, token in enumerate(tokens):
+                params[f"tok{index}"] = f"%{token}%"
+        else:
+            params["normalized"] = f"%{normalized}%"
+        rows = self._timed_fetch(sql, params, search="search_text_candidates")
+        products = self._rows_to_products(rows)
+        if products or not tokens:
+            return products
+        sql = text(self.search_text_sql(0))
+        params = {"limit": cap, "normalized": f"%{normalized}%"}
+        rows = self._timed_fetch(sql, params, search="search_text_candidates_fallback")
+        return self._rows_to_products(rows)
+
+    def _integer_productcode(self, identifier: str) -> int | None:
+        """Parse a query as int4 Productcode. Alphanumeric catalog names are not Productcode."""
+        compact = compact_code(identifier) or productcode_as_text(identifier)
+        if not compact.isdigit():
+            return None
+        try:
+            value = int(compact)
+        except ValueError:
+            return None
+        if value < -2147483648 or value > 2147483647:
+            return None
+        return value
+
+    def _legacy_compact_identifier_blob(self) -> str:
+        def compact_expr(column_sql: str) -> str:
+            return (
+                "replace(replace(replace(upper(coalesce(cast("
+                f"{column_sql} as text), '')), ' ', ''), '-', ''), '/', '')"
+            )
+
+        code_cast = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        return (
+            f"{compact_expr(code_cast)} || {compact_expr(name_sql)} || "
+            f"{compact_expr(desc_sql)} || {compact_expr(desc2_sql)}"
+        )
+
+    def _identifier_search_expr(self) -> str:
+        if self._is_postgres():
+            return _quote(self.identifier_search_column)
+        return self._legacy_compact_identifier_blob()
+
+    def identifier_search_sql(self, token_count: int) -> str:
+        """Candidate SQL for compact Productcode/name/description identifier retrieval."""
+        expr = self._identifier_search_expr()
+        where_parts = [f"{expr} LIKE :tok{index}" for index in range(token_count)]
+        return (
+            f"{self._select_catalog_sql()} "
+            f"WHERE {' AND '.join(where_parts)} "
+            "LIMIT :limit"
+        )
+
+    def lookup_productcode(self, identifier: str, limit: int = 20) -> list[ProductRecord]:
+        if self._is_postgres():
+            code = self._integer_productcode(identifier)
+            if code is None:
+                return []
+            query = text(
+                f"""
+                {self._select_catalog_sql()}
+                WHERE {_quote(self.productcode_column)} = :code
+                LIMIT :limit
+                """
+            )
+            rows = self._timed_fetch(
+                query,
+                {"code": code, "limit": limit},
+                search="lookup_productcode",
+            )
+            return self._rows_to_products(rows)
+        keys = [key for key in part_number_lookup_keys(identifier) if key]
+        if not keys:
+            compact = compact_code(identifier)
+            if compact:
+                keys = [compact]
+        if not keys:
+            return []
+        code_cast = self._productcode_sql()
+        compact_expr = (
+            "replace(replace(replace(lower(coalesce("
+            f"{code_cast}, '')), ' ', ''), '-', ''), '/', '')"
+        )
+        query = text(
+            f"""
+            {self._select_catalog_sql()}
+            WHERE {code_cast} IN :keys
+               OR lower({code_cast}) IN :lower_keys
+               OR {compact_expr} = :compact
+            LIMIT :limit
+            """
+        ).bindparams(bindparam("keys", expanding=True), bindparam("lower_keys", expanding=True))
+        rows = self._timed_fetch(
+            query,
+            {
+                "keys": keys,
+                "lower_keys": [key.lower() for key in keys],
+                "compact": compact_code(identifier),
+                "limit": limit,
+            },
+            search="lookup_productcode",
+        )
+        return self._rows_to_products(rows)
+
+    def explain_search_text_candidates(self, query: str, limit: int | None = None) -> str:
+        """Run EXPLAIN ANALYZE for the candidate retrieval query."""
+        cap = self.retrieval_limit if limit is None else limit
+        tokens = retrieval_search_tokens(query)
+        normalized = retrieval_search_string(query)
+        sql_body = self.search_text_sql(len(tokens) if tokens else 0)
+        params: dict[str, object] = {"limit": cap, "normalized": normalized}
+        if tokens:
+            for index, token in enumerate(tokens):
+                params[f"tok{index}"] = f"%{token}%"
+        else:
+            params["normalized"] = f"%{normalized}%"
+        explain = text(f"EXPLAIN ANALYZE {sql_body}")
+        with self.engine.connect() as connection:
+            rows = connection.execute(explain, params).fetchall()
+        return "\n".join(str(row[0]) for row in rows)
+
+    def check_connection(self) -> bool:
+        try:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+
+    def column_names(self) -> set[str]:
+        """One-shot schema lookup for load_products / verification scripts, not search."""
+        from time import perf_counter
+
+        cached = self._cached_column_names
+        if cached is not None:
+            return cached
+        session = active()
+        t0 = perf_counter()
+        inspector = inspect(self.engine)
+        names = {column["name"] for column in inspector.get_columns(self.table)}
+        self._cached_column_names = names
+        if session is not None:
+            session.add(db_inspect_ms=_ms(perf_counter() - t0), inspect_calls=1)
+        return names
+
+    def load_products(self) -> list[ProductRecord]:
+        session = active()
+        if session is not None:
+            session.load_products_calls += 1
+            session.notes.append("load_products() fetched full productmaster into Python")
+        records: list[ProductRecord] = []
+        for row in self._fetch_rows():
+            product = product_from_postgres_row(
+                productcode=row.get("productcode"),
+                name=row.get("name"),
+                description=row.get("description"),
+                description2=row.get("description2"),
+                row_id=row.get("row_id"),
+                record_type=row.get("record_type"),
+            )
+            if product is not None:
+                records.append(product)
+        return records
+
+    def fetch_sample_rows(self, limit: int = 5) -> list[dict[str, object]]:
+        """Run the verification query: Productcode, name, description, description2 LIMIT n."""
+        table_sql = _quote(self.table)
+        code_sql = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        query = text(
+            f"""
+            SELECT
+                {code_sql} AS productcode,
+                {name_sql} AS name,
+                {desc_sql} AS description,
+                {desc2_sql} AS description2
+            FROM {table_sql}
+            LIMIT :limit
+            """
+        )
+        with self.engine.connect() as connection:
+            return [
+                {
+                    **dict(row),
+                    "productcode": productcode_as_text(row.get("productcode")),
+                }
+                for row in connection.execute(query, {"limit": limit}).mappings()
+            ]
+
+    def fetch_by_productcodes(self, codes: list[str]) -> list[dict[str, object]]:
+        wanted = [str(code).strip() for code in codes if str(code).strip()]
+        if not wanted:
+            return []
+        table_sql = _quote(self.table)
+        code_sql = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        query = text(
+            f"""
+            SELECT
+                {code_sql} AS productcode,
+                {name_sql} AS name,
+                {desc_sql} AS description,
+                {desc2_sql} AS description2
+            FROM {table_sql}
+            WHERE {code_sql} IN :codes
+               OR {name_sql} IN :names
+               OR {desc_sql} IN :descriptions
+               OR {desc2_sql} IN :descriptions2
+            """
+        ).bindparams(
+            bindparam("codes", expanding=True),
+            bindparam("names", expanding=True),
+            bindparam("descriptions", expanding=True),
+            bindparam("descriptions2", expanding=True),
+        )
+        with self.engine.connect() as connection:
+            return [
+                dict(row)
+                for row in connection.execute(
+                    query,
+                    {
+                        "codes": wanted,
+                        "names": wanted,
+                        "descriptions": wanted,
+                        "descriptions2": wanted,
+                    },
+                ).mappings()
+            ]
+
+    def fetch_identifier_candidates(self, query: str, limit: int = 50) -> list[ProductRecord]:
+        """Retrieve Productcode/name hits by compact token evidence, not exact equality."""
+        from matching.productcode import code_tokens, compact_token, is_generic_code_token
+
+        distinctive = [
+            compact_token(token)
+            for token in code_tokens(query)
+            if not is_generic_code_token(token) and len(compact_token(token)) >= 2
+        ]
+        if not distinctive:
+            return []
+        sql = text(self.identifier_search_sql(len(distinctive)))
+        params: dict[str, object] = {"limit": limit}
+        for index, token in enumerate(distinctive):
+            needle = token.lower() if self._is_postgres() else token
+            params[f"tok{index}"] = f"%{needle}%"
+        rows = self._timed_fetch(sql, params, search="fetch_identifier_candidates")
+        return self._rows_to_products(rows)
+
+    def _fetch_rows(self) -> list[dict[str, object]]:
+        columns = self.column_names()
+        table_sql = _quote(self.table)
+        code_cast = self._productcode_sql()
+        code_sql = _quote(self.productcode_column)
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        select_parts = [
+            f"{code_cast} AS productcode",
+            f"{name_sql} AS name",
+            f"{desc_sql} AS description",
+            f"{desc2_sql} AS description2",
+        ]
+        if self.id_column in columns:
+            select_parts.append(f"{_quote(self.id_column)} AS row_id")
+        has_record_type = self.record_type_column in columns
+        if has_record_type:
+            select_parts.append(f"{_quote(self.record_type_column)} AS record_type")
+        where_parts = [
+            f"{code_sql} IS NOT NULL",
+            f"TRIM(CAST({code_sql} AS TEXT)) <> ''",
+            f"TRIM(CAST({code_sql} AS TEXT)) <> '{FAMILY_PRODUCTCODE_PLACEHOLDER}'",
+        ]
+        if has_record_type:
+            where_parts.append(
+                f"LOWER(TRIM(CAST({_quote(self.record_type_column)} AS TEXT))) = '{PRODUCT_RECORD_TYPE}'"
+            )
+        query = text(
+            f"""
+            SELECT {", ".join(select_parts)}
+            FROM {table_sql}
+            WHERE {" AND ".join(where_parts)}
+            """
+        )
+        with self.engine.connect() as connection:
+            return [dict(row) for row in connection.execute(query).mappings()]

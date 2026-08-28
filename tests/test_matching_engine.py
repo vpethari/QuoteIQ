@@ -193,7 +193,7 @@ def test_quote_with_multiple_line_items(matcher: ProductMatcher) -> None:
 
 
 def test_tokenize_and_final_score_helpers() -> None:
-    assert tokenize_description("120V LTG WHIP W/PAULEX") == ["120V", "LIGHTING", "WHIP", "PAULEX"]
+    assert tokenize_description("120V LTG WHIP W/PAULEX") == ["120", "V", "LIGHTING", "WHIP", "PAULEX"]
     assert calculate_exact_score("10/3 MCT", "10/3 MCT") == 100
     assert calculate_fuzzy_score("ABC", "ABC") == 100
     final = calculate_final_score(100, 100, 100, 100)

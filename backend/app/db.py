@@ -19,9 +19,18 @@ SessionLocal: sessionmaker[Session] | None = None
 
 def get_engine() -> Engine:
     global _engine, SessionLocal
+    created = False
     if _engine is None:
-        _engine = create_engine(get_settings().database_url, pool_pre_ping=True)
+        _engine = create_engine(
+            get_settings().database_url, pool_pre_ping=True, pool_recycle=1800
+        )
         SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
+        created = True
+    from matching.timing_diag import active
+
+    session = active()
+    if session is not None:
+        session.note_engine(_engine, created=created)
     return _engine
 
 

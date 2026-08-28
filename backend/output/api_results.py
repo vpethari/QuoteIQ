@@ -5,6 +5,7 @@ from typing import Any
 
 from ai.models import FinalMatchResult
 from matching.models import MatchCandidate, MatchResult
+from output.match_evidence import build_match_evidence
 from output.rows import csv_confidence
 from output.schema import STATUSES_WITH_PART_NUMBER
 from output.pipeline import QuoteProcessResult
@@ -95,6 +96,7 @@ def serialize_process_result(result: QuoteProcessResult) -> dict[str, Any]:
         "match_reason": reason,
         "candidate_count": len(candidates),
         "candidates": candidates,
+        "match_evidence": build_match_evidence(result),
     }
 
 

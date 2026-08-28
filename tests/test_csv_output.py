@@ -265,10 +265,10 @@ def test_complete_pipeline_ai_disabled() -> None:
         assert row["Matched Atkore Part Number"] == ""
         assert row["Confidence"] == "REVIEW"
         assert row["Top Candidates"]
-        assert row["Matching Percentage"] == "100"
+        assert row["Matching Percentage"] == "86"
         assert row["Part Number Match %"] == "N/A"
         assert row["Description Match %"] == "100"
-        assert row["Overall Match %"] == "100"
+        assert row["Overall Match %"] == "86"
         assert row["Requested Part Number"] == ""
 
 

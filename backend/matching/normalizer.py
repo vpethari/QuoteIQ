@@ -5,19 +5,13 @@ import unicodedata
 
 _WHITESPACE = re.compile(r"\s+")
 _PUNCTUATION = re.compile(r"[^\w\s/]+", re.UNICODE)
+_DECIMAL = re.compile(r"(?<![A-Z0-9])\d+\.\d+(?![A-Z0-9])")
 _PN_WRAP = re.compile(r"^[\s\"'`(\[{<]+|[\"'`)\]}>.,;:]+$")
 _AROUND_SEP = re.compile(r"\s*([/\-_.+])\s*")
 _SALSIFY_PREFIX = re.compile(r"^NA1-", re.IGNORECASE)
 _UNICODE_HYPHENS = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")
 
-SYNONYMS: dict[str, str] = {
-    "LTG": "LIGHTING",
-    "LTGS": "LIGHTING",
-    "WHIPS": "WHIP",
-    "CABLES": "CABLE",
-    "MODULES": "MODULE",
-    "SWITCHES": "SWITCH",
-}
+from matching.terminology import TOKEN_SYNONYMS as SYNONYMS
 
 
 def fold_whitespace(value: str | None) -> str:
@@ -44,7 +38,16 @@ def normalize_text(value: str | None) -> str:
         return ""
     text = text.replace("&", " AND ")
     text = _AROUND_SEP.sub(r"\1", text)
+    held: list[str] = []
+
+    def _hold_decimal(match: re.Match[str]) -> str:
+        held.append(match.group(0))
+        return f" DECIMAL{len(held) - 1}DECIMAL "
+
+    text = _DECIMAL.sub(_hold_decimal, text)
     text = _PUNCTUATION.sub(" ", text)
+    for index, original in enumerate(held):
+        text = text.replace(f"DECIMAL{index}DECIMAL", original)
     return _WHITESPACE.sub(" ", text).strip()
 
 
@@ -85,6 +88,32 @@ def part_numbers_equivalent(left: str | None, right: str | None) -> bool:
     a = normalize_part_number(left)
     b = normalize_part_number(right)
     return bool(a) and a == b
+
+
+def part_number_lookup_keys(value: str | None) -> tuple[str, ...]:
+    """Comparison keys for Productcode lookup.
+
+    ``NA1-`` may be added or ignored for matching only. The stored Productcode
+    is never rewritten by this helper.
+    """
+    key = normalize_part_number(value)
+    if not key:
+        return ()
+    keys = {key}
+    if key.startswith("NA1-"):
+        remainder = key[4:]
+        if remainder:
+            keys.add(remainder)
+    else:
+        keys.add(f"NA1-{key}")
+    return tuple(keys)
+
+
+def looks_like_part_number(value: str | None) -> bool:
+    text = fold_whitespace(value)
+    if not text or " " in text:
+        return False
+    return bool(normalize_part_number(text))
 
 
 def canonical_text(value: str | None) -> str:

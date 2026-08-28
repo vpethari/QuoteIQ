@@ -9,6 +9,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 
 from matching.models import QuoteLine
 from matching.normalizer import fold_whitespace
+from matching.productcode import productcode_as_text
 from matching.request_text import extract_quantity_from_text
 from quotes.models import LineItem, QuoteParseError
 from quotes.validation import (
@@ -62,7 +63,7 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
         if is_total_row(values):
             continue
         raw_description = _cell(values, description_idx)
-        description = "" if is_blank(raw_description) else fold_whitespace(str(raw_description))
+        description = "" if is_blank(raw_description) else fold_whitespace(productcode_as_text(raw_description))
         quantity = None
         if quantity_idx is not None:
             quantity = parse_quantity(_cell(values, quantity_idx), excel_row=excel_row)
@@ -72,7 +73,7 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
         if part_idx is not None:
             raw_part = _cell(values, part_idx)
             if not is_blank(raw_part):
-                requested_part = fold_whitespace(str(raw_part)) or None
+                requested_part = fold_whitespace(productcode_as_text(raw_part)) or None
         if not description and not requested_part:
             continue
         items.append(

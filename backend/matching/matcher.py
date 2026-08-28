@@ -15,17 +15,53 @@ from matching.models import (
 from matching.normalizer import (
     canonical_text,
     fold_whitespace,
+    looks_like_part_number,
     normalize_part_number,
+    part_number_lookup_keys,
 )
 from matching.request_text import InterpretedRequest, interpret_customer_text
+from matching.description_normalize import (
+    ABBREV_REASON,
+    abbreviation_evidence,
+    catalog_description_blob,
+    description_retrieval_hit,
+)
+from matching.noise import prepare_product_search_text, strip_quantity_and_noise
+from matching.request_cache import (
+    candidate_cache_key,
+    end_request_cache,
+    get_request_cache,
+    start_request_cache,
+)
+from matching.scoring_prep import prepare_scoring_text
+from matching.productcode import (
+    EXACT_IDENTITY_TYPES,
+    IDENTITY_MATCH_TYPES,
+    identifier_retrieval_hit,
+    is_product_code_query,
+    productcode_as_text,
+)
+from matching.confidence import (
+    cap_confidence_for_decision,
+    competing_productcode_candidates,
+    decide_match_status as decide_confidence_status,
+)
+from matching.selection import prepare_published_result
 from matching.scoring import (
     calculate_score_gap,
+    catalog_text_fields,
     clamp_score,
     descriptions_compatible,
     descriptions_conflict,
     score_pair,
+    score_product_fields,
 )
+from matching.timing_diag import _ms, active, span
+from time import perf_counter
 
+PN_PRODUCTCODE_EXACT = "Exact Productcode match"
+PN_PRODUCTCODE_NORMALIZED = "Normalized Productcode match"
+PN_PRODUCTCODE_NA1 = "Productcode match with NA1 prefix equivalence"
 PN_SALSIFY_EXACT = "Exact Salsify ID match"
 PN_CATALOG_EXACT = "Exact Atkore part number match"
 PN_EXACT_COMPATIBLE = "Exact Atkore part number match and compatible product description."
@@ -50,48 +86,95 @@ class ProductMatcher:
         self,
         products: Sequence[ProductRecord],
         config: MatchingConfig | None = None,
+        *,
+        catalog_search: object | None = None,
     ) -> None:
         self.config = config or MatchingConfig()
+        self.catalog_search = catalog_search
         self.products = [
             product
             for product in products
-            if product.record_type == "product"
-            and product.official_part_number
-            and product.description
+            if product.record_type == "product" and product.product_code
         ]
         self._description_counts: Counter[str] = Counter(
-            canonical_text(product.description) for product in self.products
+            canonical_text(product.description)
+            for product in self.products
+            if product.description
         )
+        self._by_identifier: dict[str, list[ProductRecord]] = defaultdict(list)
         self._by_salsify: dict[str, list[ProductRecord]] = defaultdict(list)
         self._by_official: dict[str, list[ProductRecord]] = defaultdict(list)
         for product in self.products:
+            for key in part_number_lookup_keys(product.product_code):
+                self._by_identifier[key].append(product)
+            if looks_like_part_number(product.name) and (
+                normalize_part_number(product.name) != normalize_part_number(product.product_code)
+            ):
+                for key in part_number_lookup_keys(product.name):
+                    if product not in self._by_identifier[key]:
+                        self._by_identifier[key].append(product)
             salsify_key = normalize_part_number(product.salsify_id)
             official_key = normalize_part_number(product.official_part_number)
             if salsify_key:
                 self._by_salsify[salsify_key].append(product)
             if official_key:
                 self._by_official[official_key].append(product)
+        identifier_keys = tuple(self._by_identifier)
+        self._identifier_keys = identifier_keys
 
     def match_line(self, line: QuoteLine) -> MatchResult:
-        interpreted = interpret_customer_text(
-            line.requested_description,
-            explicit_part_number=line.requested_part_number,
-            salsify_keys=tuple(self._by_salsify),
-            official_keys=tuple(self._by_official),
+        requested_description = productcode_as_text(line.requested_description) or fold_whitespace(
+            line.requested_description
         )
+        requested_part_number = productcode_as_text(line.requested_part_number) or None
+        session = active()
+        started = perf_counter()
+        if session is not None:
+            session.start_line(
+                line_number=len(session.lines) + 1,
+                source_row=line.source_row,
+                description=requested_description,
+            )
+        with span("normalize_ms"):
+            interpreted = interpret_customer_text(
+                requested_description,
+                explicit_part_number=requested_part_number,
+                salsify_keys=tuple(self._by_salsify),
+                official_keys=tuple(self._by_official) + tuple(self._by_identifier),
+            )
         quantity = line.quantity if line.quantity is not None else interpreted.quantity_from_text
         result = self._match_interpreted(
-            raw_description=line.requested_description or "",
+            raw_description=requested_description,
             interpreted=interpreted,
             quantity=quantity,
             source_file=line.source_file,
             source_sheet=line.source_sheet,
             source_row=line.source_row,
         )
-        return self._attach_identity(result, line.requested_description or "", interpreted)
+        result = self._attach_identity(result, requested_description, interpreted)
+        published = prepare_published_result(result, self.config)
+        if session is not None and session.current is not None:
+            session.current.total_ms = _ms(perf_counter() - started)
+            if session.current.candidate_count == 0:
+                session.current.candidate_count = published.candidate_count
+        return published
 
     def match_quote(self, lines: Sequence[QuoteLine]) -> list[MatchResult]:
-        return [self.match_line(line) for line in lines]
+        cache = start_request_cache()
+        try:
+            return [self.match_line(line) for line in lines]
+        finally:
+            session = active()
+            finished = end_request_cache()
+            if session is not None and finished is not None:
+                session.candidate_cache_hits = finished.hits
+                session.candidate_cache_misses = finished.misses
+                session.database_candidate_queries = finished.database_candidate_queries
+                session.notes.append(
+                    f"candidate_cache_hits={finished.hits} "
+                    f"candidate_cache_misses={finished.misses} "
+                    f"database_candidate_queries={finished.database_candidate_queries}"
+                )
 
     def match_description(
         self,
@@ -101,11 +184,16 @@ class ProductMatcher:
         source_sheet: str | None = None,
         source_row: int | None = None,
     ) -> MatchResult:
-        interpreted = interpret_customer_text(
-            requested_description,
-            salsify_keys=tuple(self._by_salsify),
-            official_keys=tuple(self._by_official),
-        )
+        session = active()
+        started = perf_counter()
+        if session is not None:
+            session.start_line(1, source_row, requested_description)
+        with span("normalize_ms"):
+            interpreted = interpret_customer_text(
+                requested_description,
+                salsify_keys=tuple(self._by_salsify),
+                official_keys=tuple(self._by_official) + tuple(self._by_identifier),
+            )
         resolved_qty = quantity if quantity is not None else interpreted.quantity_from_text
         result = self._match_interpreted(
             raw_description=requested_description,
@@ -115,7 +203,13 @@ class ProductMatcher:
             source_sheet=source_sheet,
             source_row=source_row,
         )
-        return self._attach_identity(result, requested_description, interpreted)
+        result = self._attach_identity(result, requested_description, interpreted)
+        published = prepare_published_result(result, self.config)
+        if session is not None and session.current is not None:
+            session.current.total_ms = _ms(perf_counter() - started)
+            if session.current.candidate_count == 0:
+                session.current.candidate_count = published.candidate_count
+        return published
 
     def _match_interpreted(
         self,
@@ -131,7 +225,7 @@ class ProductMatcher:
         source = None
         for identifier in interpreted.lookup_identifiers:
             product, source = self._lookup_product_by_identifier(identifier)
-            if product is not None and source in {"salsify", "catalog"}:
+            if product is not None and source in {"salsify", "catalog", "productcode"}:
                 break
             if source == "ambiguous":
                 break
@@ -139,7 +233,7 @@ class ProductMatcher:
         display_pn = interpreted.lookup_identifiers[0] if interpreted.lookup_identifiers else None
         scoring_description = interpreted.description_text if interpreted.has_description else ""
 
-        if product is not None and source in {"salsify", "catalog"}:
+        if product is not None and source in {"salsify", "catalog", "productcode"}:
             return self._exact_part_number_result(
                 product=product,
                 requested_description=raw_description,
@@ -218,31 +312,175 @@ class ProductMatcher:
             reasons=["No identifier or description candidate could be found."],
         )
 
+    def _attach_abbrev_evidence(
+        self,
+        query: str,
+        product: ProductRecord,
+        identifier_evidence: dict[str, object] | None,
+        field_scores: dict[str, float],
+    ) -> dict[str, object]:
+        evidence = dict(identifier_evidence or {})
+        if float(field_scores.get("productcode") or 0.0) >= 40.0:
+            return evidence
+        terms = abbreviation_evidence(query, catalog_description_blob(product))
+        if not terms:
+            terms = abbreviation_evidence(query, product.description or product.name or "")
+        if terms:
+            evidence["normalized_terms"] = terms
+            evidence["abbrev_reason"] = ABBREV_REASON
+        return evidence
+
+    def _cached_lookup_productcode(
+        self, identifier: str, limit: int | None = None
+    ) -> list[ProductRecord]:
+        cap = self.config.retrieval_candidate_limit if limit is None else limit
+        cache = get_request_cache()
+        key = f"lookup:{cap}:{candidate_cache_key(identifier)}"
+        if cache is not None and key in cache.lookups:
+            return list(cache.lookups[key])
+        found = list(self.catalog_search.lookup_productcode(identifier, limit=cap))
+        if cache is not None:
+            cache.lookups[key] = tuple(found)
+        return found
+
+    def _products_for_query(self, query: str) -> Sequence[ProductRecord]:
+        query = strip_quantity_and_noise(query)
+        cache = get_request_cache()
+        key = candidate_cache_key(query)
+        if cache is not None and key in cache.candidates:
+            cache.hits += 1
+            return list(cache.candidates[key])
+        if cache is not None:
+            cache.misses += 1
+        if self.catalog_search is not None:
+            limit = self.config.retrieval_candidate_limit
+            if cache is not None:
+                cache.database_candidate_queries += 1
+            if is_product_code_query(query):
+                lookups = self._cached_lookup_productcode(query, limit)
+                if lookups:
+                    products = list(lookups)
+                    if cache is not None:
+                        cache.candidates[key] = tuple(products)
+                    return products
+                hits = self.catalog_search.fetch_identifier_candidates(query, limit=limit)
+                if hits:
+                    products = list(hits)
+                    if cache is not None:
+                        cache.candidates[key] = tuple(products)
+                    return products
+            text_limit = self.config.search_text_candidate_limit
+            text_hits = self.catalog_search.search_text_candidates(query, limit=text_limit)
+            if text_hits:
+                products = list(text_hits)
+                if cache is not None:
+                    cache.candidates[key] = tuple(products)
+                return products
+            lookups = self._cached_lookup_productcode(query, limit)
+            products = list(lookups)
+            if cache is not None:
+                cache.candidates[key] = tuple(products)
+            return products
+        if is_product_code_query(query):
+            hits = [product for product in self.products if identifier_retrieval_hit(query, product)]
+            if hits:
+                products = hits
+            else:
+                products = [
+                    product for product in self.products if description_retrieval_hit(query, product)
+                ]
+        else:
+            description_hits = [
+                product for product in self.products if description_retrieval_hit(query, product)
+            ]
+            products = description_hits if description_hits else list(self.products)
+        if cache is not None:
+            cache.candidates[key] = tuple(products)
+        return products
+
     def _score_description_candidates(self, requested_description: str) -> list[MatchCandidate]:
+        cache = get_request_cache()
+        key = candidate_cache_key(requested_description)
+        if cache is not None and key in cache.scored:
+            cache.hits += 1
+            return list(cache.scored[key])
         scored: list[MatchCandidate] = []
-        for product in self.products:
-            breakdown = score_pair(
-                requested_description, product.description or "", self.config
+        query = strip_quantity_and_noise(requested_description)
+        pool = list(self._products_for_query(query))
+        session = active()
+        if session is not None:
+            session.set_line(candidate_count=len(pool))
+        description_counts = self._description_counts
+        prep_cache = cache.prepared_text if cache is not None else {}
+        if self.catalog_search is not None:
+            description_counts = Counter(
+                prepare_scoring_text(product.description, prep_cache).canonical
+                for product in pool
+                if product.description
             )
-            if breakdown.final < self.config.candidate_floor:
+        query_prep = prepare_scoring_text(query, prep_cache)
+        score_started = perf_counter()
+        for product in pool:
+            field_started = perf_counter() if session is not None else None
+            breakdown, field_scores, matched_field, identifier_evidence = score_product_fields(
+                query,
+                product,
+                self.config,
+                prep_cache=prep_cache,
+                query_prep=query_prep,
+            )
+            if session is not None and field_started is not None:
+                session.add(score_fields_ms=_ms(perf_counter() - field_started))
+            loop_started = perf_counter() if session is not None else None
+            identifier_hit = (identifier_evidence or {}).get("match_type") in IDENTITY_MATCH_TYPES
+            if breakdown.final < self.config.candidate_floor and not identifier_hit:
                 continue
-            duplicate = self._description_counts[canonical_text(product.description)] > 1
+            identifier_evidence = self._attach_abbrev_evidence(
+                query, product, identifier_evidence, field_scores
+            )
+            duplicate = bool(
+                product.description
+                and description_counts[prepare_scoring_text(product.description, prep_cache).canonical] > 1
+            )
             candidate = MatchCandidate(
-                official_part_number=product.official_part_number or "",
-                description=product.description or "",
-                salsify_id=product.salsify_id,
+                official_part_number=product.product_code,
+                description=product.description or product.name or "",
+                salsify_id=product.salsify_id or product.product_code,
                 score=breakdown.final,
                 score_percentage=breakdown.final,
                 match_reasons=build_candidate_reasons(
-                    requested_description,
+                    query,
                     product,
                     breakdown,
                     duplicate_description=duplicate,
+                    field_scores=field_scores,
+                    matched_field=matched_field,
+                    identifier_evidence=identifier_evidence,
+                    prep_cache=prep_cache,
+                    query_prep=query_prep,
                 ),
                 breakdown=breakdown,
+                field_scores=field_scores,
+                matched_field=matched_field,
+                identifier_evidence=identifier_evidence,
+                name=product.name,
+                description2=product.description2,
             )
             scored.append(candidate)
-        scored.sort(key=lambda item: (-item.score, item.official_part_number, item.salsify_id))
+            if session is not None and loop_started is not None:
+                session.add(score_loop_ms=_ms(perf_counter() - loop_started))
+        if session is not None:
+            session.add(scoring_ms=_ms(perf_counter() - score_started))
+        scored.sort(
+            key=lambda item: (
+                0 if (item.identifier_evidence or {}).get("match_type") in IDENTITY_MATCH_TYPES else 1,
+                -item.score,
+                item.official_part_number,
+                item.salsify_id,
+            )
+        )
+        if cache is not None:
+            cache.scored[key] = tuple(scored)
         return scored
 
     def _candidate_from_product(
@@ -252,24 +490,41 @@ class ProductMatcher:
         breakdown,
         *,
         extra_reasons: list[str] | None = None,
+        field_scores: dict[str, float] | None = None,
+        matched_field: str | None = None,
+        identifier_evidence: dict[str, object] | None = None,
     ) -> MatchCandidate:
-        duplicate = self._description_counts[canonical_text(product.description)] > 1
+        duplicate = bool(
+            product.description
+            and self._description_counts[canonical_text(product.description)] > 1
+        )
+        identifier_evidence = self._attach_abbrev_evidence(
+            requested_description, product, identifier_evidence, field_scores or {}
+        )
         reasons = build_candidate_reasons(
             requested_description,
             product,
             breakdown,
             duplicate_description=duplicate,
+            field_scores=field_scores,
+            matched_field=matched_field,
+            identifier_evidence=identifier_evidence,
         )
         if extra_reasons:
             reasons = list(dict.fromkeys([*extra_reasons, *reasons]))
         return MatchCandidate(
-            official_part_number=product.official_part_number or "",
-            description=product.description or "",
-            salsify_id=product.salsify_id,
+            official_part_number=product.product_code,
+            description=product.description or product.name or "",
+            salsify_id=product.salsify_id or product.product_code,
             score=breakdown.final,
             score_percentage=breakdown.final,
             match_reasons=reasons,
             breakdown=breakdown,
+            field_scores=field_scores or {},
+            matched_field=matched_field,
+            identifier_evidence=identifier_evidence or {},
+            name=product.name,
+            description2=product.description2,
         )
 
     def _match_description_only(
@@ -289,6 +544,7 @@ class ProductMatcher:
     ) -> MatchResult:
         query = description_for_scoring if description_for_scoring is not None else requested_description
         scored = self._score_description_candidates(query) if fold_whitespace(query) else []
+        decision_started = perf_counter()
         candidates = scored[: self.config.max_candidates]
         scores = [item.score for item in scored]
         top_score, second_score, score_gap = calculate_score_gap(scores)
@@ -298,6 +554,11 @@ class ProductMatcher:
             item
             for item in scored
             if item.breakdown is not None and item.breakdown.exact >= 100.0
+        ]
+        identifier_exact = [
+            item
+            for item in scored
+            if (item.identifier_evidence or {}).get("match_type") in EXACT_IDENTITY_TYPES
         ]
         duplicate_top = False
         if candidates:
@@ -309,7 +570,28 @@ class ProductMatcher:
                 same_desc[0].score - same_desc[-1].score
             ) <= self.config.score_tie_epsilon
 
-        exact_unique = len(exact_group) == 1
+        identifier_led = bool(
+            candidates
+            and (candidates[0].identifier_evidence or {}).get("match_type") in IDENTITY_MATCH_TYPES
+        )
+        ident_type = str((candidates[0].identifier_evidence or {}).get("match_type") or "none") if candidates else "none"
+        ident_source = (candidates[0].identifier_evidence or {}).get("source_field") if candidates else None
+        ident_exact = ident_type in EXACT_IDENTITY_TYPES and ident_source in {"productcode", "name"}
+        competing_productcodes = competing_productcode_candidates(list(candidates)) or bool(
+            identifier_led
+            and ident_source in {"productcode", "name"}
+            and len(candidates) >= 2
+            and second_score is not None
+            and (score_gap is None or score_gap < self.config.min_score_gap)
+            and candidates[0].official_part_number != candidates[1].official_part_number
+        )
+        exact_unique = (
+            (len(exact_group) == 1 or (len(identifier_exact) == 1 and ident_exact))
+            and not competing_productcodes
+        )
+        numeric_conflict = bool(
+            candidates and (candidates[0].identifier_evidence or {}).get("numeric_conflict")
+        )
         status = decide_match_status(
             top_score=top_score,
             second_score=second_score,
@@ -318,11 +600,21 @@ class ProductMatcher:
             duplicate_top=duplicate_top,
             candidate_count=len(candidates),
             config=self.config,
+            ident_type=ident_type,
+            competing_productcodes=competing_productcodes,
+            numeric_conflict=numeric_conflict,
         )
+        if ident_type == "partial" and status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}:
+            status = MatchStatus.REVIEW_REQUIRED
+        if status == MatchStatus.NO_MATCH and identifier_led:
+            status = MatchStatus.REVIEW_REQUIRED
         if force_review and status != MatchStatus.NO_MATCH:
+            status = MatchStatus.REVIEW_REQUIRED
+        if competing_productcodes and status != MatchStatus.NO_MATCH:
             status = MatchStatus.REVIEW_REQUIRED
 
         matched_part = matched_description = matched_salsify = None
+        winner_scores: dict[str, float] = dict(candidates[0].field_scores) if candidates else {}
         if status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE} and candidates:
             winner = candidates[0]
             matched_part = winner.official_part_number
@@ -343,7 +635,10 @@ class ProductMatcher:
             min_match_threshold=self.config.min_match_threshold,
             candidate_count=len(candidates),
         )
-        if status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}:
+        if competing_productcodes:
+            result_reasons.insert(0, "Multiple possible Productcode candidates")
+            result_reasons.insert(0, "Multiple possible Productcode matches")
+        elif status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}:
             result_reasons.insert(0, DESC_UNIQUE)
         elif status == MatchStatus.REVIEW_REQUIRED and duplicate_top:
             result_reasons.insert(0, DESC_AMBIGUOUS)
@@ -352,21 +647,52 @@ class ProductMatcher:
         if candidates:
             result_reasons.extend(candidates[0].match_reasons[:4])
             result_reasons = list(dict.fromkeys(result_reasons))
+            evidence = candidates[0].identifier_evidence or {}
+            productcode_score = float((candidates[0].field_scores or {}).get("productcode") or 0.0)
+            if competing_productcodes:
+                result_reasons.insert(0, "Multiple possible Productcode matches")
+            elif evidence.get("match_type") == "partial" and productcode_score > 0:
+                result_reasons.insert(0, str(evidence.get("headline") or "Partial Productcode / Name Match"))
+                tokens = evidence.get("matching_tokens") or []
+                if tokens:
+                    result_reasons.insert(1, "Matching tokens: " + ", ".join(str(item) for item in tokens))
+            elif evidence.get("match_type") in EXACT_IDENTITY_TYPES and productcode_score > 0:
+                result_reasons.insert(0, str(evidence.get("headline") or "Exact Productcode Match"))
+            result_reasons = list(dict.fromkeys(result_reasons))
 
         description_score = matching_percentage if has_description_signal else None
         description_match = bool(
             has_description_signal
             and candidates
+            and not ident_exact
             and (
                 (candidates[0].breakdown is not None and candidates[0].breakdown.exact >= 100.0)
-                or top_score >= self.config.high_confidence_min
+                or (
+                    float((candidates[0].field_scores or {}).get("description") or 0.0) >= 70.0
+                    and not identifier_led
+                )
             )
         )
-        overall = self._combined_overall(part_number_match_score, description_score)
-        if status == MatchStatus.NO_MATCH:
+        overall = matching_percentage
+        if part_number_match_score is not None:
+            overall = self._combined_overall(part_number_match_score, description_score)
+        overall = cap_confidence_for_decision(
+            overall,
+            status=status,
+            competing=competing_productcodes,
+            config=self.config,
+        )
+        if status == MatchStatus.NO_MATCH and not candidates:
             overall = 0.0
 
-        return MatchResult(
+        breakdown_payload = self._breakdown_dict(
+            winner_scores,
+            overall,
+            "; ".join(result_reasons[:3]) if result_reasons else "",
+            identifier_evidence=candidates[0].identifier_evidence if candidates else None,
+        )
+
+        result = MatchResult(
             source_file=source_file,
             source_sheet=source_sheet,
             source_row=source_row,
@@ -385,30 +711,99 @@ class ProductMatcher:
             second_score=second_score,
             score_gap=score_gap,
             requested_part_number=requested_part_number,
-            part_number_match_score=part_number_match_score,
+            part_number_match_score=100.0 if ident_exact else part_number_match_score,
             description_match_score=description_score,
             overall_match_score=overall,
-            part_number_match=False,
+            part_number_match=bool(ident_exact),
             description_match=description_match,
+            match_breakdown=breakdown_payload,
         )
+        session = active()
+        if session is not None:
+            session.add(decision_ms=_ms(perf_counter() - decision_started))
+        return result
 
     def _lookup_product_by_identifier(
         self, requested_part_number: str
     ) -> tuple[ProductRecord | None, str | None]:
-        key = normalize_part_number(requested_part_number)
-        if not key:
-            return None, None
-        salsify_hits = self._by_salsify.get(key, [])
-        if len(salsify_hits) == 1:
-            return salsify_hits[0], "salsify"
-        if len(salsify_hits) > 1:
+        seen: list[ProductRecord] = []
+        for key in part_number_lookup_keys(requested_part_number):
+            for product in self._by_identifier.get(key, []):
+                if product not in seen:
+                    seen.append(product)
+        unique = list(dict.fromkeys(seen))
+        if len(unique) == 1:
+            return unique[0], "productcode"
+        if len(unique) > 1:
             return None, "ambiguous"
-        official_hits = self._by_official.get(key, [])
-        if len(official_hits) == 1:
-            return official_hits[0], "catalog"
-        if len(official_hits) > 1:
-            return None, "ambiguous"
+        if self.catalog_search is not None:
+            found = self._cached_lookup_productcode(requested_part_number, limit=20)
+            unique = list(dict.fromkeys(found))
+            if len(unique) == 1:
+                return unique[0], "productcode"
+            if len(unique) > 1:
+                return None, "ambiguous"
         return None, None
+
+    def _productcode_reason(self, identifier: str, product: ProductRecord) -> str:
+        customer = normalize_part_number(identifier)
+        salsify = normalize_part_number(product.salsify_id)
+        official = normalize_part_number(product.official_part_number)
+        if salsify and official and salsify != official:
+            if customer == salsify:
+                return PN_SALSIFY_EXACT
+            if customer == official:
+                return PN_CATALOG_EXACT
+            if customer in part_number_lookup_keys(product.salsify_id):
+                return PN_SALSIFY_EXACT
+            return PN_CATALOG_EXACT
+        stored = official or salsify
+        if customer == stored:
+            return PN_PRODUCTCODE_EXACT
+        if customer in part_number_lookup_keys(product.product_code):
+            customer_na1 = customer.startswith("NA1-")
+            stored_na1 = stored.startswith("NA1-")
+            if customer_na1 != stored_na1:
+                return PN_PRODUCTCODE_NA1
+            return PN_PRODUCTCODE_NORMALIZED
+        return PN_PRODUCTCODE_NORMALIZED
+
+    def _breakdown_dict(
+        self,
+        field_scores: dict[str, float] | None,
+        overall: float,
+        match_reason: str,
+        identifier_evidence: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        scores = field_scores or {}
+        evidence = identifier_evidence or {}
+        payload: dict[str, object] = {
+            "productcode_score": round(float(scores.get("productcode", 0.0)), 4),
+            "name_score": round(float(scores.get("name", 0.0)), 4),
+            "description_score": round(float(scores.get("description", 0.0)), 4),
+            "description2_score": round(float(scores.get("description2", 0.0)), 4),
+            "overall_score": round(float(overall or 0.0), 4),
+            "match_reason": match_reason,
+            "numeric_unit_score": round(float(evidence.get("numeric_unit_score") or 0.0), 4),
+            "token_coverage_score": round(float(evidence.get("token_coverage_score") or 0.0), 4),
+            "numeric_conflict": bool(evidence.get("numeric_conflict")),
+            "productcode_match_type": evidence.get("match_type") or evidence.get("productcode_match_type") or "none",
+            "similarity_score": round(float(evidence.get("similarity_score") or overall or 0.0), 4),
+        }
+        if evidence:
+            payload["identifier_match_type"] = evidence.get("match_type") or ""
+            payload["matching_tokens"] = list(evidence.get("matching_tokens") or [])
+            payload["additional_catalog_tokens"] = list(evidence.get("additional_catalog_tokens") or [])
+            payload["identifier_headline"] = evidence.get("headline") or ""
+            if evidence.get("normalized_terms"):
+                payload["normalized_terms"] = list(evidence.get("normalized_terms") or [])
+                payload["abbrev_reason"] = evidence.get("abbrev_reason") or ABBREV_REASON
+            if evidence.get("unit_evidence"):
+                payload["unit_evidence"] = dict(evidence.get("unit_evidence") or {})
+                payload["voltage_evidence"] = list(
+                    (evidence.get("unit_evidence") or {}).get("lines") or []
+                )
+        return payload
 
     def _exact_part_number_result(
         self,
@@ -423,27 +818,67 @@ class ProductMatcher:
         match_source: str,
         description_for_scoring: str = "",
     ) -> MatchResult:
-        scoring_query = fold_whitespace(description_for_scoring)
+        scoring_query = strip_quantity_and_noise(fold_whitespace(description_for_scoring))
         description_blank = not scoring_query
-        breakdown = score_pair(scoring_query or "", product.description or "", self.config)
-        if description_blank:
-            compatible = True
-            conflict = False
-            description_score = None
-        else:
-            compatible = descriptions_compatible(
-                scoring_query, product.description or "", breakdown, self.config
+        with span("scoring_ms"):
+            scoring_text = scoring_query or requested_part_number or requested_description
+            req_cache = get_request_cache()
+            prep_cache = req_cache.prepared_text if req_cache is not None else {}
+            query_prep = prepare_scoring_text(scoring_text, prep_cache)
+            field_breakdown, field_scores, matched_field, identifier_evidence = score_product_fields(
+                scoring_text,
+                product,
+                self.config,
+                prep_cache=prep_cache,
+                query_prep=query_prep,
             )
-            conflict = descriptions_conflict(
-                scoring_query, product.description or "", breakdown, self.config
-            )
-            description_score = clamp_score(breakdown.final)
-        identity_reason = PN_SALSIFY_EXACT if match_source == "salsify" else PN_CATALOG_EXACT
+            field_scores = {
+                **field_scores,
+                "productcode": 100.0,
+            }
+            if description_blank:
+                compatible = True
+                conflict = False
+                description_score = None
+                breakdown = field_breakdown
+            else:
+                text_targets = [
+                    value
+                    for key, value in catalog_text_fields(product).items()
+                    if key != "productcode" and value
+                ]
+                if not text_targets:
+                    text_targets = [product.product_code]
+                best_target = text_targets[0]
+                desc_prep = prepare_scoring_text(scoring_query, prep_cache)
+                breakdown = score_pair(
+                    scoring_query, best_target, self.config, prep_cache=prep_cache, query_prep=desc_prep
+                )
+                for target in text_targets[1:]:
+                    candidate_breakdown = score_pair(
+                        scoring_query, target, self.config, prep_cache=prep_cache, query_prep=desc_prep
+                    )
+                    if candidate_breakdown.final > breakdown.final:
+                        breakdown = candidate_breakdown
+                        best_target = target
+                compatible = descriptions_compatible(
+                    scoring_query, best_target, breakdown, self.config
+                )
+                conflict = descriptions_conflict(
+                    scoring_query, best_target, breakdown, self.config
+                )
+                description_score = clamp_score(breakdown.final)
+        identity_reason = self._productcode_reason(requested_part_number, product)
+        if match_source == "salsify" and product.salsify_id != product.official_part_number:
+            identity_reason = PN_SALSIFY_EXACT
         pn_candidate = self._candidate_from_product(
             scoring_query or requested_description,
             product,
             breakdown,
             extra_reasons=[identity_reason],
+            field_scores=field_scores,
+            matched_field=matched_field or "productcode",
+            identifier_evidence=identifier_evidence,
         )
         pn_candidate.score = 100.0
         pn_candidate.score_percentage = 100.0
@@ -452,8 +887,9 @@ class ProductMatcher:
             description_candidates = [
                 item
                 for item in self._score_description_candidates(scoring_query)
-                if item.salsify_id != product.salsify_id
+                if item.official_part_number != product.product_code
             ]
+        decision_started = perf_counter()
         if conflict or not compatible:
             status = MatchStatus.REVIEW_REQUIRED
             matched_part = matched_description = matched_salsify = None
@@ -462,22 +898,26 @@ class ProductMatcher:
             candidates = [pn_candidate, *description_candidates][: self.config.max_candidates]
         else:
             status = MatchStatus.EXACT_MATCH
-            matched_part = product.official_part_number
-            matched_description = product.description
-            matched_salsify = product.salsify_id
+            matched_part = product.product_code
+            matched_description = product.description or product.name
+            matched_salsify = product.salsify_id or product.product_code
             overall = self._combined_overall(100.0, description_score)
             if description_blank:
                 reasons = [identity_reason]
-            elif match_source == "salsify":
-                reasons = [PN_SALSIFY_EXACT]
+            elif (product.salsify_id or "") != (product.official_part_number or ""):
+                reasons = (
+                    [PN_SALSIFY_EXACT]
+                    if identity_reason == PN_SALSIFY_EXACT
+                    else [PN_EXACT_COMPATIBLE]
+                )
             else:
-                reasons = [PN_EXACT_COMPATIBLE]
+                reasons = [identity_reason, "Compatible name/description evidence"]
             candidates = [pn_candidate]
 
         scores = [item.score for item in candidates]
         top_score, second_score, score_gap = calculate_score_gap(scores)
         reasons = list(dict.fromkeys([*reasons, *pn_candidate.match_reasons[:4]]))
-        return MatchResult(
+        result = MatchResult(
             source_file=source_file,
             source_sheet=source_sheet,
             source_row=source_row,
@@ -501,7 +941,19 @@ class ProductMatcher:
             overall_match_score=overall,
             part_number_match=True,
             description_match=bool(not description_blank and compatible and not conflict),
+            match_breakdown=self._breakdown_dict(
+                field_scores,
+                overall,
+                "; ".join(reasons[:3]),
+                identifier_evidence=pn_candidate.identifier_evidence,
+            ),
         )
+        session = active()
+        if session is not None:
+            session.add(decision_ms=_ms(perf_counter() - decision_started))
+            if session.current is not None and session.current.candidate_count == 0:
+                session.current.candidate_count = 1
+        return result
 
     def _combined_overall(
         self, part_number_score: float | None, description_score: float | None
@@ -554,6 +1006,7 @@ class ProductMatcher:
             overall_match_score=0.0,
             part_number_match=False,
             description_match=False,
+            match_breakdown=self._breakdown_dict(None, 0.0, "; ".join(reasons[:3])),
         )
 
     def _attach_identity(
@@ -569,6 +1022,10 @@ class ProductMatcher:
         result.detected_part_number = (
             interpreted.extracted_catalog_numbers[0] if interpreted.extracted_catalog_numbers else None
         )
+        prep = prepare_product_search_text(raw_description)
+        breakdown = dict(result.match_breakdown or {})
+        breakdown["search_normalization"] = prep.as_debug_dict()
+        result.match_breakdown = breakdown
         return result
 
 
@@ -581,28 +1038,22 @@ def decide_match_status(
     duplicate_top: bool,
     candidate_count: int,
     config: MatchingConfig,
+    ident_type: str = "none",
+    competing_productcodes: bool = False,
+    numeric_conflict: bool = False,
 ) -> MatchStatus:
-    if candidate_count == 0 or top_score < config.min_match_threshold:
-        return MatchStatus.NO_MATCH
-
-    tied = (
-        duplicate_top
-        or score_gap is None
-        or score_gap <= config.score_tie_epsilon
-        or (second_score is not None and score_gap < config.min_score_gap)
+    return decide_confidence_status(
+        top_score=top_score,
+        second_score=second_score,
+        score_gap=score_gap,
+        exact_unique=exact_unique,
+        duplicate_top=duplicate_top,
+        candidate_count=candidate_count,
+        config=config,
+        ident_type=ident_type,
+        competing_productcodes=competing_productcodes,
+        numeric_conflict=numeric_conflict,
     )
-
-    if exact_unique and top_score >= 99.0 and not duplicate_top:
-        if score_gap is None or score_gap > config.score_tie_epsilon:
-            return MatchStatus.EXACT_MATCH
-
-    if tied:
-        return MatchStatus.REVIEW_REQUIRED
-
-    if top_score >= config.high_confidence_min and not duplicate_top:
-        return MatchStatus.HIGH_CONFIDENCE
-
-    return MatchStatus.REVIEW_REQUIRED
 
 
 def match_quote(

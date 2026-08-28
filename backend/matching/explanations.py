@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from matching.attributes import extract_attributes
-from matching.models import MatchCandidate, ProductRecord, ScoreBreakdown
-from matching.normalizer import canonical_text, normalize_text
-from matching.tokenizer import tokenize_description
+from matching.description_normalize import catalog_unit_blob
+from matching.models import ProductRecord, ScoreBreakdown
+from matching.terminology import NORMALIZED_DESCRIPTION_REASON
+from matching.units import compare_extracted_units, extract_amperages, extract_dimensions, extract_voltages
+from matching.scoring_prep import PreparedText, prepare_scoring_text
 
 
 def build_candidate_reasons(
@@ -12,13 +13,51 @@ def build_candidate_reasons(
     breakdown: ScoreBreakdown,
     *,
     duplicate_description: bool,
+    field_scores: dict[str, float] | None = None,
+    matched_field: str | None = None,
+    identifier_evidence: dict[str, object] | None = None,
+    prep_cache: dict[str, PreparedText] | None = None,
+    query_prep: PreparedText | None = None,
 ) -> list[str]:
     reasons: list[str] = []
     description = product.description or ""
-    query_norm = normalize_text(query)
-    desc_norm = normalize_text(description)
-    query_canon = canonical_text(query)
-    desc_canon = canonical_text(description)
+    cache = prep_cache if prep_cache is not None else {}
+    prepared_query = query_prep or prepare_scoring_text(query, cache)
+    prepared_desc = prepare_scoring_text(description, cache)
+    query_norm = prepared_query.normalized
+    desc_norm = prepared_desc.normalized
+    scores = field_scores or {}
+    evidence = identifier_evidence or {}
+
+    if evidence.get("headline") and float(scores.get("productcode") or evidence.get("score") or 0) > 0:
+        reasons.append(str(evidence["headline"]))
+    if evidence.get("matching_tokens") and float(scores.get("productcode") or evidence.get("score") or 0) > 0:
+        reasons.append(
+            "Matching tokens: " + ", ".join(str(item) for item in evidence["matching_tokens"])
+        )
+    if evidence.get("normalized_terms") and float(scores.get("productcode") or 0) < 40:
+        reasons.append(str(evidence.get("abbrev_reason") or NORMALIZED_DESCRIPTION_REASON))
+        reasons.append("Normalized terms: " + "; ".join(str(item) for item in evidence["normalized_terms"]))
+
+    if matched_field:
+        label = {
+            "productcode": "Productcode",
+            "name": "name",
+            "description": "description",
+            "description2": "description2",
+        }.get(matched_field, matched_field)
+        reasons.append(f"Strongest text evidence from {label}")
+
+    if scores:
+        reasons.append(
+            "Productcode match: {productcode:.0f}; Name match: {name:.0f}; "
+            "Description match: {description:.0f}; Description2 match: {description2:.0f}".format(
+                productcode=scores.get("productcode", 0.0),
+                name=scores.get("name", 0.0),
+                description=scores.get("description", 0.0),
+                description2=scores.get("description2", 0.0),
+            )
+        )
 
     if breakdown.exact >= 100.0:
         if query_norm == desc_norm:
@@ -30,14 +69,25 @@ def build_candidate_reasons(
     if duplicate_description:
         reasons.append("Multiple Atkore products have the same description")
 
-    query_attrs = extract_attributes(query)
-    product_attrs = extract_attributes(description)
+    query_attrs = prepared_query.attributes
+    product_attrs = prepared_desc.attributes
     shared = query_attrs & product_attrs
     voltages = sorted(
         item.partition(":")[2] for item in shared if item.startswith("voltage:")
     )
     for voltage in voltages:
         reasons.append(f"Voltage matched: {voltage}")
+    catalog_blob = catalog_unit_blob(product) or description
+    unit_cmp = compare_extracted_units(
+        prepared_query.volts,
+        prepared_query.dims,
+        extract_voltages(catalog_blob),
+        extract_dimensions(catalog_blob),
+        prepared_query.amps,
+        extract_amperages(catalog_blob),
+    )
+    for line in unit_cmp.lines:
+        reasons.append(line)
 
     phrases = sorted(
         item.partition(":")[2] for item in shared if item.startswith("phrase:")
@@ -59,7 +109,7 @@ def build_candidate_reasons(
         reasons.append(f"Size matched: {size}")
 
     if breakdown.token > 0:
-        overlap = sorted(set(tokenize_description(query)) & set(tokenize_description(description)))
+        overlap = sorted(prepared_query.token_set & prepared_desc.token_set)
         if overlap and breakdown.exact < 100.0:
             preview = ", ".join(overlap[:6])
             reasons.append(f"Shared tokens: {preview}")

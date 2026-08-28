@@ -140,7 +140,8 @@ def test_no_part_number_duplicate_description(matcher: ProductMatcher) -> None:
     assert result.requested_part_number is None
     assert result.part_number_match_score is None
     assert result.description_match_score == 100
-    assert result.overall_match_score == 100
+    assert result.overall_match_score is not None
+    assert result.overall_match_score <= 86
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
     assert result.matched_part_number is None
     assert {item.official_part_number for item in result.candidates} >= {
@@ -242,7 +243,8 @@ def test_current_inputfile_still_review_required(matcher: ProductMatcher) -> Non
     assert {item.official_part_number for item in cable.candidates} >= {"2LA", "2LB", "2LC"}
     assert {item.official_part_number for item in switch.candidates} >= {"1SA", "1SC"}
     assert whip.description_match_score == 100
-    assert whip.overall_match_score == 100
+    assert whip.overall_match_score is not None
+    assert whip.overall_match_score <= 86
 
 
 def test_ai_cannot_invent_part_number(matcher: ProductMatcher, catalog_records: list[ProductRecord]) -> None:

@@ -47,6 +47,18 @@ def validate_ai_selection(
         for item in catalog
         if item.record_type == "product" and item.official_part_number
     }
+    if not approved_parts:
+        approved_parts = set(candidate_by_pn)
+        product_by_pn = {
+            item.official_part_number: ProductRecord(
+                salsify_id=item.salsify_id,
+                official_part_number=item.official_part_number,
+                description=item.description,
+                record_type="product",
+            )
+            for item in candidates
+            if item.official_part_number
+        }
 
     selected = result.selected_part_number
     if selected is None:

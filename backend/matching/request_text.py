@@ -3,24 +3,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from matching.noise import extract_quantity_from_text, strip_quantity_and_noise
 from matching.normalizer import fold_whitespace, normalize_part_number
 
 _SALSIFY_IN_TEXT = re.compile(
     r"(?<![A-Za-z0-9])NA1-[A-Za-z0-9]+(?:[-+/_.][A-Za-z0-9]+)*",
     re.IGNORECASE,
-)
-_QTY_PATTERNS = (
-    re.compile(r"(?i)\bneed\s+(\d+)\s*[-–]\s*"),
-    re.compile(r"(?i)\bneed\s+(\d+)\b"),
-    re.compile(r"(?i)\bplease\s+provide\s+(\d+)\b"),
-    re.compile(r"(?i)\bprovide\s+(\d+)\b"),
-    re.compile(r"(?i)\bquote\s+(\d+)\b"),
-    re.compile(r"(?i)\b(?:qty|quantity)\s*[:=]?\s*(\d+)\b"),
-    re.compile(r"(?i)\b(\d+)\s+(?:pcs|pieces|ea|each)\b"),
-    re.compile(r"(?i)\b(\d+)\s+of\b"),
-)
-_BOILERPLATE = re.compile(
-    r"(?i)\b(please|provide|need|quote|of|pcs|pieces|ea|each|qty|quantity)\b"
 )
 _SEPARATORS = re.compile(r"[\s,;:]+")
 
@@ -35,23 +23,6 @@ class InterpretedRequest:
     has_description: bool = False
     extracted_salsify_ids: tuple[str, ...] = ()
     extracted_catalog_numbers: tuple[str, ...] = ()
-
-
-def extract_quantity_from_text(raw_text: str | None) -> int | float | None:
-    text = fold_whitespace(raw_text)
-    if not text:
-        return None
-    for pattern in _QTY_PATTERNS:
-        match = pattern.search(text)
-        if not match:
-            continue
-        number = int(match.group(1))
-        start, end = match.span(1)
-        window = text[max(0, start - 1) : min(len(text), end + 2)]
-        if re.search(r"\d+V", window, re.IGNORECASE) or "/" in window:
-            continue
-        return number
-    return None
 
 
 def interpret_customer_text(
@@ -142,9 +113,5 @@ def _mark(occupied: list[bool], start: int, end: int) -> None:
 
 
 def _description_from_remainder(masked: str) -> str:
-    without_qty = masked
-    for pattern in _QTY_PATTERNS:
-        without_qty = pattern.sub(" ", without_qty)
-    without_qty = _BOILERPLATE.sub(" ", without_qty)
-    cleaned = _SEPARATORS.sub(" ", without_qty).strip(" -/,.")
-    return fold_whitespace(cleaned)
+    cleaned = _SEPARATORS.sub(" ", masked).strip(" -/,.")
+    return strip_quantity_and_noise(cleaned)
