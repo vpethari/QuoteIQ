@@ -30,6 +30,8 @@ Vite proxies `/api/*` to http://127.0.0.1:8000. Leave `VITE_API_BASE_URL` empty 
 
 Copy `.env.example` to `.env` in the repository root if you need to override defaults. See comments in `.env.example`. Azure OpenAI variables may stay blank.
 
+For local pytest, `CATALOG_SOURCE=excel` is set automatically so unit tests do not require PostgreSQL. Runtime matching in the API uses PostgreSQL (`CATALOG_SOURCE=postgresql`, table `productmaster`) and `Productcode` as the matched part number. The Excel catalog is not loaded during normal matching.
+
 ## Process a quote
 
 1. Open http://localhost:5173
