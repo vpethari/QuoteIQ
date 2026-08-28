@@ -49,9 +49,6 @@ export function Header({ onGetStarted }: Props) {
             <a href="#resources" onClick={placeholder}>
               Resources
             </a>
-            <a href="#about" onClick={placeholder}>
-              About
-            </a>
           </div>
           <div className="nav-auth">
             <a href="#login" className="nav-login" onClick={placeholder}>

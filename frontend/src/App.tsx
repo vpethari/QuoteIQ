@@ -8,11 +8,27 @@ import { ProcessingState } from "./components/ProcessingState";
 import { ResultsDashboard } from "./components/ResultsDashboard";
 import { ResultsTable } from "./components/ResultsTable";
 import { UploadCard } from "./components/UploadCard";
-import { ApiError, downloadBlob, processQuote, processQuoteCsv } from "./services/api";
-import type { QuoteProcessResponse } from "./types/quote";
+import { ApiError, downloadBlob, processQuote, processQuoteCsv, selectQuoteMatch } from "./services/api";
+import type { QuoteMatchResult, QuoteProcessResponse } from "./types/quote";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function summarize(results: QuoteMatchResult[]): QuoteProcessResponse["summary"] {
+  let matched = 0;
+  let review = 0;
+  let noMatch = 0;
+  for (const row of results) {
+    if (row.match_status === "REVIEW_REQUIRED") {
+      review += 1;
+    } else if (row.match_status === "NO_MATCH") {
+      noMatch += 1;
+    } else {
+      matched += 1;
+    }
+  }
+  return { total: results.length, matched, review_required: review, no_match: noMatch };
 }
 
 export default function App() {
@@ -22,6 +38,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<QuoteProcessResponse | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [selectingIndex, setSelectingIndex] = useState<number | null>(null);
 
   async function onProcess() {
     if (!selectedFile || loading) {
@@ -62,6 +79,36 @@ export default function App() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onSelectCandidate(index: number, row: QuoteMatchResult, productcode: string) {
+    if (selectingIndex !== null) {
+      return;
+    }
+    setSelectingIndex(index);
+    setError(null);
+    try {
+      const updated = await selectQuoteMatch({
+        quote_line_id: row.quote_line_id || `${row.source_row ?? index}|${row.requested_description}`,
+        productcode,
+        result: row,
+      });
+      setResults((current) => {
+        if (!current) {
+          return current;
+        }
+        const nextResults = current.results.map((item, itemIndex) => (itemIndex === index ? updated : item));
+        return { summary: summarize(nextResults), results: nextResults };
+      });
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to save the selected product. Please try again.",
+      );
+    } finally {
+      setSelectingIndex(null);
     }
   }
 
@@ -106,6 +153,10 @@ export default function App() {
               <ResultsTable
                 results={results.results}
                 expandedRows={expandedRows}
+                selectingIndex={selectingIndex}
+                onSelectCandidate={(index, row, productcode) => {
+                  void onSelectCandidate(index, row, productcode);
+                }}
                 onToggle={(index) => {
                   setExpandedRows((current) => {
                     const next = new Set(current);

@@ -1,4 +1,4 @@
-import type { QuoteProcessResponse } from "../types/quote";
+import type { QuoteMatchResult, QuoteProcessResponse } from "../types/quote";
 
 export class ApiError extends Error {
   status: number;
@@ -107,6 +107,31 @@ export async function processQuoteCsv(file: File, useAI: boolean): Promise<Blob>
     throw new ApiError(await readError(response), response.status);
   }
   return response.blob();
+}
+
+export async function selectQuoteMatch(payload: {
+  quote_line_id: string;
+  productcode: string;
+  result: QuoteMatchResult;
+}): Promise<QuoteMatchResult> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl("/api/quote/match/select"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new ApiError(friendlyMessage(0, ""), 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(await readError(response), response.status);
+  }
+  try {
+    return (await response.json()) as QuoteMatchResult;
+  } catch {
+    throw new ApiError("Unable to save the selected product. Please try again.", response.status);
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

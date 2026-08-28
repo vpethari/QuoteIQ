@@ -1,8 +1,8 @@
 import { Fragment } from "react";
 import {
-  formatOptionalPercent,
+  displayedProductcode,
   formatQuantity,
-  officialPartNumber,
+  matchWhyHeadline,
   overallPercent,
   percentTone,
   statusBadge,
@@ -16,10 +16,14 @@ export function ResultsTable({
   results,
   expandedRows,
   onToggle,
+  onSelectCandidate,
+  selectingIndex,
 }: {
   results: QuoteMatchResult[];
   expandedRows: Set<number>;
   onToggle: (index: number) => void;
+  onSelectCandidate?: (index: number, row: QuoteMatchResult, productcode: string) => void;
+  selectingIndex?: number | null;
 }) {
   return (
     <section className="table-card" aria-labelledby="table-heading">
@@ -33,16 +37,15 @@ export function ResultsTable({
               <th>
                 <span className="th-with-info">
                   Matched Part Number
-                  <span className="info-tip" title="Complete Salsify ID, including the NA1- prefix">
+                  <span className="info-tip" title="PostgreSQL Productcode as text. Numeric codes are never comma-formatted.">
                     <IconInfo />
                   </span>
                 </span>
               </th>
               <th>Matched Description</th>
-              <th>Part Number Match</th>
-              <th>Description Match</th>
-              <th>Overall Match</th>
+              <th>Confidence</th>
               <th>Status</th>
+              <th>Why</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -69,18 +72,12 @@ export function ResultsTable({
                         <div className="row-note">No matching Atkore part found</div>
                       ) : null}
                       {badge === "REVIEW_REQUIRED" ? (
-                        <div className="row-note">Multiple possible matches</div>
+                        <div className="row-note">REVIEW REQUIRED — {row.candidate_count} possible products</div>
                       ) : null}
                     </td>
                     <td>{formatQuantity(row.quantity)}</td>
-                    <td className="part">{officialPartNumber(row.matched_salsify_id)}</td>
+                    <td className="part">{displayedProductcode(row)}</td>
                     <td>{row.matched_description || "—"}</td>
-                    <td className={`numeric ${percentTone(row.part_number_match_score)}`}>
-                      {formatOptionalPercent(row.part_number_match_score)}
-                    </td>
-                    <td className={`numeric ${percentTone(row.description_match_score)}`}>
-                      {formatOptionalPercent(row.description_match_score)}
-                    </td>
                     <td className={`numeric ${percentTone(row.overall_match_score ?? row.matching_percentage)}`}>
                       {overallPercent(row)}
                     </td>
@@ -88,6 +85,9 @@ export function ResultsTable({
                       <span className={`status ${badge.toLowerCase()}`} title={row.match_status}>
                         {statusLabel(row.match_status)}
                       </span>
+                    </td>
+                    <td>
+                      <div className="why-cell">{matchWhyHeadline(row)}</div>
                     </td>
                     <td>
                       <div className="row-actions">
@@ -106,8 +106,16 @@ export function ResultsTable({
                   </tr>
                   {expanded ? (
                     <tr className="details">
-                      <td colSpan={9}>
-                        <CandidateDetails row={row} />
+                      <td colSpan={8}>
+                        <CandidateDetails
+                          row={row}
+                          selecting={selectingIndex === index}
+                          onSelectCandidate={
+                            onSelectCandidate
+                              ? (current, productcode) => onSelectCandidate(index, current, productcode)
+                              : undefined
+                          }
+                        />
                       </td>
                     </tr>
                   ) : null}

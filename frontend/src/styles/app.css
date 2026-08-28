@@ -916,7 +916,7 @@ th {
 
 .part {
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .numeric {
@@ -964,6 +964,72 @@ th {
 .status.matched {
   background: var(--match-bg);
   color: var(--match);
+}
+
+.why-cell {
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.match-evidence {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.match-evidence h3 {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+}
+
+.evidence-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.evidence-k {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.evidence-fields {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.evidence-fields li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.evidence-mark {
+  width: 1.1rem;
+  font-weight: 800;
+  color: var(--green);
+}
+
+.evidence-none .evidence-mark {
+  color: var(--muted);
+}
+
+.evidence-partial .evidence-mark {
+  color: var(--orange);
 }
 
 .status.no_match {
@@ -1036,10 +1102,45 @@ th {
   color: var(--none);
 }
 
-.candidates {
+.possible-matches {
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.possible-matches li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.possible-match-rank {
+  font-weight: 700;
+  color: var(--navy);
+  min-width: 2rem;
+}
+
+.possible-match-body {
+  display: grid;
+  gap: 2px;
+}
+
+.possible-match-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.btn-select {
+  padding: 6px 12px;
+  font-size: 0.85rem;
 }
 
 .candidates li {
@@ -1117,7 +1218,8 @@ th {
   .capabilities,
   .how-steps,
   .summary,
-  .detail-grid {
+  .detail-grid,
+  .evidence-summary {
     grid-template-columns: 1fr;
   }
 

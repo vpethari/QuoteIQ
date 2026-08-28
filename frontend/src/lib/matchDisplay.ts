@@ -15,12 +15,70 @@ export function statusBadge(status: MatchStatus): StatusBadge {
 export function statusLabel(status: MatchStatus): string {
   const badge = statusBadge(status);
   if (badge === "REVIEW_REQUIRED") {
-    return "REVIEW REQUIRED";
+    return "REVIEW_REQUIRED";
   }
   if (badge === "NO_MATCH") {
-    return "NO MATCH";
+    return "NO_MATCH";
   }
-  return "MATCHED";
+  return "MATCH";
+}
+
+export function formatProductcode(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  const text = String(value);
+  if (/^\d{1,3}(,\d{3})+$/.test(text)) {
+    return text.replace(/,/g, "");
+  }
+  return text;
+}
+
+export function displayedProductcode(row: QuoteMatchResult): string {
+  if (statusBadge(row.match_status) !== "MATCHED") {
+    return "No part selected";
+  }
+  const code = formatProductcode(
+    row.match_evidence?.matched_part_number || row.matched_part_number,
+  );
+  if (!code) {
+    return "No part selected";
+  }
+  return code;
+}
+
+export function candidateProductcode(candidate: {
+  productcode?: string | null;
+  official_part_number?: string | null;
+  salsify_id?: string | null;
+}): string {
+  return formatProductcode(candidate.productcode || candidate.official_part_number) || "—";
+}
+
+export function matchWhyHeadline(row: QuoteMatchResult): string {
+  if (row.selection_type === "USER_SELECTED" || row.match_type === "USER_SELECTED") {
+    return "User Selected Match";
+  }
+  if (row.match_evidence?.headline) {
+    return row.match_evidence.headline;
+  }
+  const badge = statusBadge(row.match_status);
+  if (badge === "REVIEW_REQUIRED") {
+    return "Multiple products have equivalent description matches";
+  }
+  if (badge === "NO_MATCH") {
+    return "No sufficiently similar product found";
+  }
+  if (row.part_number_match && row.description_match) {
+    return "Exact Productcode + Description Match";
+  }
+  if (row.part_number_match) {
+    return "Exact Productcode Match";
+  }
+  if (row.description_match) {
+    return "Description Match";
+  }
+  return row.match_reason || "Catalog match";
 }
 
 export function officialPartNumber(value: string | null | undefined): string {
@@ -44,7 +102,7 @@ export function percentTone(value: number | null | undefined): string {
   if (value >= 90) {
     return "score-high";
   }
-  if (value >= 58) {
+  if (value >= 25) {
     return "score-mid";
   }
   return "score-low";

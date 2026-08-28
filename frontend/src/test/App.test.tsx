@@ -8,6 +8,8 @@ const processQuote = vi.fn();
 const processQuoteCsv = vi.fn();
 const downloadBlob = vi.fn();
 
+const selectQuoteMatch = vi.fn();
+
 vi.mock("../services/api", () => ({
   ApiError: class ApiError extends Error {
     status: number;
@@ -19,6 +21,7 @@ vi.mock("../services/api", () => ({
   processQuote: (...args: unknown[]) => processQuote(...args),
   processQuoteCsv: (...args: unknown[]) => processQuoteCsv(...args),
   downloadBlob: (...args: unknown[]) => downloadBlob(...args),
+  selectQuoteMatch: (...args: unknown[]) => selectQuoteMatch(...args),
 }));
 
 const sample: QuoteProcessResponse = {
@@ -38,6 +41,7 @@ const sample: QuoteProcessResponse = {
       match_status: "REVIEW_REQUIRED",
       match_reason: "Multiple Atkore products have equivalent descriptions.",
       candidate_count: 3,
+      quote_line_id: "quote.xlsx|Sheet1|2|120V LIGHTING WHIP W/PAULEX",
       candidates: [
         {
           official_part_number: "1LAP-W",
@@ -70,6 +74,7 @@ describe("QuoteIQ app", () => {
     processQuote.mockReset();
     processQuoteCsv.mockReset();
     downloadBlob.mockReset();
+    selectQuoteMatch.mockReset();
   });
 
   it("renders the dashboard upload area and empty state", () => {
@@ -77,7 +82,6 @@ describe("QuoteIQ app", () => {
     expect(screen.getAllByText("QuoteIQ").length).toBeGreaterThan(0);
     expect(screen.getByText("Product")).toBeInTheDocument();
     expect(screen.getByText("Resources")).toBeInTheDocument();
-    expect(screen.getByText("About")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Atkore" })).toBeInTheDocument();
     expect(screen.getByText("Upload a Quote")).toBeInTheDocument();
     expect(screen.getByText("Quote Summary")).toBeInTheDocument();
@@ -143,19 +147,20 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("Matched Part Number")).toBeInTheDocument();
     expect(screen.queryByText("Matched Atkore Part Number")).not.toBeInTheDocument();
     expect(screen.queryByText("Matched Salsify ID")).not.toBeInTheDocument();
-    expect(screen.getByText("Description Match")).toBeInTheDocument();
-    expect(screen.getByText("Overall Match")).toBeInTheDocument();
-    expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+    expect(screen.getByText("Confidence")).toBeInTheDocument();
+    expect(screen.getByText("Why")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.getByText("Multiple possible matches")).toBeInTheDocument();
+    expect(screen.getByText("REVIEW REQUIRED — 3 possible products")).toBeInTheDocument();
+    expect(screen.getByText("No part selected")).toBeInTheDocument();
+    expect(screen.getByText("Multiple products have equivalent description matches")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Review Match" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
-    expect(screen.getByText("Top Candidates")).toBeInTheDocument();
-    expect(screen.getByText("NA1-1LAP-W")).toBeInTheDocument();
-    expect(screen.getByText("NA1-1LBP-W")).toBeInTheDocument();
-    expect(screen.getByText("NA1-1LCP-W")).toBeInTheDocument();
-    expect(screen.queryByText("1LAP-W")).not.toBeInTheDocument();
+    expect(screen.getByText("Match Evidence")).toBeInTheDocument();
+    expect(screen.getByText("Possible Matches")).toBeInTheDocument();
+    expect(screen.getByText("1LAP-W")).toBeInTheDocument();
+    expect(screen.getByText("1LBP-W")).toBeInTheDocument();
+    expect(screen.getByText("1LCP-W")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Download CSV" }));
     expect(processQuoteCsv).toHaveBeenCalled();
@@ -218,17 +223,139 @@ describe("QuoteIQ app", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
-    expect(await screen.findByText("NA1-1EEC")).toBeInTheDocument();
-    expect(screen.queryByText("1EEC")).not.toBeInTheDocument();
-    expect(screen.getByText("MATCHED")).toBeInTheDocument();
-    expect(screen.getAllByText("86%").length).toBeGreaterThan(1);
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(await screen.findByText("1EEC")).toBeInTheDocument();
+    expect(screen.getByText("MATCH")).toBeInTheDocument();
+    expect(screen.getAllByText("86%").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
-    expect(screen.getByText("NA1-1EAG/A")).toBeInTheDocument();
-    expect(screen.queryByText("1EAG/A")).not.toBeInTheDocument();
+    expect(screen.getByText("Match Evidence")).toBeInTheDocument();
+    expect(screen.getByText("1EAG/A")).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
   });
+
+  it("renders Productcode match evidence without using a database id", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue({
+      summary: { total: 1, matched: 1, review_required: 0, no_match: 0 },
+      results: [
+        {
+          source_row: 2,
+          requested_description: "B1EB5-W BRP 120V WHIP END EXT CBL",
+          quantity: 1,
+          matched_part_number: "B1EB5-W",
+          matched_salsify_id: "B1EB5-W",
+          matched_description: "BRP 120V WHIP END EXT CBL",
+          matching_percentage: 98,
+          part_number_match_score: 100,
+          description_match_score: 100,
+          overall_match_score: 98,
+          part_number_match: true,
+          description_match: true,
+          confidence: "HIGH",
+          match_status: "EXACT_MATCH",
+          match_reason: "Exact Productcode match",
+          match_evidence: {
+            status_label: "MATCH",
+            matched_part_number: "B1EB5-W",
+            overall_percent: 98,
+            headline: "Exact Productcode + Description Match",
+            fields: [
+              { field: "Productcode", level: "exact", label: "Exact match", score: 100 },
+              { field: "name", level: "none", label: "No match", score: 0 },
+              { field: "description", level: "strong", label: "Strong match", score: 94 },
+              { field: "description2", level: "none", label: "No match", score: 0 },
+            ],
+          },
+          candidate_count: 1,
+          candidates: [
+            {
+              official_part_number: "B1EB5-W",
+              description: "BRP 120V WHIP END EXT CBL",
+              salsify_id: "B1EB5-W",
+              score: 98,
+              match_reasons: ["Exact Productcode match"],
+            },
+          ],
+        },
+      ],
+    });
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "quote.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(await screen.findByText("B1EB5-W")).toBeInTheDocument();
+    expect(screen.queryByText("333427")).not.toBeInTheDocument();
+    expect(screen.getByText("Exact Productcode + Description Match")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("Productcode — Exact match")).toBeInTheDocument();
+    expect(screen.getByText("description — Strong match")).toBeInTheDocument();
+    expect(screen.getByText("name — No match")).toBeInTheDocument();
+    expect(screen.getByText("description2 — No match")).toBeInTheDocument();
+  });
+
+  it("displays numeric Productcode without thousands separators", async () => {
+      const user = userEvent.setup();
+      processQuote.mockResolvedValue({
+        summary: { total: 1, matched: 1, review_required: 0, no_match: 0 },
+        results: [
+          {
+            source_row: 2,
+            requested_description: "333572",
+            quantity: 1,
+            matched_part_number: "333572",
+            matched_salsify_id: "333572",
+            matched_description: "G1MD04MMDD08092",
+            matching_percentage: 100,
+            part_number_match_score: 100,
+            description_match_score: null,
+            overall_match_score: 100,
+            part_number_match: true,
+            description_match: false,
+            confidence: "HIGH",
+            match_status: "EXACT_MATCH",
+            match_reason: "Exact Productcode match",
+            match_evidence: {
+              status_label: "MATCH",
+              matched_part_number: "333572",
+              overall_percent: 100,
+              headline: "Exact Productcode Match",
+              fields: [
+                { field: "Productcode", level: "exact", label: "Exact match", score: 100 },
+                { field: "name", level: "none", label: "No match", score: 0 },
+                { field: "description", level: "none", label: "No match", score: 0 },
+                { field: "description2", level: "none", label: "No match", score: 0 },
+              ],
+            },
+            candidate_count: 1,
+            candidates: [
+              {
+                official_part_number: "333572",
+                description: "G1MD04MMDD08092",
+                salsify_id: "333572",
+                score: 100,
+                match_reasons: ["Exact Productcode match"],
+              },
+            ],
+          },
+        ],
+      });
+      render(<App />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      await user.upload(
+        input,
+        new File(["abc"], "quote.xlsx", {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+      expect(await screen.findAllByText("333572")).not.toHaveLength(0);
+      expect(screen.queryByText("333,572")).not.toBeInTheDocument();
+    });
 
   it("renders no-match copy without inventing candidates", async () => {
     const user = userEvent.setup();
@@ -260,10 +387,57 @@ describe("QuoteIQ app", () => {
     );
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(await screen.findByText("UNKNOWN WIDGET")).toBeInTheDocument();
-    expect(screen.getByText("NO MATCH")).toBeInTheDocument();
+    expect(screen.getByText("NO_MATCH")).toBeInTheDocument();
     expect(screen.getAllByText("0%").length).toBeGreaterThan(0);
     expect(screen.getAllByText("No matching Atkore part found").length).toBeGreaterThan(0);
+    expect(screen.getByText("No part selected")).toBeInTheDocument();
+    expect(screen.getByText("No sufficiently similar product found")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("Match Evidence")).toBeInTheDocument();
     expect(screen.getByText("No catalog candidates were returned for this line.")).toBeInTheDocument();
+  });
+
+  it("lets a reviewer select a possible match", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue(sample);
+    selectQuoteMatch.mockResolvedValue({
+      ...sample.results[0],
+      matched_part_number: "1LBP-W",
+      matched_description: "120V LIGHTING WHIP W/PAULEX",
+      match_status: "HIGH_CONFIDENCE",
+      selection_type: "USER_SELECTED",
+      match_type: "USER_SELECTED",
+      match_type_label: "User Selected",
+      original_confidence: 100,
+      overall_match_score: 100,
+      match_evidence: {
+        status_label: "MATCH",
+        matched_part_number: "1LBP-W",
+        overall_percent: 100,
+        headline: "User Selected Match",
+        fields: [],
+      },
+    });
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    await user.click(await screen.findByRole("button", { name: "Review Match" }));
+    const selectButtons = screen.getAllByRole("button", { name: "Select" });
+    await user.click(selectButtons[1]);
+    expect(selectQuoteMatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productcode: "1LBP-W",
+        quote_line_id: "quote.xlsx|Sheet1|2|120V LIGHTING WHIP W/PAULEX",
+      }),
+    );
+    expect(await screen.findAllByText("User Selected")).not.toHaveLength(0);
+    expect(screen.getAllByText("MATCH").length).toBeGreaterThan(0);
+    expect(screen.getByText("1LBP-W")).toBeInTheDocument();
   });
 });
