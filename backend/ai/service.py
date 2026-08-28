@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from pydantic import ValidationError
@@ -17,7 +18,7 @@ from ai.prompt_builder import PROMPT_VERSION
 from ai.provider import AINotConfiguredError, AIReasoningProvider
 from ai.validator import ValidationOutcome, validate_ai_selection
 from matching.matcher import ProductMatcher
-from matching.models import MatchCandidate, MatchResult, ProductRecord, QuoteLine
+from matching.models import MatchCandidate, MatchResult, MatchStatus, ProductRecord, QuoteLine
 
 
 @dataclass
@@ -25,6 +26,7 @@ class AIPolicyConfig:
     confident_threshold: float = 90.0
     review_threshold: float = 50.0
     max_candidates: int = 5
+    max_concurrent_requests: int = 6
 
 
 @dataclass
@@ -73,6 +75,8 @@ class AIMatchingService:
     def match_line(self, line: QuoteLine, use_ai: bool = True) -> FinalMatchResult:
         deterministic = self.matcher.match_line(line)
         if not use_ai or self.provider is None:
+            return final_from_deterministic(deterministic, ai_enabled=False)
+        if _skip_ai_reasoning(deterministic):
             return final_from_deterministic(deterministic, ai_enabled=False)
 
         top = deterministic.candidates[: self.policy.max_candidates]
@@ -180,7 +184,26 @@ class AIMatchingService:
         )
 
     def match_quote(self, lines: Sequence[QuoteLine], use_ai: bool = True) -> list[FinalMatchResult]:
-        return [self.match_line(line, use_ai=use_ai) for line in lines]
+        """Match every line, running the (I/O-bound) AI reasoning calls
+        concurrently instead of one-at-a-time. Deterministic matching and AI
+        validation/audit are unaffected -- only the wall-clock time to
+        process a whole quote changes. Results preserve input line order
+        regardless of which call finishes first.
+        """
+        lines = list(lines)
+        if len(lines) <= 1 or not use_ai or self.provider is None:
+            return [self.match_line(line, use_ai=use_ai) for line in lines]
+
+        workers = max(1, min(self.policy.max_concurrent_requests, len(lines)))
+        results: list[FinalMatchResult | None] = [None] * len(lines)
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_index = {
+                executor.submit(self.match_line, line, use_ai): index
+                for index, line in enumerate(lines)
+            }
+            for future in future_to_index:
+                results[future_to_index[future]] = future.result()
+        return results  # type: ignore[return-value]
 
     def _audit(
         self,
@@ -256,6 +279,22 @@ def combine_confidence(
     if status == AIDecision.CONFIDENT_MATCH:
         return round(min(deterministic_score, ai_confidence), 4)
     return round(ai_confidence, 4)
+
+
+def _skip_ai_reasoning(result: MatchResult) -> bool:
+    """True when there is nothing left for AI reasoning to usefully add.
+
+    Only skips a *verified, conflict-free part-number identity* match: the
+    customer specified a real part number, it was found exactly, and the
+    description doesn't contradict it. Purely description-driven matches
+    still go through AI even when they score as an exact/unique text match,
+    since that is exactly the case AI exists to catch (e.g. a family ID or
+    an unrelated product that happens to share wording). Also skips when
+    there are no candidates at all -- there is nothing to select from.
+    """
+    if not result.candidates:
+        return True
+    return bool(result.part_number_match) and result.match_status == MatchStatus.EXACT_MATCH
 
 
 def final_from_deterministic(result: MatchResult, ai_enabled: bool) -> FinalMatchResult:

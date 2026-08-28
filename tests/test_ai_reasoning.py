@@ -174,6 +174,53 @@ def test_ambiguous_result_becomes_review_required(
     assert {"1LBP-W", "1LCP-W"} & parts
 
 
+def test_ai_skipped_for_verified_exact_part_number_match(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    def _fail_if_called(request):
+        raise AssertionError("AI provider should not be called for a verified exact part-number match")
+
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(handler=_fail_if_called))
+    line = QuoteLine(
+        source_file="q.xlsx",
+        source_sheet="Sheet1",
+        source_row=2,
+        requested_description="",
+        quantity=5,
+        requested_part_number="NA1-2DDDA10-HV",
+    )
+    result = service.match_line(line)
+    assert result.match_status == MatchStatus.EXACT_MATCH.value
+    assert result.matched_part_number == "2DDDA10-HV"
+    assert result.ai_enabled is False
+    assert result.ai_confidence is None
+
+
+def test_ai_skipped_when_no_candidates(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    def _fail_if_called(request):
+        raise AssertionError("AI provider should not be called with zero candidates")
+
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(handler=_fail_if_called))
+    result = service.match_description("zzz totally unmatched gibberish zzz not a real product zzz")
+    assert result.candidate_count == 0
+    assert result.ai_enabled is False
+
+
+def test_ai_still_runs_for_description_only_exact_match(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    """A description-only match that happens to score as exact/unique still
+    goes through AI -- this is the case AI exists to catch (e.g. a family ID
+    or unrelated product that shares wording), so it must not be skipped."""
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(canned=_confident("2EB40-B-SC")))
+    result = service.match_description("10/3 MCT")
+    assert result.deterministic_score == 100
+    assert result.ai_enabled is True
+    assert result.ai_confidence == 95
+
+
 def test_ai_disabled_falls_back_to_deterministic_matcher(
     matcher: ProductMatcher, catalog_records: list[ProductRecord]
 ) -> None:
@@ -297,6 +344,50 @@ def test_ai_preview_api_and_disabled_quote(
         assert quote.json()["results"][0]["match_status"] == "REVIEW_REQUIRED"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_match_quote_runs_ai_calls_concurrently_and_preserves_order(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    import time
+
+    call_order: list[str] = []
+
+    def _slow_handler(request):
+        call_order.append(request.requested_description)
+        time.sleep(0.2)
+        return AIReasoningResult(
+            decision=AIDecision.REVIEW_REQUIRED,
+            selected_part_number=None,
+            confidence_percentage=50,
+            reasoning_summary=f"handled {request.requested_description}",
+        )
+
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(handler=_slow_handler))
+    service.policy.max_concurrent_requests = 6
+    lines = [
+        QuoteLine(
+            source_file="q.xlsx",
+            source_sheet="Sheet1",
+            source_row=index,
+            requested_description=f"120V LIGHTING WHIP W/PAULEX variant {index}",
+            quantity=1,
+        )
+        for index in range(1, 7)
+    ]
+
+    started = time.perf_counter()
+    results = service.match_quote(lines)
+    elapsed = time.perf_counter() - started
+
+    # 6 lines at 0.2s each: ~1.2s sequential vs. well under 1s in parallel.
+    assert elapsed < 0.8, f"match_quote took {elapsed:.2f}s -- calls do not appear to run concurrently"
+    assert len(call_order) == 6
+
+    # Results must correspond to their input line by position, not completion order.
+    for result, line in zip(results, lines, strict=True):
+        assert result.source_row == line.source_row
+        assert result.requested_description == line.requested_description
 
 
 def test_ai_preview_unconfigured_returns_503(
