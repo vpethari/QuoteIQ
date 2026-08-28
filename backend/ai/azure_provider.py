@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import random
+import time
 from typing import Any
 
 import httpx
@@ -16,6 +18,10 @@ logger = logging.getLogger("quoteiq.ai")
 class AzureOpenAIReasoningProvider(AIReasoningProvider):
     provider_name = "azure_openai"
 
+    # 429 (rate limit) and 5xx (transient server-side) are worth retrying;
+    # everything else (4xx auth/validation) will fail the same way again.
+    _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
     def __init__(
         self,
         endpoint: str,
@@ -23,6 +29,10 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
         deployment: str,
         api_version: str,
         timeout_seconds: float = 30.0,
+        seed: int = 42,
+        max_retries: int = 3,
+        backoff_base_seconds: float = 1.0,
+        transport: httpx.BaseTransport | None = None,
     ) -> None:
         if not all([endpoint, api_key, deployment, api_version]):
             raise AINotConfiguredError("Azure OpenAI settings are incomplete.")
@@ -32,6 +42,16 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
         self.api_version = api_version
         self.timeout_seconds = timeout_seconds
         self.model_name = deployment
+        self.seed = seed
+        self.max_retries = max_retries
+        self.backoff_base_seconds = backoff_base_seconds
+        # One shared, thread-safe client for the provider's lifetime instead
+        # of opening a new connection (TLS handshake included) per call --
+        # concurrent match_quote workers reuse the same pooled connections.
+        self._client = httpx.Client(timeout=timeout_seconds, transport=transport)
+
+    def close(self) -> None:
+        self._client.close()
 
     def reason_about_candidates(self, request: AIReasoningRequest) -> AIReasoningResult:
         payload = [item.model_dump() for item in request.candidates]
@@ -55,16 +75,64 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0,
+            # Fixed seed for run-to-run reproducibility. Azure/OpenAI don't
+            # guarantee bit-for-bit determinism even at temperature=0, but a
+            # stable seed measurably reduces how often borderline candidates
+            # flip between CONFIDENT_MATCH and REVIEW_REQUIRED across runs.
+            "seed": self.seed,
             "response_format": {"type": "json_object"},
         }
         headers = {"api-key": self._api_key, "Content-Type": "application/json"}
-        with httpx.Client(timeout=self.timeout_seconds) as client:
-            response = client.post(url, headers=headers, json=body)
-            response.raise_for_status()
-            data = response.json()
+        data = self._post_with_retry(url, headers, body)
         content = data["choices"][0]["message"]["content"]
         parsed = _parse_json_content(content)
         return AIReasoningResult.model_validate(parsed)
+
+    def _post_with_retry(
+        self, url: str, headers: dict[str, str], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        attempt = 0
+        while True:
+            try:
+                response = self._client.post(url, headers=headers, json=body)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status not in self._RETRYABLE_STATUS_CODES or attempt >= self.max_retries:
+                    raise
+                delay = self._retry_delay(exc.response, attempt)
+                logger.warning(
+                    "Azure OpenAI request failed with %s (attempt %s/%s); retrying in %.1fs",
+                    status,
+                    attempt + 1,
+                    self.max_retries,
+                    delay,
+                )
+            except httpx.TransportError as exc:
+                if attempt >= self.max_retries:
+                    raise
+                delay = self._retry_delay(None, attempt)
+                logger.warning(
+                    "Azure OpenAI request error (%s) (attempt %s/%s); retrying in %.1fs",
+                    exc,
+                    attempt + 1,
+                    self.max_retries,
+                    delay,
+                )
+            time.sleep(delay)
+            attempt += 1
+
+    def _retry_delay(self, response: httpx.Response | None, attempt: int) -> float:
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return float(retry_after)
+                except ValueError:
+                    pass
+        base = self.backoff_base_seconds * (2**attempt)
+        return base + random.uniform(0, base * 0.25)
 
 
 def _parse_json_content(content: str) -> dict[str, Any]:

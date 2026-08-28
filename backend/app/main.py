@@ -132,7 +132,11 @@ def _azure_configured(settings) -> bool:
     )
 
 
+@lru_cache
 def build_ai_provider() -> AIReasoningProvider:
+    # Cached like _cached_catalog_and_matcher so the whole process shares one
+    # provider (and its underlying persistent HTTP connection) instead of
+    # opening a fresh client -- and paying a new TLS handshake -- per request.
     settings = get_settings()
     if not _azure_configured(settings):
         return UnconfiguredAIReasoningProvider()
