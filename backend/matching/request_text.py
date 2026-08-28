@@ -11,6 +11,10 @@ _SALSIFY_IN_TEXT = re.compile(
     re.IGNORECASE,
 )
 _SEPARATORS = re.compile(r"[\s,;:]+")
+_IDENTIFIER_SEP_CHARS = "-/_.+"
+_MAXIMAL_IDENTIFIER_RUN_RE = re.compile(
+    rf"[A-Z0-9]+(?:[{re.escape(_IDENTIFIER_SEP_CHARS)}][A-Z0-9]+)*"
+)
 
 
 @dataclass(frozen=True)
@@ -39,12 +43,23 @@ def interpret_customer_text(
     salsify_hits: list[str] = []
     official_hits: list[str] = []
 
-    for key in sorted({item for item in salsify_keys if item}, key=len, reverse=True):
-        for start, end, original in _find_key_spans(haystack, key):
-            if _span_taken(occupied, start, end):
-                continue
+    # salsify_keys/official_keys are already normalize_part_number() output
+    # (built once in ProductMatcher.__init__), so wrap them in sets for O(1)
+    # membership instead of re-normalizing or scanning them per call.
+    salsify_keyset = {item for item in salsify_keys if item}
+    official_keyset = {item for item in official_keys if item}
+
+    # Candidate identifier-shaped spans come from the (short) customer text,
+    # not from iterating every known catalog key -- catalogs can have tens of
+    # thousands of keys, so a per-key regex scan does not scale.
+    candidate_spans = _candidate_identifier_spans(haystack)
+
+    for start, end, candidate in candidate_spans:
+        if _span_taken(occupied, start, end):
+            continue
+        if candidate in salsify_keyset:
             _mark(occupied, start, end)
-            salsify_hits.append(raw[start:end] if raw else original)
+            salsify_hits.append(raw[start:end] if raw else candidate)
 
     for match in _SALSIFY_IN_TEXT.finditer(haystack):
         if _span_taken(occupied, match.start(), match.end()):
@@ -52,16 +67,15 @@ def interpret_customer_text(
         _mark(occupied, match.start(), match.end())
         salsify_hits.append(raw[match.start() : match.end()] if raw else match.group(0))
 
-    for key in sorted({item for item in official_keys if item}, key=len, reverse=True):
-        for start, end, original in _find_key_spans(haystack, key):
-            if _span_taken(occupied, start, end):
-                continue
+    for start, end, candidate in candidate_spans:
+        if _span_taken(occupied, start, end):
+            continue
+        if candidate in official_keyset:
             _mark(occupied, start, end)
-            official_hits.append(raw[start:end] if raw else original)
+            official_hits.append(raw[start:end] if raw else candidate)
 
     if explicit:
         explicit_key = normalize_part_number(explicit)
-        salsify_keyset = {normalize_part_number(item) for item in salsify_keys if item}
         if explicit_key in salsify_keyset or explicit_key.startswith("NA1-"):
             if not any(normalize_part_number(item) == explicit_key for item in salsify_hits):
                 salsify_hits.insert(0, explicit)
@@ -98,9 +112,38 @@ def interpret_customer_text(
     )
 
 
-def _find_key_spans(haystack: str, key: str) -> list[tuple[int, int, str]]:
-    pattern = re.compile(rf"(?<![A-Z0-9]){re.escape(key)}(?![A-Z0-9])", re.IGNORECASE)
-    return [(match.start(), match.end(), match.group(0)) for match in pattern.finditer(haystack)]
+def _candidate_identifier_spans(haystack: str) -> list[tuple[int, int, str]]:
+    """Every substring of `haystack` a known catalog key could exactly equal.
+
+    A maximal alnum-and-separator run like "B1EB5-W-EXTRA" is split into
+    segments at `-/_.+`; every contiguous range of segments (rejoined with
+    its original separators) is a candidate, since each such range has a
+    non-alnum or string boundary on both sides -- the same condition the
+    original per-key regex search required. Longest spans are returned first
+    so a full match wins over an embedded shorter one at the same position.
+    """
+    spans: list[tuple[int, int, str]] = []
+    for run_match in _MAXIMAL_IDENTIFIER_RUN_RE.finditer(haystack):
+        run_start = run_match.start()
+        parts = re.split(f"([{re.escape(_IDENTIFIER_SEP_CHARS)}])", run_match.group(0))
+        segments = parts[0::2]
+        seps = parts[1::2]
+        seg_starts: list[int] = []
+        pos = 0
+        for index, segment in enumerate(segments):
+            seg_starts.append(pos)
+            pos += len(segment)
+            if index < len(seps):
+                pos += len(seps[index])
+        for i in range(len(segments)):
+            text = segments[i]
+            start = run_start + seg_starts[i]
+            spans.append((start, start + len(text), text))
+            for j in range(i + 1, len(segments)):
+                text += seps[j - 1] + segments[j]
+                spans.append((start, start + len(text), text))
+    spans.sort(key=lambda item: (-(item[1] - item[0]), item[0]))
+    return spans
 
 
 def _span_taken(occupied: list[bool], start: int, end: int) -> bool:
