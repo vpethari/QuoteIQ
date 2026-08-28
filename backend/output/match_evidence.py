@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from matching.productcode import productcode_as_text
+from output.schema import STATUSES_WITH_PART_NUMBER
 
 
 FIELD_ORDER = (
@@ -136,7 +137,22 @@ def build_match_evidence(result: Any) -> dict[str, Any]:
         matched_part = getattr(result, "matched_part_number", None)
         overall = getattr(result, "overall_match_score", None)
         if overall is None:
-            overall = getattr(result, "matching_percentage", 0)
+            if hasattr(result, "final_confidence"):
+                # FinalMatchResult (AI path) has no matching_percentage field
+                # and leaves overall_match_score unset whenever AI actually
+                # ran. Mirror serialize_process_result's exact rule: only
+                # "emit" statuses (a real part number was selected) use
+                # final_confidence -- REVIEW_REQUIRED/NO_MATCH use the raw
+                # deterministic_score, since final_confidence there is AI's
+                # own confidence in *rejecting* the match, not a match score.
+                emit = str(status).upper() in STATUSES_WITH_PART_NUMBER
+                overall = (
+                    getattr(result, "final_confidence", None)
+                    if emit
+                    else getattr(result, "deterministic_score", None)
+                )
+            if overall is None:
+                overall = getattr(result, "matching_percentage", 0)
         reasons = list(getattr(result, "match_reasons", None) or [])
     else:
         part_number_match = bool(result.get("part_number_match"))
@@ -144,7 +160,11 @@ def build_match_evidence(result: Any) -> dict[str, Any]:
         matched_part = result.get("matched_part_number")
         overall = result.get("overall_match_score")
         if overall is None:
-            overall = result.get("matching_percentage") or 0
+            if "final_confidence" in result:
+                emit = str(status).upper() in STATUSES_WITH_PART_NUMBER
+                overall = result.get("final_confidence") if emit else result.get("deterministic_score")
+            if overall is None:
+                overall = result.get("matching_percentage") or 0
         reasons = list(result.get("match_reasons") or [])
         if not reasons and result.get("match_reason"):
             reasons = [str(result.get("match_reason"))]

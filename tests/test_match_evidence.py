@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ai.models import FinalMatchResult
 from output.api_results import serialize_process_result
 from output.match_evidence import build_match_evidence, evidence_headline
 from matching.models import MatchStatus, ProductRecord, QuoteLine
@@ -94,3 +95,48 @@ def test_serialize_adds_evidence_without_removing_fields() -> None:
     built = build_match_evidence(result)
     assert built["headline"]
     assert "333427" not in str(built)
+
+
+def test_evidence_overall_percent_matches_top_level_for_ai_no_match() -> None:
+    """For NO_MATCH/REVIEW_REQUIRED, serialize_process_result shows
+    deterministic_score (raw candidate similarity), not final_confidence
+    (AI's own confidence in *rejecting* the match -- often 0 or very low).
+    The evidence panel must use the same rule, not blindly prefer
+    final_confidence, or it'll show a different, much lower number.
+    """
+    result = FinalMatchResult(
+        requested_description='4" HW FRE CONDUIT',
+        deterministic_score=44.0,
+        ai_confidence=0.0,
+        final_confidence=0.0,
+        match_status="NO_MATCH",
+        reasoning_summary="No candidate is sufficiently relevant.",
+        candidate_count=3,
+        ai_enabled=True,
+        overall_match_score=None,
+    )
+    payload = serialize_process_result(result)
+    assert payload["overall_match_score"] == 44
+    evidence = payload["match_evidence"]
+    assert evidence["overall_percent"] == 44.0
+
+
+def test_evidence_overall_percent_uses_final_confidence_for_confident_match() -> None:
+    """For an emitting status (CONFIDENT_MATCH), the top-level display and
+    the evidence panel both use final_confidence, not deterministic_score."""
+    result = FinalMatchResult(
+        requested_description="B1EB5-W",
+        matched_part_number="B1EB5-W",
+        deterministic_score=100.0,
+        ai_confidence=95.0,
+        final_confidence=95.0,
+        match_status="CONFIDENT_MATCH",
+        reasoning_summary="Unique high-scoring candidate.",
+        candidate_count=1,
+        ai_enabled=True,
+        overall_match_score=None,
+    )
+    payload = serialize_process_result(result)
+    assert payload["overall_match_score"] == 95
+    evidence = payload["match_evidence"]
+    assert evidence["overall_percent"] == 95.0
