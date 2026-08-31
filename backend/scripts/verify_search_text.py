@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.config import get_settings  # noqa: E402
 from app.db import reset_engine  # noqa: E402
 from catalog.runtime import postgres_catalog_repository  # noqa: E402
-from catalog.search_query import retrieval_search_string, retrieval_search_tokens  # noqa: E402
+from catalog.search_query import retrieval_search_string, retrieval_search_token_groups  # noqa: E402
 
 SAMPLE_QUERY = "BRP 120 volts whip end extension cable"
 
@@ -31,9 +31,10 @@ def main() -> int:
     print(f"table={repository.table}")
     print(f"search_text_column={'search_text' in columns}")
     print(f"query={SAMPLE_QUERY!r}")
-    print(f"retrieval_tokens={retrieval_search_tokens(SAMPLE_QUERY)}")
+    token_groups = retrieval_search_token_groups(SAMPLE_QUERY)
+    print(f"retrieval_token_groups={token_groups}")
     print(f"retrieval_string={retrieval_search_string(SAMPLE_QUERY)!r}")
-    sql = repository.search_text_sql(len(retrieval_search_tokens(SAMPLE_QUERY)))
+    sql = repository.search_text_sql([len(group) for group in token_groups])
     print("candidate_retrieval_query=")
     print(sql)
     try:

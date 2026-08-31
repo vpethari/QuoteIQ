@@ -1,3 +1,8 @@
+-- SUPERSEDED by 20260829_productmaster_generated_search_columns.sql, which
+-- converts search_text into a GENERATED ALWAYS ... STORED column so it can
+-- never go stale. Kept here for history; do not run this after that script
+-- has been applied -- ALTER COLUMN on a generated column will error.
+--
 -- productmaster search_text for trigram candidate retrieval.
 -- Does not modify Productcode, name, description, or description2 values.
 

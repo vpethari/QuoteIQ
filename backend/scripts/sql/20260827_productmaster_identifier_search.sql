@@ -1,3 +1,8 @@
+-- SUPERSEDED by 20260829_productmaster_generated_search_columns.sql, which
+-- converts identifier_search into a GENERATED ALWAYS ... STORED column so it
+-- can never go stale. Kept here for history; do not run this after that
+-- script has been applied -- ALTER COLUMN on a generated column will error.
+--
 -- Compact identifier search for Productcode/name/description (does not change Productcode values).
 -- Productcode on productmaster is integer; alphanumeric catalog codes live in name/description.
 
