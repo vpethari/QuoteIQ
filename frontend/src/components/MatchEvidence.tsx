@@ -1,4 +1,4 @@
-import { displayedProductcode, formatProductcode, overallPercent, statusBadge, statusLabel } from "../lib/matchDisplay";
+import { displayedMatchedName, overallPercent, statusBadge, statusLabel } from "../lib/matchDisplay";
 import type { QuoteMatchResult } from "../types/quote";
 
 function fieldMark(level: string): string {
@@ -8,14 +8,13 @@ function fieldMark(level: string): string {
 export function MatchEvidencePanel({ row }: { row: QuoteMatchResult }) {
   const evidence = row.match_evidence;
   const fields = evidence?.fields ?? [
-    { field: "Productcode", level: "none", label: "No match", score: 0 },
-    { field: "name", level: "none", label: "No match", score: 0 },
-    { field: "description", level: "none", label: "No match", score: 0 },
-    { field: "description2", level: "none", label: "No match", score: 0 },
+    { field: "Part Number", level: "none", label: "No match", score: 0 },
+    { field: "Part Description", level: "none", label: "No match", score: 0 },
+    { field: "Catalog Description", level: "none", label: "No match", score: 0 },
   ];
   const headline = evidence?.headline || row.match_reason || "Catalog match";
   const status = evidence?.status_label || statusLabel(row.match_status);
-  const part = formatProductcode(evidence?.matched_part_number) || displayedProductcode(row);
+  const part = displayedMatchedName(row);
   const percent = evidence ? `${Math.round(evidence.overall_percent)}%` : overallPercent(row);
 
   return (

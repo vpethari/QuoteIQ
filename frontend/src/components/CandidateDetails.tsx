@@ -1,7 +1,7 @@
 import {
   atkoreUrlForName,
   candidateProductcode,
-  displayedProductcode,
+  displayedMatchedName,
   formatOptionalPercent,
   formatQuantity,
   overallPercent,
@@ -63,7 +63,7 @@ export function CandidateDetails({
         </div>
         <div>
           <dt>Matched Part Number</dt>
-          <dd className="part">{displayedProductcode(row)}</dd>
+          <dd className="part">{displayedMatchedName(row)}</dd>
         </div>
         <div>
           <dt>Matched Description</dt>
@@ -128,10 +128,12 @@ export function CandidateDetails({
                   <div className="possible-match-rank">#{rank}</div>
                   <div className="possible-match-body">
                     <div className="part">
-                      {code}
+                      {candidateName(candidate)}
                       <CandidateAtkoreLink candidate={candidate} />
                     </div>
-                    <div>{candidateName(candidate)}</div>
+                    {candidate.description && candidate.description !== candidateName(candidate) ? (
+                      <div>{candidate.description}</div>
+                    ) : null}
                     {candidate.description2 ? (
                       <div className="hint">{candidate.description2}</div>
                     ) : null}
@@ -161,11 +163,11 @@ export function CandidateDetails({
               <li key={candidate.salsify_id || candidate.official_part_number}>
                 <div>
                   <div className="part">
-                    {candidateProductcode(candidate)}
+                    {candidateName(candidate)}
                     <CandidateAtkoreLink candidate={candidate} />
                   </div>
-                  {candidateName(candidate) && candidateName(candidate) !== candidateProductcode(candidate) ? (
-                    <div>{candidateName(candidate)}</div>
+                  {candidate.description && candidate.description !== candidateName(candidate) ? (
+                    <div>{candidate.description}</div>
                   ) : null}
                   {candidate.match_reasons.length > 0 ? (
                     <div className="hint">{candidate.match_reasons.join("; ")}</div>

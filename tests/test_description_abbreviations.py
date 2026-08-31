@@ -43,14 +43,14 @@ def _catalog() -> list[ProductRecord]:
     return [
         _pg_product(
             333427,
+            333427,
             "B1EB5-W",
             "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
-            "BRP 120V WHIP END EXT CBL",
         ),
-        _pg_product(333500, "B277-LC", "BRP 277V LIGHTING CBL", "BRP 277V LIGHTING CBL", None),
-        _pg_product(900003, "WHIP-A", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
-        _pg_product(900004, "WHIP-B", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
+        _pg_product(333500, 333500, "B277-LC", "BRP 277V LIGHTING CBL", None),
+        _pg_product(900003, 900003, "WHIP-A", "120V LIGHTING WHIP W/PAULEX", "WHIP FAMILY"),
+        _pg_product(900004, 900004, "WHIP-B", "120V LIGHTING WHIP W/PAULEX", "WHIP FAMILY"),
     ]
 
 
@@ -83,10 +83,8 @@ def test_brp_120_volts_whip_end_extension_cable_matches() -> None:
     assert result.matched_part_number == "B1EB5-W"
     evidence = build_match_evidence(result)
     assert evidence["matched_part_number"] == "B1EB5-W"
-    productcode_field = next(item for item in evidence["fields"] if item["field"] == "Productcode")
-    assert productcode_field["level"] == "none"
-    description_field = next(item for item in evidence["fields"] if item["field"] == "description")
-    name_field = next(item for item in evidence["fields"] if item["field"] == "name")
+    description_field = next(item for item in evidence["fields"] if item["field"] == "Part Description")
+    name_field = next(item for item in evidence["fields"] if item["field"] == "Part Number")
     assert description_field["level"] in {"exact", "strong"} or name_field["level"] in {"exact", "strong"}
     terms = " ".join(evidence.get("normalized_terms") or [])
     reasons = " ".join(result.match_reasons or [])

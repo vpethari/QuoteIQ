@@ -94,13 +94,17 @@ def test_rr_2ba_and_exact_and_negatives() -> None:
 
 
 def test_numeric_productcode_still_matches_via_name_or_description() -> None:
+    # Productcode (333477) is a purely internal numeric id now -- irrelevant
+    # to matching or identity. This verifies a partial text query still finds
+    # the row via its name/description text and surfaces the real name-based
+    # identifier ("RR 2BA KR"), never the internal numeric id.
     catalog = [
         _pg_product(333477, 333477, "RR 2BA KR", "RR 2BA KR", None),
         _pg_product(1, 1, "OTHER", "OTHER", None),
     ]
     result = ProductMatcher(catalog).match_line(_line("RR 2B BA"))
     assert result.match_status != MatchStatus.NO_MATCH
-    assert result.candidates[0].official_part_number == "333477"
+    assert result.candidates[0].official_part_number == "RR 2BA KR"
     assert result.candidates[0].score > 0
 
 
@@ -147,17 +151,14 @@ def test_rr2ba_ambiguous_variants_are_review_not_98_match() -> None:
     codes = {item.official_part_number for item in result.candidates}
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
     assert result.candidate_count >= 2
-    assert {"333478", "333479"} <= codes
+    assert {"RR 2BA KL", "RR 2BA KR"} <= codes
     assert result.top_score < 90
     assert result.overall_match_score is not None
     assert result.overall_match_score < 90
     assert result.matched_part_number is None
     evidence = build_match_evidence(result)
     assert evidence["headline"] == "Multiple possible Productcode matches"
-    productcode_field = next(item for item in evidence["fields"] if item["field"] == "Productcode")
-    assert productcode_field["level"] == "partial"
-    assert productcode_field["label"] == "Partial match"
-    assert "No match" not in productcode_field["label"] or productcode_field["score"] > 0
+    assert evidence["productcode_match_type"] == "partial"
     for candidate in result.candidates[:2]:
         assert candidate.score != 98
         assert candidate.score < 90
@@ -166,7 +167,7 @@ def test_rr2ba_ambiguous_variants_are_review_not_98_match() -> None:
 def test_rr_2ba_kl_exact_productcode_match() -> None:
     result = ProductMatcher(_rr_variant_catalog()).match_line(_line("RR 2BA KL"))
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert result.matched_part_number == "333478"
+    assert result.matched_part_number == "RR 2BA KL"
     assert result.overall_match_score == 100
     evidence = build_match_evidence(result)
     assert "Exact Productcode" in evidence["headline"] or "Normalized Productcode" in evidence["headline"]
@@ -175,10 +176,10 @@ def test_rr_2ba_kl_exact_productcode_match() -> None:
 def test_rr_2ba_kr_exact_productcode_match() -> None:
     result = ProductMatcher(_rr_variant_catalog()).match_line(_line("RR 2BA KR"))
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert result.matched_part_number == "333479"
+    assert result.matched_part_number == "RR 2BA KR"
     compact = ProductMatcher(_rr_variant_catalog()).match_line(_line("RR2BAKR"))
     assert compact.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert compact.matched_part_number == "333479"
+    assert compact.matched_part_number == "RR 2BA KR"
 
 
 def test_rr_2b_ba_partial_with_multiple_variants_is_review() -> None:
@@ -186,7 +187,7 @@ def test_rr_2b_ba_partial_with_multiple_variants_is_review() -> None:
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
     assert result.match_status not in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
     codes = {item.official_part_number for item in result.candidates}
-    assert {"333478", "333479"} <= codes
+    assert {"RR 2BA KL", "RR 2BA KR"} <= codes
     evidence = build_match_evidence(result)
     assert evidence["headline"] in {
         "Multiple possible Productcode matches",

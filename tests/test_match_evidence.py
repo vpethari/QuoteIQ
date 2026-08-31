@@ -86,10 +86,9 @@ def test_serialize_adds_evidence_without_removing_fields() -> None:
     assert evidence["status_label"] == "MATCH"
     assert evidence["matched_part_number"] == "B1EB5-W"
     assert {item["field"] for item in evidence["fields"]} == {
-        "Productcode",
-        "name",
-        "description",
-        "description2",
+        "Part Number",
+        "Part Description",
+        "Catalog Description",
     }
     assert result.match_status == MatchStatus.EXACT_MATCH
     built = build_match_evidence(result)
@@ -149,10 +148,9 @@ def test_evidence_fields_use_candidate_details_field_scores_for_ai_results() -> 
     )
     evidence = build_match_evidence(result)
     fields = {item["field"]: item["level"] for item in evidence["fields"]}
-    assert fields["Productcode"] == field_contribution(63.2)["level"]
-    assert fields["description"] == field_contribution(85.7)["level"] == "strong"
-    assert fields["name"] == "none"
-    assert fields["description2"] == "none"
+    assert fields["Part Description"] == field_contribution(85.7)["level"] == "strong"
+    assert fields["Part Number"] == "none"
+    assert fields["Catalog Description"] == "none"
 
 
 def test_evidence_overall_percent_uses_final_confidence_for_confident_match() -> None:

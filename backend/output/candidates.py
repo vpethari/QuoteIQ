@@ -45,14 +45,12 @@ def candidate_evidence(item: MatchCandidate | dict[str, Any]) -> dict[str, Any]:
         reasons = list(item.get("match_reasons") or [])
     fields = []
     for key, label in (
-        ("productcode", "Productcode"),
-        ("name", "Name"),
-        ("description", "Description"),
-        ("description2", "Description2"),
+        ("name", "Part Number"),
+        ("description", "Part Description"),
+        ("description2", "Catalog Description"),
     ):
         contribution = field_contribution(
             float(scores.get(key, 0.0) or 0.0),
-            match_type=ident if key == "productcode" else None,
             field=key,
         )
         fields.append(

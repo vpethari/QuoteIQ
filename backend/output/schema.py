@@ -26,5 +26,5 @@ STATUSES_WITH_PART_NUMBER = frozenset(
 )
 DOWNLOAD_FILENAME = "QuoteIQ_results.csv"
 
-CPQ_CSV_COLUMNS: tuple[str, ...] = ("Productcode", "Qty", "Requested Product")
+CPQ_CSV_COLUMNS: tuple[str, ...] = ("Part Number", "Quantity")
 CPQ_DOWNLOAD_FILENAME = "QuoteIQ_CPQ_Ready.csv"

@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import {
   atkoreProductUrl,
-  displayedProductcode,
+  displayedMatchedName,
   formatQuantity,
   matchWhyHeadline,
   overallPercent,
@@ -90,7 +90,7 @@ export function ResultsTable({
                     </td>
                     <td>{formatQuantity(row.quantity)}</td>
                     <td className="part">
-                      {displayedProductcode(row)}
+                      {displayedMatchedName(row)}
                       <AtkoreProductLink url={atkoreProductUrl(row)} />
                     </td>
                     <td>{row.matched_description || "—"}</td>

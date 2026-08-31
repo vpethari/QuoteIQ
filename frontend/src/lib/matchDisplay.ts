@@ -47,7 +47,30 @@ export function displayedProductcode(row: QuoteMatchResult): string {
   return code;
 }
 
-const ATKORE_PRODUCTS_URL = "https://www.atkore.com/products/";
+function matchedCandidate(row: QuoteMatchResult) {
+  if (statusBadge(row.match_status) !== "MATCHED") {
+    return null;
+  }
+  const code = formatProductcode(row.match_evidence?.matched_part_number || row.matched_part_number);
+  if (!code) {
+    return null;
+  }
+  return row.candidates?.find((item) => formatProductcode(item.official_part_number) === code) ?? null;
+}
+
+// productmaster.Productcode is an internal-only key; productmaster.name is
+// what external agents actually use to quote and order, so that's what
+// "Matched Part Number" displays as -- Productcode is still what drives
+// matching/selection under the hood (see onSelectCandidate), just not shown.
+export function displayedMatchedName(row: QuoteMatchResult): string {
+  const candidate = matchedCandidate(row);
+  if (!candidate) {
+    return displayedProductcode(row);
+  }
+  return candidate.name || candidate.description || displayedProductcode(row);
+}
+
+const ATKORE_PRODUCTS_URL = "https://www.atkore.com/product/";
 
 export function atkoreUrlForName(name: string | null | undefined): string | null {
   if (!name) {
@@ -57,15 +80,7 @@ export function atkoreUrlForName(name: string | null | undefined): string | null
 }
 
 export function atkoreProductUrl(row: QuoteMatchResult): string | null {
-  if (statusBadge(row.match_status) !== "MATCHED") {
-    return null;
-  }
-  const code = formatProductcode(row.match_evidence?.matched_part_number || row.matched_part_number);
-  if (!code) {
-    return null;
-  }
-  const matched = row.candidates?.find((item) => formatProductcode(item.official_part_number) === code);
-  return atkoreUrlForName(matched?.name);
+  return atkoreUrlForName(matchedCandidate(row)?.name);
 }
 
 export function candidateProductcode(candidate: {

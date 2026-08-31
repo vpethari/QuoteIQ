@@ -35,14 +35,14 @@ def _rr_catalog() -> list[ProductRecord]:
         _pg_product(333479, 333479, "RR 2BA KR", "RR 2BA KR", None),
         _pg_product(
             333427,
+            333427,
             "B1EB5-W",
             "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
-            "BRP 120V WHIP END EXT CBL",
         ),
-        _pg_product(333500, "B277-LC", "BRP 277V LIGHTING CBL", "BRP 277V LIGHTING CBL", None),
-        _pg_product(900003, "WHIP-A", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
-        _pg_product(900004, "WHIP-B", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
+        _pg_product(333500, 333500, "B277-LC", "BRP 277V LIGHTING CBL", None),
+        _pg_product(900003, 900003, "WHIP-A", "120V LIGHTING WHIP W/PAULEX", "WHIP FAMILY"),
+        _pg_product(900004, 900004, "WHIP-B", "120V LIGHTING WHIP W/PAULEX", "WHIP FAMILY"),
     ]
 
 
@@ -50,7 +50,7 @@ def test_rr2ba_is_review_not_high_confidence_match() -> None:
     result = ProductMatcher(_rr_catalog()).match_line(_line("RR2BA"))
     codes = {item.official_part_number for item in result.candidates}
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
-    assert {"333478", "333479"} <= codes
+    assert {"RR 2BA KL", "RR 2BA KR"} <= codes
     assert result.matched_part_number is None
     assert result.overall_match_score is not None
     assert result.overall_match_score <= 86
@@ -66,7 +66,7 @@ def test_rr2ba_is_review_not_high_confidence_match() -> None:
 def test_rr_2ba_kr_exact_productcode_match() -> None:
     result = ProductMatcher(_rr_catalog()).match_line(_line("RR 2BA KR"))
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert result.matched_part_number == "333479"
+    assert result.matched_part_number == "RR 2BA KR"
     assert result.overall_match_score == 100
     evidence = build_match_evidence(result)
     assert "Exact Productcode" in evidence["headline"] or "Normalized Productcode" in evidence["headline"]
@@ -76,7 +76,7 @@ def test_rr_2ba_kr_exact_productcode_match() -> None:
 def test_normalized_productcode_spacing() -> None:
     result = ProductMatcher(_rr_catalog()).match_line(_line("RR2BAKR"))
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert result.matched_part_number == "333479"
+    assert result.matched_part_number == "RR 2BA KR"
 
 
 def test_partial_productcode_is_never_auto_match() -> None:
@@ -92,8 +92,6 @@ def test_brp_120_volts_is_normalized_description_match() -> None:
     evidence = build_match_evidence(result)
     assert "Exact Productcode" not in evidence["headline"]
     assert evidence["headline"] in {"Normalized Description Match", "Description Match"}
-    productcode_field = next(item for item in evidence["fields"] if item["field"] == "Productcode")
-    assert productcode_field["level"] == "none"
     assert evidence["numeric_units"] == "Match"
 
 
@@ -116,8 +114,8 @@ def test_numeric_conflict_is_not_high_confidence() -> None:
     catalog = [
         _pg_product(
             333427,
+            333427,
             "B1EB5-W",
-            "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
         )

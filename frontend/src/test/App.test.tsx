@@ -51,6 +51,7 @@ const sample: QuoteProcessResponse = {
           salsify_id: "NA1-1LAP-W",
           score: 100,
           match_reasons: ["Exact match"],
+          name: "LTG-WHIP-PAULEX-A",
         },
         {
           official_part_number: "1LBP-W",
@@ -58,6 +59,7 @@ const sample: QuoteProcessResponse = {
           salsify_id: "NA1-1LBP-W",
           score: 100,
           match_reasons: ["Exact match"],
+          name: "LTG-WHIP-PAULEX-B",
         },
         {
           official_part_number: "1LCP-W",
@@ -65,6 +67,7 @@ const sample: QuoteProcessResponse = {
           salsify_id: "NA1-1LCP-W",
           score: 100,
           match_reasons: ["Exact match"],
+          name: "LTG-WHIP-PAULEX-C",
         },
       ],
     },
@@ -171,9 +174,9 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("Match Details")).toBeInTheDocument();
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
     expect(screen.getByText("Possible Matches")).toBeInTheDocument();
-    expect(screen.getByText("1LAP-W")).toBeInTheDocument();
-    expect(screen.getByText("1LBP-W")).toBeInTheDocument();
-    expect(screen.getByText("1LCP-W")).toBeInTheDocument();
+    expect(screen.getByText("LTG-WHIP-PAULEX-A")).toBeInTheDocument();
+    expect(screen.getByText("LTG-WHIP-PAULEX-B")).toBeInTheDocument();
+    expect(screen.getByText("LTG-WHIP-PAULEX-C")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Full Results" }));
     expect(downloadResultsCsv).toHaveBeenCalled();
@@ -237,15 +240,15 @@ describe("QuoteIQ app", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
-    expect(await screen.findByText("1EEC")).toBeInTheDocument();
+    expect(await screen.findByText("120V-DBL-HEAD-EXT-CABLE")).toBeInTheDocument();
     expect(screen.getByText("MATCH")).toBeInTheDocument();
     expect(screen.getAllByText("86%").length).toBeGreaterThan(0);
     const atkoreLink = screen.getByRole("link", { name: "View on atkore.com" });
-    expect(atkoreLink).toHaveAttribute("href", "https://www.atkore.com/products/120V-DBL-HEAD-EXT-CABLE");
+    expect(atkoreLink).toHaveAttribute("href", "https://www.atkore.com/product/120V-DBL-HEAD-EXT-CABLE");
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     await user.click(atkoreLink);
     expect(openSpy).toHaveBeenCalledWith(
-      "https://www.atkore.com/products/120V-DBL-HEAD-EXT-CABLE",
+      "https://www.atkore.com/product/120V-DBL-HEAD-EXT-CABLE",
       "atkoreProduct",
       expect.stringContaining("width="),
     );
@@ -253,11 +256,11 @@ describe("QuoteIQ app", () => {
     await user.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
-    expect(screen.getByText("1EAG/A")).toBeInTheDocument();
+    expect(screen.getByText("120V DBL HEAD EXT CABLE W/MOLEX")).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
   });
 
-  it("renders Productcode match evidence without using a database id", async () => {
+  it("renders match evidence without using a database id", async () => {
     const user = userEvent.setup();
     processQuote.mockResolvedValue({
       summary: { total: 1, matched: 1, review_required: 0, no_match: 0 },
@@ -284,10 +287,9 @@ describe("QuoteIQ app", () => {
             overall_percent: 98,
             headline: "Exact Productcode + Description Match",
             fields: [
-              { field: "Productcode", level: "exact", label: "Exact match", score: 100 },
-              { field: "name", level: "none", label: "No match", score: 0 },
-              { field: "description", level: "strong", label: "Strong match", score: 94 },
-              { field: "description2", level: "none", label: "No match", score: 0 },
+              { field: "Part Number", level: "none", label: "No match", score: 0 },
+              { field: "Part Description", level: "strong", label: "Strong match", score: 94 },
+              { field: "Catalog Description", level: "none", label: "No match", score: 0 },
             ],
           },
           candidate_count: 1,
@@ -298,6 +300,7 @@ describe("QuoteIQ app", () => {
               salsify_id: "B1EB5-W",
               score: 98,
               match_reasons: ["Exact Productcode match"],
+              name: "B1EB5-W-BRP-WHIP",
             },
           ],
         },
@@ -312,14 +315,14 @@ describe("QuoteIQ app", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
-    expect(await screen.findByText("B1EB5-W")).toBeInTheDocument();
+    expect(await screen.findByText("B1EB5-W-BRP-WHIP")).toBeInTheDocument();
     expect(screen.queryByText("333427")).not.toBeInTheDocument();
     expect(screen.getByText("Exact Productcode + Description Match")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show details" }));
-    expect(screen.getByText("Productcode — Exact match")).toBeInTheDocument();
-    expect(screen.getByText("description — Strong match")).toBeInTheDocument();
-    expect(screen.getByText("name — No match")).toBeInTheDocument();
-    expect(screen.getByText("description2 — No match")).toBeInTheDocument();
+    expect(screen.queryByText(/^Productcode —/)).not.toBeInTheDocument();
+    expect(screen.getByText("Part Description — Strong match")).toBeInTheDocument();
+    expect(screen.getByText("Part Number — No match")).toBeInTheDocument();
+    expect(screen.getByText("Catalog Description — No match")).toBeInTheDocument();
   });
 
   it("displays numeric Productcode without thousands separators", async () => {
@@ -349,10 +352,9 @@ describe("QuoteIQ app", () => {
               overall_percent: 100,
               headline: "Exact Productcode Match",
               fields: [
-                { field: "Productcode", level: "exact", label: "Exact match", score: 100 },
-                { field: "name", level: "none", label: "No match", score: 0 },
-                { field: "description", level: "none", label: "No match", score: 0 },
-                { field: "description2", level: "none", label: "No match", score: 0 },
+                { field: "Part Number", level: "none", label: "No match", score: 0 },
+                { field: "Part Description", level: "none", label: "No match", score: 0 },
+                { field: "Catalog Description", level: "none", label: "No match", score: 0 },
               ],
             },
             candidate_count: 1,
@@ -462,7 +464,7 @@ describe("QuoteIQ app", () => {
     );
     expect(await screen.findAllByText("User Selected")).not.toHaveLength(0);
     expect(screen.getAllByText("MATCH").length).toBeGreaterThan(0);
-    expect(screen.getByText("1LBP-W")).toBeInTheDocument();
+    expect(screen.getAllByText("LTG-WHIP-PAULEX-B").length).toBeGreaterThan(0);
   });
 
   it("shows parse warnings from an unpredictable input file and lets a reviewer dismiss them", async () => {
@@ -490,7 +492,7 @@ describe("QuoteIQ app", () => {
   it("downloads a CPQ-ready CSV via the CPQ Ready Items button", async () => {
     const user = userEvent.setup();
     processQuote.mockResolvedValue(sample);
-    downloadCpqReadyCsv.mockResolvedValue(new Blob(["Productcode,Qty"]));
+    downloadCpqReadyCsv.mockResolvedValue(new Blob(["Part Number,Quantity"]));
     render(<App />);
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(

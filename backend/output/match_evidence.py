@@ -7,10 +7,9 @@ from output.schema import STATUSES_WITH_PART_NUMBER
 
 
 FIELD_ORDER = (
-    ("productcode", "Productcode"),
-    ("name", "name"),
-    ("description", "description"),
-    ("description2", "description2"),
+    ("name", "Part Number"),
+    ("description", "Part Description"),
+    ("description2", "Catalog Description"),
 )
 
 MATCH_STATUSES = {

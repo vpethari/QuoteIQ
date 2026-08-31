@@ -163,7 +163,7 @@ def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
         candidate_count=0,
     )
     rows = cpq_rows_from_results([matched, review, no_match])
-    assert rows == [{"Productcode": "2EB40-B-SC", "Qty": "12", "Requested Product": "10/3 MCT"}]
+    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12"}]
 
 
 def test_render_cpq_csv_bytes_header_and_content() -> None:
@@ -181,7 +181,7 @@ def test_render_cpq_csv_bytes_header_and_content() -> None:
     payload = render_cpq_csv_bytes([matched])
     rows = _parse_csv(payload)
     assert list(rows[0].keys()) == list(CPQ_CSV_COLUMNS)
-    assert rows == [{"Productcode": "2EB40-B-SC", "Qty": "12", "Requested Product": "10/3 MCT"}]
+    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12"}]
 
 
 def test_csv_escaping_commas_quotes_unicode() -> None:
@@ -444,7 +444,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert cpq_export.status_code == 200
         assert "QuoteIQ_CPQ_Ready.csv" in cpq_export.headers["content-disposition"]
         cpq_rows = _parse_csv(cpq_export.content)
-        assert cpq_rows == [{"Productcode": "2EB40-B-SC", "Qty": "1", "Requested Product": "10/3 MCT"}]
+        assert cpq_rows == [{"Part Number": "2EB40-B-SC", "Quantity": "1"}]
 
         settings = get_settings()
         original_max = settings.quote_upload_max_bytes
@@ -476,7 +476,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert "text/csv" in cpq_response.headers["content-type"]
         assert "QuoteIQ_CPQ_Ready.csv" in cpq_response.headers["content-disposition"]
         cpq_rows = _parse_csv(cpq_response.content)
-        assert cpq_rows == [] or list(cpq_rows[0].keys()) == ["Productcode", "Qty", "Requested Product"]
+        assert cpq_rows == [] or list(cpq_rows[0].keys()) == ["Part Number", "Quantity"]
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
