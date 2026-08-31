@@ -23,6 +23,8 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("W", ("WIRE",)),
     ("LIGHTING", ("LIGHTING", "LTG", "LTGS")),
     ("WHIP", ("WHIP", "WHIPS")),
+    ("STRUT", ("STRUT", "UNISTRUT")),
+    ("TRAY", ("TRAY", "TROF", "TROUGH")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).
@@ -65,6 +67,18 @@ def _build_token_map() -> dict[str, str]:
 TOKEN_SYNONYMS: dict[str, str] = _build_token_map()
 
 
+def _build_variants_map() -> dict[str, tuple[str, ...]]:
+    mapping: dict[str, tuple[str, ...]] = {}
+    for canonical, variants in TERMINOLOGY_GROUPS:
+        variant_set = tuple(sorted({variant.upper() for variant in variants} | {canonical.upper()}))
+        for variant in variant_set:
+            mapping[variant] = variant_set
+    return mapping
+
+
+TOKEN_VARIANTS: dict[str, tuple[str, ...]] = _build_variants_map()
+
+
 def canonicalize_token(token: str) -> str:
     """Map one already-tokenized uppercase term to its canonical catalog form."""
     return TOKEN_SYNONYMS.get(token.upper(), token.upper())
@@ -72,3 +86,14 @@ def canonicalize_token(token: str) -> str:
 
 def is_synonym_token(token: str) -> bool:
     return token.upper() in TOKEN_SYNONYMS
+
+
+def token_variants(token: str) -> tuple[str, ...]:
+    """All equivalent surface spellings for a token (including itself).
+
+    Catalog ``search_text`` stores raw, uncanonicalized text, so retrieval SQL
+    needs every spelling a canonicalized query token could stand for (e.g.
+    "cbl" -> ("cable", "cables", "cbl")), not just the canonical form.
+    """
+    upper = token.upper()
+    return TOKEN_VARIANTS.get(upper, (upper,))

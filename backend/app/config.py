@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     postgres_db: str = "quoteiq"
     catalog_excel_path: str = str(PROJECT_ROOT / "data" / "Atkorepartsfile.xlsx")
     match_high_confidence_min: float = 90.0
-    match_min_threshold: float = 25.0
+    match_min_threshold: float = 5.0
     match_min_score_gap: float = 8.0
     match_ambiguous_confidence_cap: float = 86.0
     match_numeric_conflict_cap: float = 40.0

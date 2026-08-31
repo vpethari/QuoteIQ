@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from ai.provider import MockAIReasoningProvider
+from ai.service import AIMatchingService, AIPolicyConfig, InMemoryAuditStore
 from catalog.postgres_repository import product_from_postgres_row
 from matching.matcher import ProductMatcher
 from matching.models import MatchStatus, QuoteLine
@@ -85,4 +87,26 @@ def test_cache_does_not_leak_between_quote_requests() -> None:
     matcher.match_quote([_line("B1EB5-W")])
     matcher.match_quote([_line("B1EB5-W")])
     assert search.fetch_identifier_candidates.call_count == 2
+    assert get_request_cache() is None
+
+
+def test_ai_enabled_quote_shares_cache_across_concurrent_lines() -> None:
+    """AIMatchingService.match_quote runs lines through a ThreadPoolExecutor;
+    each worker must rebind the same cache instance (ContextVars are not
+    inherited by new threads) for duplicate lines to still retrieve once.
+    """
+    hits = [_rr("333478", "RR 2BA KL"), _rr("333479", "RR 2BA KR")]
+    search = _search(hits)
+    matcher = ProductMatcher([], catalog_search=search)
+    service = AIMatchingService(
+        matcher=matcher,
+        catalog=[],
+        provider=MockAIReasoningProvider(),
+        policy=AIPolicyConfig(max_concurrent_requests=4),
+        audit_store=InMemoryAuditStore(),
+    )
+    lines = [_line("RR2BA", row) for row in (2, 3, 4, 5)]
+    results = service.match_quote(lines, use_ai=True)
+    assert len(results) == 4
+    assert search.fetch_identifier_candidates.call_count == 1
     assert get_request_cache() is None

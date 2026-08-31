@@ -26,12 +26,12 @@ class MatchingConfig:
     weight_fuzzy: float = 0.20
     weight_attribute: float = 0.15
     high_confidence_min: float = 90.0
-    min_match_threshold: float = 25.0
+    min_match_threshold: float = 5.0
     min_score_gap: float = 8.0
     score_tie_epsilon: float = 0.5
     max_candidates: int = 10
     review_candidate_limit: int = 3
-    candidate_floor: float = 10.0
+    candidate_floor: float = 5.0
     retrieval_candidate_limit: int = 100
     search_text_candidate_limit: int = 30
     part_number_weight: float = 0.70

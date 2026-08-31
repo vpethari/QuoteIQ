@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Sequence
+from contextlib import nullcontext
 
 from matching.explanations import build_candidate_reasons, build_result_reasons
 from matching.models import (
@@ -79,6 +80,16 @@ PN_NOT_FOUND = (
 )
 
 
+def _catalog_connection_scope(catalog_search: object | None):
+    """One pooled connection for all searches made while matching one line,
+    when the catalog search backend supports it (e.g. real Postgres, not the
+    in-memory fallback or a test double)."""
+    scope = getattr(catalog_search, "connection_scope", None)
+    if scope is None:
+        return nullcontext()
+    return scope()
+
+
 class ProductMatcher:
     """Deterministic catalog matcher. Family records are never candidates."""
 
@@ -121,6 +132,8 @@ class ProductMatcher:
                 self._by_official[official_key].append(product)
         identifier_keys = tuple(self._by_identifier)
         self._identifier_keys = identifier_keys
+        self._salsify_keys = tuple(self._by_salsify)
+        self._official_and_identifier_keys = tuple(self._by_official) + identifier_keys
 
     def match_line(self, line: QuoteLine) -> MatchResult:
         requested_description = productcode_as_text(line.requested_description) or fold_whitespace(
@@ -139,19 +152,20 @@ class ProductMatcher:
             interpreted = interpret_customer_text(
                 requested_description,
                 explicit_part_number=requested_part_number,
-                salsify_keys=tuple(self._by_salsify),
-                official_keys=tuple(self._by_official) + tuple(self._by_identifier),
+                salsify_keys=self._salsify_keys,
+                official_keys=self._official_and_identifier_keys,
             )
         quantity = line.quantity if line.quantity is not None else interpreted.quantity_from_text
-        result = self._match_interpreted(
-            raw_description=requested_description,
-            interpreted=interpreted,
-            quantity=quantity,
-            source_file=line.source_file,
-            source_sheet=line.source_sheet,
-            source_row=line.source_row,
-        )
-        result = self._attach_identity(result, requested_description, interpreted)
+        with _catalog_connection_scope(self.catalog_search):
+            result = self._match_interpreted(
+                raw_description=requested_description,
+                interpreted=interpreted,
+                quantity=quantity,
+                source_file=line.source_file,
+                source_sheet=line.source_sheet,
+                source_row=line.source_row,
+            )
+            result = self._attach_identity(result, requested_description, interpreted)
         published = prepare_published_result(result, self.config)
         if session is not None and session.current is not None:
             session.current.total_ms = _ms(perf_counter() - started)
@@ -191,19 +205,20 @@ class ProductMatcher:
         with span("normalize_ms"):
             interpreted = interpret_customer_text(
                 requested_description,
-                salsify_keys=tuple(self._by_salsify),
-                official_keys=tuple(self._by_official) + tuple(self._by_identifier),
+                salsify_keys=self._salsify_keys,
+                official_keys=self._official_and_identifier_keys,
             )
         resolved_qty = quantity if quantity is not None else interpreted.quantity_from_text
-        result = self._match_interpreted(
-            raw_description=requested_description,
-            interpreted=interpreted,
-            quantity=resolved_qty,
-            source_file=source_file,
-            source_sheet=source_sheet,
-            source_row=source_row,
-        )
-        result = self._attach_identity(result, requested_description, interpreted)
+        with _catalog_connection_scope(self.catalog_search):
+            result = self._match_interpreted(
+                raw_description=requested_description,
+                interpreted=interpreted,
+                quantity=resolved_qty,
+                source_file=source_file,
+                source_sheet=source_sheet,
+                source_row=source_row,
+            )
+            result = self._attach_identity(result, requested_description, interpreted)
         published = prepare_published_result(result, self.config)
         if session is not None and session.current is not None:
             session.current.total_ms = _ms(perf_counter() - started)
@@ -348,14 +363,14 @@ class ProductMatcher:
         cache = get_request_cache()
         key = candidate_cache_key(query)
         if cache is not None and key in cache.candidates:
-            cache.hits += 1
+            cache.record_hit()
             return list(cache.candidates[key])
         if cache is not None:
-            cache.misses += 1
+            cache.record_miss()
         if self.catalog_search is not None:
             limit = self.config.retrieval_candidate_limit
             if cache is not None:
-                cache.database_candidate_queries += 1
+                cache.record_database_query()
             if is_product_code_query(query):
                 lookups = self._cached_lookup_productcode(query, limit)
                 if lookups:
@@ -402,7 +417,7 @@ class ProductMatcher:
         cache = get_request_cache()
         key = candidate_cache_key(requested_description)
         if cache is not None and key in cache.scored:
-            cache.hits += 1
+            cache.record_hit()
             return list(cache.scored[key])
         scored: list[MatchCandidate] = []
         query = strip_quantity_and_noise(requested_description)

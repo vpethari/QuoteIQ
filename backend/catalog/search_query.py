@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from matching.noise import strip_quantity_and_noise
+from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
 
 
@@ -13,14 +14,32 @@ def retrieval_search_string(query: str) -> str:
     return cleaned.lower().strip()
 
 
-def retrieval_search_tokens(query: str, *, limit: int = 8) -> list[str]:
+def _is_distinctive(token: str) -> bool:
+    """A single stray digit (e.g. "1" left over from splitting "1-5/8") matches
+    almost every catalog row and adds no discriminating power, so it needs a
+    higher bar than a plain length check: digit-only tokens must be at least
+    2 characters (keeps real sizes like "36"/"144"), everything else just
+    needs to not be a 1-2 character fragment.
+    """
+    bare = token.replace(".", "", 1)
+    if bare.isdigit():
+        return len(bare) >= 2
+    return len(token) >= 3
+
+
+def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[str, ...]]:
+    """Expand each retrieval-worthy query token to every catalog spelling it
+    could stand for (e.g. "cbl" -> ("cable", "cables", "cbl")).
+
+    ``search_text`` stores raw, uncanonicalized catalog text, while query tokens
+    are canonicalized (e.g. "cable" -> "cbl") for scoring purposes. Retrieval
+    must search for any equivalent spelling so a synonym never zeroes out
+    candidates that only differ in which spelling the catalog happened to use.
+    """
     cleaned = strip_quantity_and_noise(query)
     tokens = tokenize_description(cleaned)
-    distinctive = [
-        token.lower()
-        for token in tokens
-        if token.replace(".", "", 1).isdigit() or len(token) >= 3
-    ]
+    distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:
-        distinctive = [token.lower() for token in tokens if token]
-    return distinctive[:limit]
+        distinctive = [token for token in tokens if token]
+    limited = distinctive[:limit]
+    return [tuple(variant.lower() for variant in token_variants(token)) for token in limited]

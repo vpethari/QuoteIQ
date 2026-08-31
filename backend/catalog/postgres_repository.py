@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import math
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from sqlalchemy import bindparam, inspect, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 
-from catalog.search_query import retrieval_search_string, retrieval_search_tokens
+from catalog.search_query import retrieval_search_string, retrieval_search_token_groups
 from matching.models import ProductRecord
 from matching.normalizer import part_number_lookup_keys
 from matching.productcode import compact_code, productcode_as_text
@@ -14,6 +17,18 @@ from matching.timing_diag import _ms, _pool_snapshot, active
 _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 FAMILY_PRODUCTCODE_PLACEHOLDER = "-"
 PRODUCT_RECORD_TYPE = "product"
+
+# Bound to a real Connection only inside `connection_scope()`. ContextVars are
+# per-thread (each ThreadPoolExecutor worker gets its own default context), so
+# concurrent AI-mode lines never share a connection with each other.
+_active_connection: ContextVar[Connection | None] = ContextVar("_active_connection", default=None)
+
+# Fallback used only when the strict all-tokens-required search finds nothing:
+# require most (not all) distinctive query tokens to appear, so catalog text
+# that's terser or differently-worded than the customer's phrasing can still
+# surface as a review candidate instead of a hard zero.
+PARTIAL_MATCH_MIN_OVERLAP = 0.6
+PARTIAL_MATCH_MIN_TOKENS = 3
 
 
 def _quote(identifier: str) -> str:
@@ -103,27 +118,68 @@ class PostgresCatalogRepository:
             f"FROM {table_sql}"
         )
 
+    @contextmanager
+    def connection_scope(self):
+        """Reuse one pooled connection for every search made inside this
+        block, instead of a fresh pool checkout per individual query.
+
+        Each checkout pays a live round-trip to validate the connection
+        (``pool_pre_ping``); a single quote line can otherwise trigger several
+        sequential searches (identifier lookup, strict text search, partial
+        fallback), each paying that round-trip separately. Call this once per
+        line being processed. Reentrant: nesting scopes reuses the outermost
+        connection rather than opening a second one.
+        """
+        if _active_connection.get() is not None:
+            yield
+            return
+        from time import perf_counter
+
+        session = active()
+        t0 = perf_counter()
+        with self.engine.connect() as connection:
+            if session is not None:
+                session.add(db_connect_ms=_ms(perf_counter() - t0), connect_calls=1)
+            token = _active_connection.set(connection)
+            try:
+                yield
+            finally:
+                _active_connection.reset(token)
+
     def _timed_fetch(self, sql, params: dict[str, object], *, search: str) -> list[dict[str, object]]:
         from time import perf_counter
 
         session = active()
         if session is not None:
             session.add(search=search)
+
+        borrowed = _active_connection.get()
         t0 = perf_counter()
-        with self.engine.connect() as connection:
-            connect_ms = _ms(perf_counter() - t0)
+        if borrowed is not None:
+            connect_ms = 0.0
             t1 = perf_counter()
-            result = connection.execute(sql, params)
+            result = borrowed.execute(sql, params)
             query_ms = _ms(perf_counter() - t1)
             t2 = perf_counter()
             rows = [dict(row) for row in result.mappings()]
             map_ms = _ms(perf_counter() - t2)
+            connect_calls = 0
+        else:
+            with self.engine.connect() as connection:
+                connect_ms = _ms(perf_counter() - t0)
+                t1 = perf_counter()
+                result = connection.execute(sql, params)
+                query_ms = _ms(perf_counter() - t1)
+                t2 = perf_counter()
+                rows = [dict(row) for row in result.mappings()]
+                map_ms = _ms(perf_counter() - t2)
+            connect_calls = 1
         if session is not None:
             session.add(
                 db_connect_ms=connect_ms,
                 db_query_ms=query_ms,
                 db_map_ms=map_ms,
-                connect_calls=1,
+                connect_calls=connect_calls,
                 sql_queries=1,
             )
             session.pool_status.append(_pool_snapshot(self.engine))
@@ -150,15 +206,23 @@ class PostgresCatalogRepository:
             session.add(db_map_ms=_ms(perf_counter() - t0))
         return records
 
-    def search_text_sql(self, token_count: int) -> str:
-        """Candidate retrieval SQL against search_text (or a concat fallback)."""
+    def search_text_sql(self, token_variant_counts: list[int]) -> str:
+        """Candidate retrieval SQL against search_text (or a concat fallback).
+
+        Each entry in ``token_variant_counts`` is the number of equivalent
+        spellings (e.g. "cable"/"cables"/"cbl") to OR together for that token
+        position; positions are ANDed against each other.
+        """
         like_op = "ILIKE" if self._is_postgres() else "LIKE"
         search_expr = self._search_text_expr()
-        where_parts = [f"{search_expr} {like_op} :tok{index}" for index in range(token_count)]
+        where_parts = [
+            "(" + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count)) + ")"
+            for position, count in enumerate(token_variant_counts)
+        ]
         if not where_parts:
             where_parts = [f"{search_expr} {like_op} :normalized"]
         order_sql = "1"
-        if self._is_postgres() and token_count:
+        if self._is_postgres() and token_variant_counts:
             order_sql = f"similarity({search_expr}, :normalized) DESC"
         return (
             f"{self._select_catalog_sql()} "
@@ -167,25 +231,74 @@ class PostgresCatalogRepository:
             "LIMIT :limit"
         )
 
+    def partial_search_text_sql(self, token_variant_counts: list[int], min_required: int) -> str:
+        """Fallback retrieval SQL used only when the strict all-tokens search
+        finds nothing: requires at least ``min_required`` of the token
+        positions to match (each still OR'd across its own spellings), ranked
+        by how many positions matched.
+
+        Built as one indexed single-predicate query per token position, UNIONed
+        and grouped, rather than a single scan computing every position's hit
+        for every row -- the latter can't use the search_text trigram index and
+        is a full table scan per call.
+        """
+        like_op = "ILIKE" if self._is_postgres() else "LIKE"
+        search_expr = self._search_text_expr()
+        code_sql = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        desc_sql = _quote(self.description_column)
+        desc2_sql = _quote(self.description2_column)
+        table_sql = _quote(self.table)
+        branches = [
+            "SELECT "
+            f"{code_sql} AS productcode, {name_sql} AS name, "
+            f"{desc_sql} AS description, {desc2_sql} AS description2, "
+            f"{position} AS token_position "
+            f"FROM {table_sql} WHERE "
+            + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count))
+            for position, count in enumerate(token_variant_counts)
+        ]
+        return (
+            "SELECT productcode, name, description, description2, "
+            "COUNT(DISTINCT token_position) AS match_count "
+            f"FROM ({' UNION ALL '.join(branches)}) AS hits "
+            "GROUP BY productcode, name, description, description2 "
+            "HAVING COUNT(DISTINCT token_position) >= :min_required "
+            "ORDER BY match_count DESC "
+            "LIMIT :limit"
+        )
+
     def search_text_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
         """Return a limited candidate set from PostgreSQL search_text."""
         cap = self.retrieval_limit if limit is None else limit
-        tokens = retrieval_search_tokens(query)
+        token_groups = retrieval_search_token_groups(query)
         normalized = retrieval_search_string(query)
         if not normalized:
             return []
-        sql = text(self.search_text_sql(len(tokens)))
-        params: dict[str, object] = {"limit": cap, "normalized": normalized}
-        if tokens:
-            for index, token in enumerate(tokens):
-                params[f"tok{index}"] = f"%{token}%"
-        else:
-            params["normalized"] = f"%{normalized}%"
+        variant_counts = [len(group) for group in token_groups]
+        token_params: dict[str, object] = {}
+        for position, group in enumerate(token_groups):
+            for variant_index, variant in enumerate(group):
+                token_params[f"tok{position}_{variant_index}"] = f"%{variant}%"
+
+        sql = text(self.search_text_sql(variant_counts))
+        params: dict[str, object] = {"limit": cap, "normalized": normalized, **token_params}
         rows = self._timed_fetch(sql, params, search="search_text_candidates")
         products = self._rows_to_products(rows)
-        if products or not tokens:
+        if products or not token_groups:
             return products
-        sql = text(self.search_text_sql(0))
+
+        if len(token_groups) >= PARTIAL_MATCH_MIN_TOKENS:
+            min_required = math.ceil(len(token_groups) * PARTIAL_MATCH_MIN_OVERLAP)
+            if min_required < len(token_groups):
+                sql = text(self.partial_search_text_sql(variant_counts, min_required))
+                params = {"limit": cap, "normalized": normalized, "min_required": min_required, **token_params}
+                rows = self._timed_fetch(sql, params, search="search_text_candidates_partial")
+                products = self._rows_to_products(rows)
+                if products:
+                    return products
+
+        sql = text(self.search_text_sql([]))
         params = {"limit": cap, "normalized": f"%{normalized}%"}
         rows = self._timed_fetch(sql, params, search="search_text_candidates_fallback")
         return self._rows_to_products(rows)
@@ -288,13 +401,14 @@ class PostgresCatalogRepository:
     def explain_search_text_candidates(self, query: str, limit: int | None = None) -> str:
         """Run EXPLAIN ANALYZE for the candidate retrieval query."""
         cap = self.retrieval_limit if limit is None else limit
-        tokens = retrieval_search_tokens(query)
+        token_groups = retrieval_search_token_groups(query)
         normalized = retrieval_search_string(query)
-        sql_body = self.search_text_sql(len(tokens) if tokens else 0)
+        sql_body = self.search_text_sql([len(group) for group in token_groups])
         params: dict[str, object] = {"limit": cap, "normalized": normalized}
-        if tokens:
-            for index, token in enumerate(tokens):
-                params[f"tok{index}"] = f"%{token}%"
+        if token_groups:
+            for position, group in enumerate(token_groups):
+                for variant_index, variant in enumerate(group):
+                    params[f"tok{position}_{variant_index}"] = f"%{variant}%"
         else:
             params["normalized"] = f"%{normalized}%"
         explain = text(f"EXPLAIN ANALYZE {sql_body}")

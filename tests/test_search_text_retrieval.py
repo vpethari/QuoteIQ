@@ -64,7 +64,7 @@ def test_search_text_candidates_are_limited_and_relevant() -> None:
 
 def test_search_text_sql_targets_search_text_column() -> None:
     repository = _sqlite_catalog()
-    sql = repository.search_text_sql(3)
+    sql = repository.search_text_sql([1, 1, 1])
     assert '"search_text"' in sql
     assert "LIMIT :limit" in sql
 
@@ -78,9 +78,114 @@ def test_search_text_sql_does_not_inspect_schema() -> None:
         raise AssertionError("search SQL must not inspect productmaster schema")
 
     repository.column_names = _fail_inspect  # type: ignore[method-assign]
-    sql = repository.search_text_sql(3)
+    sql = repository.search_text_sql([1, 1, 1])
     assert '"search_text"' in sql
     assert "similarity(" in sql
+
+
+def test_search_text_sql_ors_synonym_variants_within_a_token_position() -> None:
+    repository = _sqlite_catalog()
+    sql = repository.search_text_sql([3, 1])
+    assert "(" in sql and ") OR (" not in sql
+    assert sql.count(":tok0_") == 3
+    assert sql.count(":tok1_") == 1
+
+
+def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_text() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                'CREATE TABLE productmaster ('
+                "id INTEGER, "
+                '"Productcode" TEXT, '
+                "name TEXT, "
+                "description TEXT, "
+                "description2 TEXT, "
+                "search_text TEXT)"
+            )
+        )
+        # Catalog text spells "CABLE" out in full; the query token canonicalizes
+        # to "cbl" for scoring, but retrieval must still find this row.
+        row = (1915974, "1915974", "NMAHCTC 24", '24" CABLE TRAY LOWER COVER', None)
+        search_text = " ".join(str(part).lower() for part in row[1:] if part)
+        connection.execute(
+            text(
+                'INSERT INTO productmaster '
+                '(id, "Productcode", name, description, description2, search_text) '
+                "VALUES (:id, :code, :name, :description, :description2, :search_text)"
+            ),
+            {
+                "id": row[0],
+                "code": row[1],
+                "name": row[2],
+                "description": row[3],
+                "description2": row[4],
+                "search_text": search_text,
+            },
+        )
+    repository = PostgresCatalogRepository(engine, retrieval_limit=100)
+    hits = repository.search_text_candidates('Cable Tray: 24" Lower Cover', limit=100)
+    codes = {item.product_code for item in hits}
+    assert "1915974" in codes
+
+
+def test_connection_scope_reuses_one_connection_across_searches() -> None:
+    """Each search pays a pool checkout (pool_pre_ping does a live round-trip
+    to validate the connection); connection_scope() lets one line's several
+    sequential searches share a single checkout instead of one each."""
+    repository = _sqlite_catalog()
+    connect_calls = 0
+    original_connect = repository.engine.connect
+
+    def counting_connect(*args: object, **kwargs: object) -> object:
+        nonlocal connect_calls
+        connect_calls += 1
+        return original_connect(*args, **kwargs)
+
+    repository.engine.connect = counting_connect  # type: ignore[method-assign]
+
+    with repository.connection_scope():
+        repository.search_text_candidates("BRP 120 volts whip end extension cable", limit=100)
+        repository.lookup_productcode("333479")
+    assert connect_calls == 1
+
+
+def test_without_connection_scope_each_search_opens_its_own_connection() -> None:
+    repository = _sqlite_catalog()
+    connect_calls = 0
+    original_connect = repository.engine.connect
+
+    def counting_connect(*args: object, **kwargs: object) -> object:
+        nonlocal connect_calls
+        connect_calls += 1
+        return original_connect(*args, **kwargs)
+
+    repository.engine.connect = counting_connect  # type: ignore[method-assign]
+
+    repository.search_text_candidates("BRP 120 volts whip end extension cable", limit=100)
+    repository.lookup_productcode("333479")
+    assert connect_calls == 2
+
+
+def test_matcher_shares_one_connection_per_line() -> None:
+    """match_line touches the catalog more than once per line (identifier
+    lookup, description search); it should reuse one connection for all of
+    them rather than checking one out per call."""
+    repository = _sqlite_catalog()
+    connect_calls = 0
+    original_connect = repository.engine.connect
+
+    def counting_connect(*args: object, **kwargs: object) -> object:
+        nonlocal connect_calls
+        connect_calls += 1
+        return original_connect(*args, **kwargs)
+
+    repository.engine.connect = counting_connect  # type: ignore[method-assign]
+
+    matcher = ProductMatcher([], catalog_search=repository)
+    matcher.match_line(_line("BRP 120 volts whip end extension cable"))
+    assert connect_calls == 1
 
 
 def test_identifier_search_sql_uses_compact_column_on_postgres() -> None:
