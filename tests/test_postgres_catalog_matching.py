@@ -40,7 +40,7 @@ SAMPLE_PRODUCTS = [
     _pg_product(333563, "G1MD04MMDD03092", "G1MD04MMDD03092", "G1MD04MMDD03092", None),
     _pg_product(333572, "G1MD04MMDD08092", "G1MD04MMDD08092", "G1MD04MMDD08092", None),
     _pg_product(900001, "NA1-2DDDA10-HV", "NA1-2DDDA10-HV", "HIGH VOLTAGE", "HV CABLE"),
-    _pg_product(900002, "HV-NAME-1", "SPECIAL HV KIT", "ALTERNATE NAME DESC", None),
+    _pg_product(900002, 900002, "HV-NAME-1", "ALTERNATE NAME DESC", "SPECIAL HV KIT"),
     _pg_product(900003, "WHIP-A", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
     _pg_product(900004, "WHIP-B", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
 ]
@@ -208,10 +208,13 @@ def test_sqlite_loader_maps_productcode_not_id() -> None:
 
 
 def _numeric_code_catalog() -> list[ProductRecord]:
+    # Productcode is internal-only now, so a bare numeric identifier has to
+    # live in `name` (the real identity field) to exercise "exact numeric
+    # identifier" matching; the old code-like text moves to description.
     return [
-        _pg_product(1, 333572, "G1MD04MMDD08092", "G1MD04MMDD08092", None),
-        _pg_product(2, 333408, "RR 2B KR", "RR 2B KR", None),
-        _pg_product(3, 333479, "RR 2BA KR", "RR 2BA KR", None),
+        _pg_product(1, 1, "333572", "G1MD04MMDD08092", None),
+        _pg_product(2, 2, "333408", "RR 2B KR", None),
+        _pg_product(3, 3, "333479", "RR 2BA KR", None),
         _pg_product(4, "B1EB5-W", "B1EB5-W", "BRP 120V WHIP END EXT CBL", "BRP 120V WHIP END EXT CBL"),
         _pg_product(5, "1MD12BZUZ115EB1", "1MD12BZUZ115EB1", "1MD12BZUZ115EB1", None),
         _pg_product(6, "NA1-2DDDA10-HV", "NA1-2DDDA10-HV", "HIGH VOLTAGE", "HV CABLE"),
@@ -255,14 +258,17 @@ def test_exact_alphanumeric_productcodes_in_mixed_catalog() -> None:
 
 
 def test_sqlite_integer_productcode_is_loaded_as_text() -> None:
+    # `name` is the identity column now; verify a bare numeric value stored
+    # in an INTEGER-typed name column still comes back as clean, unformatted
+    # text (this used to be checked against an INTEGER Productcode column).
     engine = create_engine("sqlite:///:memory:")
     with engine.begin() as connection:
         connection.execute(
             text(
                 "CREATE TABLE productmaster ("
                 "id INTEGER, "
-                '"Productcode" INTEGER, '
-                "name TEXT, "
+                '"Productcode" TEXT, '
+                "name INTEGER, "
                 "description TEXT, "
                 "description2 TEXT)"
             )
@@ -270,8 +276,8 @@ def test_sqlite_integer_productcode_is_loaded_as_text() -> None:
         connection.execute(
             text(
                 'INSERT INTO productmaster (id, "Productcode", name, description, description2) '
-                "VALUES (1, 333572, 'G1MD04MMDD08092', 'G1MD04MMDD08092', NULL), "
-                "(2, 333408, 'RR 2B KR', 'RR 2B KR', NULL)"
+                "VALUES (1, 'G1MD04MMDD08092', 333572, 'G1MD04MMDD08092', NULL), "
+                "(2, 'RR 2B KR', 333408, 'RR 2B KR', NULL)"
             )
         )
     records = load_catalog_from_postgres(engine)

@@ -11,14 +11,14 @@ from tests.test_confidence_engine import _line, _pg_product, _rr_catalog
 def test_exact_productcode_is_automatic_match() -> None:
     result = ProductMatcher(_rr_catalog()).match_line(_line("RR 2BA KR"))
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert result.matched_part_number == "333479"
+    assert result.matched_part_number == "RR 2BA KR"
     assert result.selection_type == "AUTOMATIC"
     assert result.match_type == "AUTOMATIC"
     assert "Exact Productcode" in (result.match_type_label or "")
     payload = result.to_api_dict()
     assert payload["selection_type"] == "AUTOMATIC"
     assert payload["candidates"][0]["rank"] == 1
-    assert payload["candidates"][0]["productcode"] == "333479"
+    assert payload["candidates"][0]["productcode"] == "RR 2BA KR"
 
 
 def test_rr2ba_returns_both_candidates_for_review() -> None:
@@ -27,7 +27,7 @@ def test_rr2ba_returns_both_candidates_for_review() -> None:
     codes = [item["productcode"] for item in payload["candidates"]]
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
     assert result.matched_part_number is None
-    assert {"333478", "333479"} <= set(codes)
+    assert {"RR 2BA KL", "RR 2BA KR"} <= set(codes)
     assert payload["selection_type"] is None
     assert len(payload["candidates"]) <= 3
 
@@ -59,10 +59,10 @@ def test_manual_selection_marks_user_selected_match() -> None:
     matcher = ProductMatcher(_rr_catalog())
     result = matcher.match_line(_line("RR2BA"))
     original = result.overall_match_score
-    payload = apply_user_selection_payload(result.to_api_dict(), "333479", quote_line_id=result.quote_line_id)
-    selected = apply_user_selection(result, "333479")
+    payload = apply_user_selection_payload(result.to_api_dict(), "RR 2BA KR", quote_line_id=result.quote_line_id)
+    selected = apply_user_selection(result, "RR 2BA KR")
     assert selected.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
-    assert selected.matched_part_number == "333479"
+    assert selected.matched_part_number == "RR 2BA KR"
     assert selected.match_type == "USER_SELECTED"
     assert selected.selection_type == "USER_SELECTED"
     assert selected.original_confidence == original
@@ -70,7 +70,7 @@ def test_manual_selection_marks_user_selected_match() -> None:
     assert selected.requested_description == "RR2BA"
     assert selected.quantity == 1
     assert payload["match_type"] == "USER_SELECTED"
-    assert payload["matched_part_number"] == "333479"
+    assert payload["matched_part_number"] == "RR 2BA KR"
     assert payload["match_status"] == "HIGH_CONFIDENCE"
     assert payload["original_confidence"] == original
 
@@ -98,7 +98,7 @@ def test_select_endpoint_updates_review_result() -> None:
             "/api/quote/match/select",
             json={
                 "quote_line_id": body["quote_line_id"],
-                "productcode": "333479",
+                "productcode": "RR 2BA KR",
                 "result": body,
             },
         )
@@ -106,7 +106,7 @@ def test_select_endpoint_updates_review_result() -> None:
         payload = selected.json()
         assert payload["match_status"] == "HIGH_CONFIDENCE"
         assert payload["match_type"] == "USER_SELECTED"
-        assert payload["matched_part_number"] == "333479"
+        assert payload["matched_part_number"] == "RR 2BA KR"
         assert payload["requested_description"] == "RR2BA"
         assert payload["original_confidence"] == body["original_confidence"]
     finally:

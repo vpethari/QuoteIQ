@@ -127,7 +127,9 @@ def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_te
     repository = PostgresCatalogRepository(engine, retrieval_limit=100)
     hits = repository.search_text_candidates('Cable Tray: 24" Lower Cover', limit=100)
     codes = {item.product_code for item in hits}
-    assert "1915974" in codes
+    # Identity now comes from `name` ("NMAHCTC 24"), not the internal
+    # Productcode value (1915974) -- name is the real orderable identifier.
+    assert "NMAHCTC 24" in codes
 
 
 def test_connection_scope_reuses_one_connection_across_searches() -> None:
@@ -254,7 +256,24 @@ def test_identifier_retrieval_keeps_existing_limit() -> None:
 
 
 def test_lookup_productcode_does_not_rewrite_values() -> None:
+    # lookup_productcode is an exact identifier lookup against `name` now
+    # (Productcode is internal-only and never searched); verify the matched
+    # identifier text comes back exactly as stored, with no reformatting.
     repository = _sqlite_catalog()
-    hits = repository.lookup_productcode("333479")
-    assert [item.product_code for item in hits] == ["333479"]
+    hits = repository.lookup_productcode("B1EB5-W")
+    assert [item.product_code for item in hits] == ["B1EB5-W"]
     assert all("," not in item.product_code for item in hits)
+
+
+def test_lookup_productcode_falls_back_to_compact_match_for_spaced_names() -> None:
+    """A query whose spacing/case doesn't match the stored name exactly (but
+    is identical once whitespace/case/punctuation are stripped) must still
+    resolve via the compact-match fallback. Regression test: compact_expr
+    upper-cased the DB side while compact_code() also upper-cases the query,
+    but an earlier version of this fallback lower-cased the DB side while
+    still comparing to an upper-cased :compact param, so it could never match
+    a name containing letters (only ever exercised digits-only Productcodes
+    before, where case is a no-op)."""
+    repository = _sqlite_catalog()
+    hits = repository.lookup_productcode("rr2bakr")
+    assert [item.product_code for item in hits] == ["RR 2BA KR"]

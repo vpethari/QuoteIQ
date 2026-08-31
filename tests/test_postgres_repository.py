@@ -33,9 +33,12 @@ def test_product_from_row_uses_productcode_not_id() -> None:
 
 
 def test_numeric_productcode_is_kept_as_unformatted_string() -> None:
+    # Productcode no longer feeds identity at all; this now verifies the
+    # identity field (name) is kept as plain, unformatted text even when it
+    # holds a bare numeric value.
     record = product_from_postgres_row(
-        productcode=333427,
-        name="B1EB5-W",
+        productcode=None,
+        name=333427,
         description="BRP 120V WHIP END EXT CBL",
         description2="BRP 120V WHIP END EXT CBL",
         row_id=1,
@@ -45,7 +48,6 @@ def test_numeric_productcode_is_kept_as_unformatted_string() -> None:
     assert record.product_code == "333427"
     assert isinstance(record.product_code, str)
     assert "," not in record.product_code
-    assert record.official_part_number != "B1EB5-W"
 
 
 def test_productcode_from_thousands_formatted_text() -> None:
@@ -60,7 +62,10 @@ def test_productcode_from_thousands_formatted_text() -> None:
 
 
 def test_product_from_row_keeps_na1_prefix() -> None:
-    record = product_from_postgres_row(productcode="NA1-2DDDA10-HV", description="HIGH VOLTAGE")
+    # The identifier lives in `name` now, not Productcode.
+    record = product_from_postgres_row(
+        productcode=None, name="NA1-2DDDA10-HV", description="HIGH VOLTAGE"
+    )
     assert record is not None
     assert record.official_part_number == "NA1-2DDDA10-HV"
 

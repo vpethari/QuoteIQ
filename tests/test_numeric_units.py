@@ -37,12 +37,12 @@ def _catalog() -> list[ProductRecord]:
     return [
         _pg_product(
             333427,
+            333427,
             "B1EB5-W",
             "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
-            "BRP 120V WHIP END EXT CBL",
         ),
-        _pg_product(333500, "B277-LC", "BRP 277V LIGHTING CBL", "BRP 277V LIGHTING CBL", None),
+        _pg_product(333500, 333500, "B277-LC", "BRP 277V LIGHTING CBL", None),
         _pg_product(
             800001,
             "1MD12BZUZ115EB1",
@@ -127,8 +127,8 @@ def test_brp_277_against_only_120v_catalog_is_not_a_match() -> None:
     catalog = [
         _pg_product(
             333427,
+            333427,
             "B1EB5-W",
-            "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
             "BRP 120V WHIP END EXT CBL",
         )

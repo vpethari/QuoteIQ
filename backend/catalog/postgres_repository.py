@@ -46,20 +46,24 @@ def product_from_postgres_row(
     row_id: object = None,
     record_type: object = None,
 ) -> ProductRecord | None:
-    sellable = productcode_as_text(productcode)
+    """productmaster.name is the real, external orderable identifier (what
+    customers/external agents quote and order by); Productcode is an
+    internal-only surrogate key and is never used for matching or search --
+    it's kept only as a last-resort internal reference id below.
+    """
     name_text = str(name).strip() if name is not None and str(name).strip() else ""
-    if not sellable or sellable == FAMILY_PRODUCTCODE_PLACEHOLDER:
+    if not name_text or name_text == FAMILY_PRODUCTCODE_PLACEHOLDER:
         return None
-    internal_id = productcode_as_text(row_id) or None
+    internal_id = productcode_as_text(row_id) or productcode_as_text(productcode) or None
     kind = str(record_type).strip().lower() if record_type is not None and str(record_type).strip() else PRODUCT_RECORD_TYPE
     if kind != PRODUCT_RECORD_TYPE:
         return None
     return ProductRecord(
-        salsify_id=sellable,
-        official_part_number=sellable,
+        salsify_id=name_text,
+        official_part_number=name_text,
         description=str(description).strip() if description else None,
         record_type=PRODUCT_RECORD_TYPE,
-        name=name_text or None,
+        name=name_text,
         description2=str(description2).strip() if description2 else None,
         catalog_row_id=internal_id,
     )
@@ -303,19 +307,6 @@ class PostgresCatalogRepository:
         rows = self._timed_fetch(sql, params, search="search_text_candidates_fallback")
         return self._rows_to_products(rows)
 
-    def _integer_productcode(self, identifier: str) -> int | None:
-        """Parse a query as int4 Productcode. Alphanumeric catalog names are not Productcode."""
-        compact = compact_code(identifier) or productcode_as_text(identifier)
-        if not compact.isdigit():
-            return None
-        try:
-            value = int(compact)
-        except ValueError:
-            return None
-        if value < -2147483648 or value > 2147483647:
-            return None
-        return value
-
     def _legacy_compact_identifier_blob(self) -> str:
         def compact_expr(column_sql: str) -> str:
             return (
@@ -323,13 +314,11 @@ class PostgresCatalogRepository:
                 f"{column_sql} as text), '')), ' ', ''), '-', ''), '/', '')"
             )
 
-        code_cast = self._productcode_sql()
         name_sql = _quote(self.name_column)
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
         return (
-            f"{compact_expr(code_cast)} || {compact_expr(name_sql)} || "
-            f"{compact_expr(desc_sql)} || {compact_expr(desc2_sql)}"
+            f"{compact_expr(name_sql)} || {compact_expr(desc_sql)} || {compact_expr(desc2_sql)}"
         )
 
     def _identifier_search_expr(self) -> str:
@@ -338,7 +327,7 @@ class PostgresCatalogRepository:
         return self._legacy_compact_identifier_blob()
 
     def identifier_search_sql(self, token_count: int) -> str:
-        """Candidate SQL for compact Productcode/name/description identifier retrieval."""
+        """Candidate SQL for compact name/description identifier retrieval."""
         expr = self._identifier_search_expr()
         where_parts = [f"{expr} LIKE :tok{index}" for index in range(token_count)]
         return (
@@ -348,23 +337,10 @@ class PostgresCatalogRepository:
         )
 
     def lookup_productcode(self, identifier: str, limit: int = 20) -> list[ProductRecord]:
-        if self._is_postgres():
-            code = self._integer_productcode(identifier)
-            if code is None:
-                return []
-            query = text(
-                f"""
-                {self._select_catalog_sql()}
-                WHERE {_quote(self.productcode_column)} = :code
-                LIMIT :limit
-                """
-            )
-            rows = self._timed_fetch(
-                query,
-                {"code": code, "limit": limit},
-                search="lookup_productcode",
-            )
-            return self._rows_to_products(rows)
+        """Exact identifier lookup against productmaster.name -- the real
+        orderable part number. Productcode is internal-only and is never
+        searched or matched against.
+        """
         keys = [key for key in part_number_lookup_keys(identifier) if key]
         if not keys:
             compact = compact_code(identifier)
@@ -372,16 +348,20 @@ class PostgresCatalogRepository:
                 keys = [compact]
         if not keys:
             return []
-        code_cast = self._productcode_sql()
+        name_sql = _quote(self.name_column)
+        # compact_code() upper-cases (see matching/productcode.py); this must
+        # match on the same case or an alphabetic name never matches here --
+        # harmless while this compared a digits-only Productcode, but name
+        # can contain letters.
         compact_expr = (
-            "replace(replace(replace(lower(coalesce("
-            f"{code_cast}, '')), ' ', ''), '-', ''), '/', '')"
+            "replace(replace(replace(upper(coalesce("
+            f"{name_sql}, '')), ' ', ''), '-', ''), '/', '')"
         )
         query = text(
             f"""
             {self._select_catalog_sql()}
-            WHERE {code_cast} IN :keys
-               OR lower({code_cast}) IN :lower_keys
+            WHERE {name_sql} IN :keys
+               OR lower({name_sql}) IN :lower_keys
                OR {compact_expr} = :compact
             LIMIT :limit
             """
@@ -551,7 +531,6 @@ class PostgresCatalogRepository:
         columns = self.column_names()
         table_sql = _quote(self.table)
         code_cast = self._productcode_sql()
-        code_sql = _quote(self.productcode_column)
         name_sql = _quote(self.name_column)
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
@@ -566,10 +545,12 @@ class PostgresCatalogRepository:
         has_record_type = self.record_type_column in columns
         if has_record_type:
             select_parts.append(f"{_quote(self.record_type_column)} AS record_type")
+        # Gate on name (the real identifier), not Productcode (internal-only) --
+        # a row needs a usable name to be matchable at all now.
         where_parts = [
-            f"{code_sql} IS NOT NULL",
-            f"TRIM(CAST({code_sql} AS TEXT)) <> ''",
-            f"TRIM(CAST({code_sql} AS TEXT)) <> '{FAMILY_PRODUCTCODE_PLACEHOLDER}'",
+            f"{name_sql} IS NOT NULL",
+            f"TRIM(CAST({name_sql} AS TEXT)) <> ''",
+            f"TRIM(CAST({name_sql} AS TEXT)) <> '{FAMILY_PRODUCTCODE_PLACEHOLDER}'",
         ]
         if has_record_type:
             where_parts.append(
