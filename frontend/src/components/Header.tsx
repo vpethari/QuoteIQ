@@ -51,9 +51,6 @@ export function Header({ onGetStarted }: Props) {
             </a>
           </div>
           <div className="nav-auth">
-            <a href="#login" className="nav-login" onClick={placeholder}>
-              Log in
-            </a>
             <button type="button" className="btn-navy" onClick={onGetStarted}>
               Get Started
             </button>

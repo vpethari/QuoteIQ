@@ -1,13 +1,11 @@
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="how" aria-labelledby="how-heading">
-      <p className="eyebrow">HOW IT WORKS</p>
-      <h2 id="how-heading">From RFQ to CPQ-ready output</h2>
+    <section id="how-it-works" className="how" aria-label="How QuoteIQ works">
       <ol className="how-steps">
         <li>
           <span className="how-n">01</span>
           <h3>Upload</h3>
-          <p>Drop in your Excel quote.</p>
+          <p>Drop in your Excel or PDF quote.</p>
         </li>
         <li>
           <span className="how-n">02</span>

@@ -5,8 +5,8 @@ export function FeatureCallouts() {
     <section className="capabilities" aria-label="QuoteIQ capabilities">
       <article className="capability">
         <IconGear />
-        <h2>Three-Layer Matching</h2>
-        <p>EDI mappings, PIM data and AI reasoning</p>
+        <h2>Multi-Layer Matching</h2>
+        <p>PIM data and AI reasoning</p>
       </article>
       <article className="capability">
         <IconCheck size={22} />

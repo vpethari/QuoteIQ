@@ -1,11 +1,40 @@
+function SampleFormatTable() {
+  return (
+    <table className="workflow-sample-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cable Cleats</td>
+          <td>120</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 export function WorkflowGraphic() {
   return (
     <div className="workflow" aria-hidden="true">
-      <div className="workflow-card xlsx">
-        <span className="xlsx-icon" />
-        <span className="workflow-kicker">XLSX</span>
-        <strong>quote.xlsx</strong>
-        <span className="workflow-file">Excel line items</span>
+      <div className="workflow-inputs">
+        <div className="workflow-card xlsx">
+          <span className="xlsx-icon" />
+          <span className="workflow-kicker">XLSX</span>
+          <strong>quote.xlsx</strong>
+          <span className="workflow-sample">Sample format</span>
+          <SampleFormatTable />
+        </div>
+        <div className="workflow-card pdf">
+          <span className="pdf-icon" />
+          <span className="workflow-kicker">PDF</span>
+          <strong>quote.pdf</strong>
+          <span className="workflow-sample">Sample format</span>
+          <SampleFormatTable />
+        </div>
       </div>
       <div className="workflow-connector">
         <span />

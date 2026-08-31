@@ -101,4 +101,5 @@ export interface QuoteSummary {
 export interface QuoteProcessResponse {
   summary: QuoteSummary;
   results: QuoteMatchResult[];
+  parse_warnings?: string[];
 }

@@ -5,7 +5,8 @@ import App from "../App";
 import type { QuoteProcessResponse } from "../types/quote";
 
 const processQuote = vi.fn();
-const processQuoteCsv = vi.fn();
+const downloadResultsCsv = vi.fn();
+const downloadCpqReadyCsv = vi.fn();
 const downloadBlob = vi.fn();
 
 const selectQuoteMatch = vi.fn();
@@ -19,7 +20,8 @@ vi.mock("../services/api", () => ({
     }
   },
   processQuote: (...args: unknown[]) => processQuote(...args),
-  processQuoteCsv: (...args: unknown[]) => processQuoteCsv(...args),
+  downloadResultsCsv: (...args: unknown[]) => downloadResultsCsv(...args),
+  downloadCpqReadyCsv: (...args: unknown[]) => downloadCpqReadyCsv(...args),
   downloadBlob: (...args: unknown[]) => downloadBlob(...args),
   selectQuoteMatch: (...args: unknown[]) => selectQuoteMatch(...args),
 }));
@@ -72,7 +74,8 @@ const sample: QuoteProcessResponse = {
 describe("QuoteIQ app", () => {
   beforeEach(() => {
     processQuote.mockReset();
-    processQuoteCsv.mockReset();
+    downloadResultsCsv.mockReset();
+    downloadCpqReadyCsv.mockReset();
     downloadBlob.mockReset();
     selectQuoteMatch.mockReset();
   });
@@ -87,8 +90,7 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("Quote Summary")).toBeInTheDocument();
     expect(screen.getByText(/Making/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
-    expect(screen.queryByText(/PDF/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Upload your Excel documents/)).toBeInTheDocument();
+    expect(screen.getByText(/Upload your Excel or PDF documents/)).toBeInTheDocument();
   });
 
   it("rejects unsupported files", async () => {
@@ -97,7 +99,7 @@ describe("QuoteIQ app", () => {
     const bad = new File(["x"], "notes.txt", { type: "text/plain" });
     fireEvent.change(input, { target: { files: [bad] } });
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to process quote");
-    expect(screen.getByRole("alert")).toHaveTextContent("Only .xlsx Excel files are supported.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Only .xlsx Excel or .pdf files are supported.");
     expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
   });
 
@@ -115,6 +117,17 @@ describe("QuoteIQ app", () => {
     expect(screen.getByRole("button", { name: "Process Quote →" })).toBeEnabled();
   });
 
+  it("selects a pdf file and enables process", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["%PDF-1.4"], "sample-quote.pdf", { type: "application/pdf" });
+    Object.defineProperty(file, "size", { value: 4096 });
+    await user.upload(input, file);
+    expect(screen.getByText("sample-quote.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeEnabled();
+  });
+
   it("shows loading, KPIs, review details, download, and API errors", async () => {
     const user = userEvent.setup();
     let resolveProcess: (value: QuoteProcessResponse) => void = () => undefined;
@@ -124,7 +137,7 @@ describe("QuoteIQ app", () => {
           resolveProcess = resolve;
         }),
     );
-    processQuoteCsv.mockResolvedValue(new Blob(["csv"]));
+    downloadResultsCsv.mockResolvedValue(new Blob(["csv"]));
 
     render(<App />);
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -162,8 +175,8 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("1LBP-W")).toBeInTheDocument();
     expect(screen.getByText("1LCP-W")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Download CSV" }));
-    expect(processQuoteCsv).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Full Results" }));
+    expect(downloadResultsCsv).toHaveBeenCalled();
     expect(downloadBlob).toHaveBeenCalled();
 
     const { ApiError } = await import("../services/api");
@@ -202,6 +215,7 @@ describe("QuoteIQ app", () => {
               salsify_id: "NA1-1EEC",
               score: 86,
               match_reasons: ["Shared tokens: 120V, DBL, HEAD, EXT, CABLE"],
+              name: "120V-DBL-HEAD-EXT-CABLE",
             },
             {
               official_part_number: "1EAG/A",
@@ -226,6 +240,16 @@ describe("QuoteIQ app", () => {
     expect(await screen.findByText("1EEC")).toBeInTheDocument();
     expect(screen.getByText("MATCH")).toBeInTheDocument();
     expect(screen.getAllByText("86%").length).toBeGreaterThan(0);
+    const atkoreLink = screen.getByRole("link", { name: "View on atkore.com" });
+    expect(atkoreLink).toHaveAttribute("href", "https://www.atkore.com/products/120V-DBL-HEAD-EXT-CABLE");
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    await user.click(atkoreLink);
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://www.atkore.com/products/120V-DBL-HEAD-EXT-CABLE",
+      "atkoreProduct",
+      expect.stringContaining("width="),
+    );
+    openSpy.mockRestore();
     await user.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
@@ -439,5 +463,62 @@ describe("QuoteIQ app", () => {
     expect(await screen.findAllByText("User Selected")).not.toHaveLength(0);
     expect(screen.getAllByText("MATCH").length).toBeGreaterThan(0);
     expect(screen.getByText("1LBP-W")).toBeInTheDocument();
+  });
+
+  it("shows parse warnings from an unpredictable input file and lets a reviewer dismiss them", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue({
+      ...sample,
+      parse_warnings: [
+        'No header row was found in "inputfile.xlsx" -- Description and Quantity columns were inferred from the data.',
+      ],
+    });
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    expect(await screen.findByText(/No header row was found/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/No header row was found/)).not.toBeInTheDocument();
+  });
+
+  it("downloads a CPQ-ready CSV via the CPQ Ready Items button", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue(sample);
+    downloadCpqReadyCsv.mockResolvedValue(new Blob(["Productcode,Qty"]));
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    await screen.findByText("120V LIGHTING WHIP W/PAULEX");
+    await user.click(screen.getByRole("button", { name: "CPQ Ready Items" }));
+    expect(downloadCpqReadyCsv).toHaveBeenCalled();
+    expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "QuoteIQ_CPQ_Ready.csv");
+  });
+
+  it("renders no parse-warnings banner when the response has none", async () => {
+    const user = userEvent.setup();
+    processQuote.mockResolvedValue(sample);
+    render(<App />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(["abc"], "inputfile.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Process Quote →" }));
+    await screen.findByText("Quote Results");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

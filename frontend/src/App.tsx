@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { BackToTop } from "./components/BackToTop";
 import { ErrorCard } from "./components/ErrorCard";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
 import { HowItWorks } from "./components/HowItWorks";
+import { ParseWarnings } from "./components/ParseWarnings";
 import { ProcessingState } from "./components/ProcessingState";
 import { ResultsDashboard } from "./components/ResultsDashboard";
 import { ResultsTable } from "./components/ResultsTable";
-import { UploadCard } from "./components/UploadCard";
-import { ApiError, downloadBlob, processQuote, processQuoteCsv, selectQuoteMatch } from "./services/api";
+import type { SummaryFilter } from "./components/SummaryCards";
+import { UploadDropzone } from "./components/UploadDropzone";
+import { UploadPanel } from "./components/UploadPanel";
+import { statusBadge } from "./lib/matchDisplay";
+import {
+  ApiError,
+  downloadBlob,
+  downloadCpqReadyCsv,
+  downloadResultsCsv,
+  processQuote,
+  selectQuoteMatch,
+} from "./services/api";
 import type { QuoteMatchResult, QuoteProcessResponse } from "./types/quote";
 
 function scrollToId(id: string) {
@@ -39,6 +51,28 @@ export default function App() {
   const [results, setResults] = useState<QuoteProcessResponse | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [selectingIndex, setSelectingIndex] = useState<number | null>(null);
+  const [activeFilter, setActiveFilter] = useState<SummaryFilter>("ALL");
+  const [warningsDismissed, setWarningsDismissed] = useState(false);
+
+  const visibleIndices = useMemo(() => {
+    if (!results) {
+      return [];
+    }
+    if (activeFilter === "ALL") {
+      return results.results.map((_, index) => index);
+    }
+    return results.results
+      .map((_, index) => index)
+      .filter((index) => statusBadge(results.results[index].match_status) === activeFilter);
+  }, [results, activeFilter]);
+
+  function handleFile(file: File | null, message?: string) {
+    setSelectedFile(file);
+    setResults(null);
+    setActiveFilter("ALL");
+    setWarningsDismissed(false);
+    setError(message ?? null);
+  }
 
   async function onProcess() {
     if (!selectedFile || loading) {
@@ -50,6 +84,8 @@ export default function App() {
       const payload = await processQuote(selectedFile, useAI);
       setResults(payload);
       setExpandedRows(new Set());
+      setActiveFilter("ALL");
+      setWarningsDismissed(false);
     } catch (err) {
       setResults(null);
       setError(
@@ -63,14 +99,34 @@ export default function App() {
   }
 
   async function onDownload() {
-    if (!selectedFile || loading) {
+    if (!results || loading) {
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const blob = await processQuoteCsv(selectedFile, useAI);
+      const blob = await downloadResultsCsv(results.results);
       downloadBlob(blob, "QuoteIQ_results.csv");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Please make sure the QuoteIQ service is running and try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onDownloadCpq() {
+    if (!results || loading) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const blob = await downloadCpqReadyCsv(results.results);
+      downloadBlob(blob, "QuoteIQ_CPQ_Ready.csv");
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -125,26 +181,32 @@ export default function App() {
         <div className="dashboard">
           <div className="workspace-card">
             <div className="workspace-grid">
-              <UploadCard
+              <UploadDropzone loading={loading} onFile={handleFile} />
+              <UploadPanel
                 file={selectedFile}
                 lineCount={results?.summary.total ?? null}
                 loading={loading}
                 useAI={useAI}
                 onUseAI={setUseAI}
                 onProcess={() => void onProcess()}
-                onFile={(file, message) => {
-                  setSelectedFile(file);
-                  setResults(null);
-                  setError(message ?? null);
-                }}
-              />
-              <ResultsDashboard
-                summary={results?.summary ?? null}
-                onDownload={() => void onDownload()}
-                loading={loading}
-                canDownload={Boolean(selectedFile && results)}
+                onFile={handleFile}
               />
             </div>
+
+            {!warningsDismissed && results?.parse_warnings?.length ? (
+              <ParseWarnings warnings={results.parse_warnings} onDismiss={() => setWarningsDismissed(true)} />
+            ) : null}
+
+            <ResultsDashboard
+              summary={results?.summary ?? null}
+              onDownload={() => void onDownload()}
+              onDownloadCpq={() => void onDownloadCpq()}
+              loading={loading}
+              canDownload={Boolean(results)}
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              visibleCount={visibleIndices.length}
+            />
 
             {loading ? <ProcessingState /> : null}
             {error ? <ErrorCard message={error} /> : null}
@@ -152,6 +214,7 @@ export default function App() {
             {results ? (
               <ResultsTable
                 results={results.results}
+                visibleIndices={visibleIndices}
                 expandedRows={expandedRows}
                 selectingIndex={selectingIndex}
                 onSelectCandidate={(index, row, productcode) => {
@@ -173,6 +236,7 @@ export default function App() {
           </div>
         </div>
       </main>
+      <BackToTop />
     </div>
   );
 }

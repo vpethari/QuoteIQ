@@ -14,7 +14,7 @@ export function Hero({ onUpload, onHowItWorks }: Props) {
         <h1 id="hero-heading">QuoteIQ</h1>
         <p className="hero-headline">Transform messy RFQs into clean, CPQ-ready quotes.</p>
         <p className="hero-lead">
-          Upload your Excel documents. Our AI-powered matching engine identifies Atkore products,
+          Upload your Excel or PDF documents. Our AI-powered matching engine identifies Atkore products,
           validates part numbers, and delivers a clean CSV ready for Salesforce CPQ.
         </p>
         <div className="hero-actions">
@@ -26,6 +26,10 @@ export function Hero({ onUpload, onHowItWorks }: Props) {
             <IconPlay />
             See How It Works
           </button>
+        </div>
+        <div className="hero-how">
+          <p className="eyebrow">HOW IT WORKS</p>
+          <h2 id="how-heading">From RFQ to CPQ-ready output</h2>
         </div>
       </div>
       <div className="hero-visual">
