@@ -47,6 +47,27 @@ export function displayedProductcode(row: QuoteMatchResult): string {
   return code;
 }
 
+const ATKORE_PRODUCTS_URL = "https://www.atkore.com/products/";
+
+export function atkoreUrlForName(name: string | null | undefined): string | null {
+  if (!name) {
+    return null;
+  }
+  return `${ATKORE_PRODUCTS_URL}${encodeURIComponent(name)}`;
+}
+
+export function atkoreProductUrl(row: QuoteMatchResult): string | null {
+  if (statusBadge(row.match_status) !== "MATCHED") {
+    return null;
+  }
+  const code = formatProductcode(row.match_evidence?.matched_part_number || row.matched_part_number);
+  if (!code) {
+    return null;
+  }
+  const matched = row.candidates?.find((item) => formatProductcode(item.official_part_number) === code);
+  return atkoreUrlForName(matched?.name);
+}
+
 export function candidateProductcode(candidate: {
   productcode?: string | null;
   official_part_number?: string | null;

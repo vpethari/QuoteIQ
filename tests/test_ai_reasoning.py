@@ -172,6 +172,8 @@ def test_ambiguous_result_becomes_review_required(
     assert "distinguish" in result.reasoning_summary.lower() or "equivalent" in result.reasoning_summary.lower()
     parts = {item["official_part_number"] for item in result.candidate_details}
     assert {"1LBP-W", "1LCP-W"} & parts
+    assert all("field_scores" in item for item in result.candidate_details)
+    assert all("name" in item for item in result.candidate_details)
 
 
 def test_ai_skipped_for_verified_exact_part_number_match(

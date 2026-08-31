@@ -1,4 +1,5 @@
 import {
+  atkoreUrlForName,
   candidateProductcode,
   displayedProductcode,
   formatOptionalPercent,
@@ -8,7 +9,12 @@ import {
   statusLabel,
 } from "../lib/matchDisplay";
 import type { CandidateProduct, QuoteMatchResult } from "../types/quote";
+import { AtkoreProductLink } from "./AtkoreProductLink";
 import { MatchEvidencePanel } from "./MatchEvidence";
+
+function CandidateAtkoreLink({ candidate }: { candidate: CandidateProduct }) {
+  return <AtkoreProductLink url={atkoreUrlForName(candidate.name)} />;
+}
 
 function candidateReason(candidate: CandidateProduct): string {
   return (
@@ -121,7 +127,10 @@ export function CandidateDetails({
                 <li key={candidate.salsify_id || candidate.official_part_number || code}>
                   <div className="possible-match-rank">#{rank}</div>
                   <div className="possible-match-body">
-                    <div className="part">{code}</div>
+                    <div className="part">
+                      {code}
+                      <CandidateAtkoreLink candidate={candidate} />
+                    </div>
                     <div>{candidateName(candidate)}</div>
                     {candidate.description2 ? (
                       <div className="hint">{candidate.description2}</div>
@@ -151,7 +160,10 @@ export function CandidateDetails({
             {row.candidates.map((candidate) => (
               <li key={candidate.salsify_id || candidate.official_part_number}>
                 <div>
-                  <div className="part">{candidateProductcode(candidate)}</div>
+                  <div className="part">
+                    {candidateProductcode(candidate)}
+                    <CandidateAtkoreLink candidate={candidate} />
+                  </div>
                   {candidateName(candidate) && candidateName(candidate) !== candidateProductcode(candidate) ? (
                     <div>{candidateName(candidate)}</div>
                   ) : null}

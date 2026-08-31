@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import {
+  atkoreProductUrl,
   displayedProductcode,
   formatQuantity,
   matchWhyHeadline,
@@ -9,6 +10,7 @@ import {
   statusLabel,
 } from "../lib/matchDisplay";
 import type { QuoteMatchResult } from "../types/quote";
+import { AtkoreProductLink } from "./AtkoreProductLink";
 import { CandidateDetails } from "./CandidateDetails";
 import { IconEye, IconInfo } from "./Icons";
 
@@ -18,13 +20,16 @@ export function ResultsTable({
   onToggle,
   onSelectCandidate,
   selectingIndex,
+  visibleIndices,
 }: {
   results: QuoteMatchResult[];
   expandedRows: Set<number>;
   onToggle: (index: number) => void;
   onSelectCandidate?: (index: number, row: QuoteMatchResult, productcode: string) => void;
   selectingIndex?: number | null;
+  visibleIndices?: number[];
 }) {
+  const indices = visibleIndices ?? results.map((_, index) => index);
   return (
     <section className="table-card" aria-labelledby="table-heading">
       <h2 id="table-heading">Quote Results</h2>
@@ -50,7 +55,15 @@ export function ResultsTable({
             </tr>
           </thead>
           <tbody>
-            {results.map((row, index) => {
+            {indices.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="filter-empty">
+                  No rows match this filter.
+                </td>
+              </tr>
+            ) : (
+              indices.map((index) => {
+              const row = results[index];
               const expanded = expandedRows.has(index);
               const badge = statusBadge(row.match_status);
               const requested =
@@ -76,7 +89,10 @@ export function ResultsTable({
                       ) : null}
                     </td>
                     <td>{formatQuantity(row.quantity)}</td>
-                    <td className="part">{displayedProductcode(row)}</td>
+                    <td className="part">
+                      {displayedProductcode(row)}
+                      <AtkoreProductLink url={atkoreProductUrl(row)} />
+                    </td>
                     <td>{row.matched_description || "—"}</td>
                     <td className={`numeric ${percentTone(row.overall_match_score ?? row.matching_percentage)}`}>
                       {overallPercent(row)}
@@ -121,7 +137,8 @@ export function ResultsTable({
                   ) : null}
                 </Fragment>
               );
-            })}
+              })
+            )}
           </tbody>
         </table>
       </div>

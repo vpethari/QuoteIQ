@@ -19,6 +19,7 @@ from ai.provider import AINotConfiguredError, AIReasoningProvider
 from ai.validator import ValidationOutcome, validate_ai_selection
 from matching.matcher import ProductMatcher
 from matching.models import MatchCandidate, MatchResult, MatchStatus, ProductRecord, QuoteLine
+from matching.request_cache import end_request_cache, start_request_cache, use_request_cache
 
 
 @dataclass
@@ -189,21 +190,36 @@ class AIMatchingService:
         validation/audit are unaffected -- only the wall-clock time to
         process a whole quote changes. Results preserve input line order
         regardless of which call finishes first.
+
+        Wraps the whole quote in one request-scoped candidate cache (as
+        ProductMatcher.match_quote already does for non-AI quotes) so
+        duplicate/near-duplicate lines in the same quote reuse retrieval and
+        scoring work instead of repeating it. ContextVars aren't inherited by
+        thread pool workers, so each worker rebinds the same cache instance
+        explicitly via use_request_cache().
         """
         lines = list(lines)
-        if len(lines) <= 1 or not use_ai or self.provider is None:
-            return [self.match_line(line, use_ai=use_ai) for line in lines]
+        cache = start_request_cache()
+        try:
+            if len(lines) <= 1 or not use_ai or self.provider is None:
+                return [self.match_line(line, use_ai=use_ai) for line in lines]
 
-        workers = max(1, min(self.policy.max_concurrent_requests, len(lines)))
-        results: list[FinalMatchResult | None] = [None] * len(lines)
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            future_to_index = {
-                executor.submit(self.match_line, line, use_ai): index
-                for index, line in enumerate(lines)
-            }
-            for future in future_to_index:
-                results[future_to_index[future]] = future.result()
-        return results  # type: ignore[return-value]
+            def _match_with_cache(line: QuoteLine) -> FinalMatchResult:
+                use_request_cache(cache)
+                return self.match_line(line, use_ai=use_ai)
+
+            workers = max(1, min(self.policy.max_concurrent_requests, len(lines)))
+            results: list[FinalMatchResult | None] = [None] * len(lines)
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                future_to_index = {
+                    executor.submit(_match_with_cache, line): index
+                    for index, line in enumerate(lines)
+                }
+                for future in future_to_index:
+                    results[future_to_index[future]] = future.result()
+            return results  # type: ignore[return-value]
+        finally:
+            end_request_cache()
 
     def _audit(
         self,
@@ -348,6 +364,8 @@ def _candidate_details(candidates: Sequence[MatchCandidate]) -> list[dict]:
             "salsify_id": item.salsify_id,
             "deterministic_score": item.score,
             "match_reasons": list(item.match_reasons),
+            "field_scores": dict(item.field_scores),
+            "name": item.name,
         }
         for item in candidates
     ]

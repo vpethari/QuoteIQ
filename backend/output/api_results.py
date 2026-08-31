@@ -25,6 +25,7 @@ def _candidate_dict(item: MatchCandidate | dict[str, Any]) -> dict[str, Any]:
             "salsify_id": item.salsify_id,
             "score": _numeric_percentage(item.score),
             "match_reasons": list(item.match_reasons),
+            "name": item.name,
         }
     score = item.get("deterministic_score", item.get("score", 0))
     return {
@@ -33,6 +34,7 @@ def _candidate_dict(item: MatchCandidate | dict[str, Any]) -> dict[str, Any]:
         "salsify_id": item.get("salsify_id"),
         "score": _numeric_percentage(float(score or 0)),
         "match_reasons": list(item.get("match_reasons") or []),
+        "name": item.get("name"),
     }
 
 

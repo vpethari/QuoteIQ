@@ -14,10 +14,10 @@ from ai.service import AIMatchingService, AIPolicyConfig, InMemoryAuditStore
 from catalog.excel_loader import load_catalog_records
 from matching.matcher import ProductMatcher
 from matching.models import MatchCandidate, MatchResult, MatchStatus, QuoteLine
-from output.csv_writer import render_csv, render_csv_bytes
+from output.csv_writer import cpq_rows_from_results, render_cpq_csv_bytes, render_csv, render_csv_bytes
 from output.pipeline import process_quote_to_csv
 from output.rows import csv_row_from_final_result, csv_row_from_match_result, format_matching_percentage
-from output.schema import CSV_COLUMNS
+from output.schema import CPQ_CSV_COLUMNS, CSV_COLUMNS
 from quotes.models import QuoteParseError
 from quotes.parser import parse_quote_file
 
@@ -117,6 +117,71 @@ def test_review_and_no_match_blank_part_number() -> None:
     )
     assert none["Matched Atkore Part Number"] == ""
     assert none["Confidence"] == "LOW"
+
+
+def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
+    matched = FinalMatchResult(
+        requested_description="10/3 MCT",
+        quantity=12,
+        matched_part_number="2EB40-B-SC",
+        matched_description="10/3 MCT",
+        deterministic_score=100,
+        final_confidence=95,
+        match_status="CONFIDENT_MATCH",
+        reasoning_summary="Exact normalized description match; unique catalog product.",
+        candidate_count=1,
+    )
+    review = MatchResult(
+        source_file="inputfile.xlsx",
+        source_sheet="Sheet1",
+        source_row=2,
+        requested_description="120V LIGHTING WHIP W/PAULEX",
+        quantity=5,
+        matched_part_number="1LBP-W",
+        matched_description="120V LIGHTING WHIP W/PAULEX",
+        matched_salsify_id="NA1-1LBP-W",
+        matching_percentage=100,
+        confidence_level="REVIEW_REQUIRED",
+        match_status=MatchStatus.REVIEW_REQUIRED,
+        candidate_count=3,
+        candidates=[
+            MatchCandidate("1LAP-W", "120V LTG WHIP W/PAULEX", "NA1-1LAP-W", 100, 100),
+            MatchCandidate("1LBP-W", "120V LIGHTING WHIP W/PAULEX", "NA1-1LBP-W", 100, 100),
+        ],
+        match_reasons=["Multiple Atkore products have the same description"],
+        top_score=100,
+        second_score=100,
+        score_gap=0,
+    )
+    no_match = FinalMatchResult(
+        requested_description="UNKNOWN WIDGET",
+        quantity=1,
+        match_status="NO_MATCH",
+        deterministic_score=0,
+        final_confidence=0,
+        reasoning_summary="No sufficiently similar Atkore product found.",
+        candidate_count=0,
+    )
+    rows = cpq_rows_from_results([matched, review, no_match])
+    assert rows == [{"Productcode": "2EB40-B-SC", "Qty": "12", "Requested Product": "10/3 MCT"}]
+
+
+def test_render_cpq_csv_bytes_header_and_content() -> None:
+    matched = FinalMatchResult(
+        requested_description="10/3 MCT",
+        quantity=12,
+        matched_part_number="2EB40-B-SC",
+        matched_description="10/3 MCT",
+        deterministic_score=100,
+        final_confidence=95,
+        match_status="CONFIDENT_MATCH",
+        reasoning_summary="Exact normalized description match; unique catalog product.",
+        candidate_count=1,
+    )
+    payload = render_cpq_csv_bytes([matched])
+    rows = _parse_csv(payload)
+    assert list(rows[0].keys()) == list(CPQ_CSV_COLUMNS)
+    assert rows == [{"Productcode": "2EB40-B-SC", "Qty": "12", "Requested Product": "10/3 MCT"}]
 
 
 def test_csv_escaping_commas_quotes_unicode() -> None:
@@ -351,6 +416,36 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         exported = _parse_csv(export.content)
         assert exported[0]["Matched Atkore Part Number"] == "2EB40-B-SC"
 
+        cpq_export = client.post(
+            "/api/output/cpq-csv",
+            json={
+                "results": [
+                    {
+                        "requested_description": "10/3 MCT",
+                        "quantity": 1,
+                        "match_status": "CONFIDENT_MATCH",
+                        "matched_part_number": "2EB40-B-SC",
+                        "matched_description": "10/3 MCT",
+                        "matching_percentage": 100,
+                        "candidate_count": 1,
+                        "candidates": [{"official_part_number": "2EB40-B-SC", "score": 100}],
+                    },
+                    {
+                        "requested_description": "UNKNOWN WIDGET",
+                        "quantity": 3,
+                        "match_status": "REVIEW_REQUIRED",
+                        "matching_percentage": 40,
+                        "candidate_count": 1,
+                        "candidates": [],
+                    },
+                ]
+            },
+        )
+        assert cpq_export.status_code == 200
+        assert "QuoteIQ_CPQ_Ready.csv" in cpq_export.headers["content-disposition"]
+        cpq_rows = _parse_csv(cpq_export.content)
+        assert cpq_rows == [{"Productcode": "2EB40-B-SC", "Qty": "1", "Requested Product": "10/3 MCT"}]
+
         settings = get_settings()
         original_max = settings.quote_upload_max_bytes
         settings.quote_upload_max_bytes = 16
@@ -370,6 +465,18 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
             data={"use_ai": "false"},
         )
         assert xls.status_code == 400
+
+        with QUOTE_PATH.open("rb") as handle:
+            cpq_response = client.post(
+                "/api/quote/process/cpq",
+                files={"file": ("inputfile.xlsx", handle, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+                data={"use_ai": "false"},
+            )
+        assert cpq_response.status_code == 200
+        assert "text/csv" in cpq_response.headers["content-type"]
+        assert "QuoteIQ_CPQ_Ready.csv" in cpq_response.headers["content-disposition"]
+        cpq_rows = _parse_csv(cpq_response.content)
+        assert cpq_rows == [] or list(cpq_rows[0].keys()) == ["Productcode", "Qty", "Requested Product"]
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
@@ -436,6 +543,7 @@ def test_quote_process_results_json_endpoint() -> None:
         assert first["matched_part_number"] is None
         assert first["candidates"]
         assert "official_part_number" in first["candidates"][0]
+        assert body["parse_warnings"] == []
     finally:
         app.dependency_overrides.clear()
 

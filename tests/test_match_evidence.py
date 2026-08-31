@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ai.models import FinalMatchResult
 from output.api_results import serialize_process_result
-from output.match_evidence import build_match_evidence, evidence_headline
+from output.match_evidence import build_match_evidence, evidence_headline, field_contribution
 from matching.models import MatchStatus, ProductRecord, QuoteLine
 from matching.matcher import ProductMatcher
 
@@ -95,6 +95,7 @@ def test_serialize_adds_evidence_without_removing_fields() -> None:
     built = build_match_evidence(result)
     assert built["headline"]
     assert "333427" not in str(built)
+    assert payload["candidates"][0]["name"] == "B1EB5-W"
 
 
 def test_evidence_overall_percent_matches_top_level_for_ai_no_match() -> None:
@@ -119,6 +120,39 @@ def test_evidence_overall_percent_matches_top_level_for_ai_no_match() -> None:
     assert payload["overall_match_score"] == 44
     evidence = payload["match_evidence"]
     assert evidence["overall_percent"] == 44.0
+
+
+def test_evidence_fields_use_candidate_details_field_scores_for_ai_results() -> None:
+    """FinalMatchResult (the AI-adjudicated result) has no match_breakdown or
+    candidates attribute -- only candidate_details, a list of plain dicts.
+    Without reading field_scores from there, every field row silently
+    rendered "No match" for any AI-path row, even when the underlying
+    description score was strong (seen for a real 90%-confidence match)."""
+    result = FinalMatchResult(
+        requested_description='4" GRC COUPLING',
+        matched_part_number="2003310",
+        matched_description='4" GRC COUPLING DOMESTIC',
+        deterministic_score=90.0,
+        ai_confidence=90.0,
+        final_confidence=90.0,
+        match_status="HIGH_CONFIDENCE",
+        reasoning_summary="Strong description match.",
+        candidate_count=1,
+        ai_enabled=True,
+        candidate_details=[
+            {
+                "official_part_number": "2003310",
+                "description": '4" GRC COUPLING DOMESTIC',
+                "field_scores": {"productcode": 63.2, "name": 0.0, "description": 85.7, "description2": 0.0},
+            }
+        ],
+    )
+    evidence = build_match_evidence(result)
+    fields = {item["field"]: item["level"] for item in evidence["fields"]}
+    assert fields["Productcode"] == field_contribution(63.2)["level"]
+    assert fields["description"] == field_contribution(85.7)["level"] == "strong"
+    assert fields["name"] == "none"
+    assert fields["description2"] == "none"
 
 
 def test_evidence_overall_percent_uses_final_confidence_for_confident_match() -> None:

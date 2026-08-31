@@ -16,18 +16,18 @@ function friendlyMessage(status: number, detail: string): string {
     return "AI matching is currently unavailable. Turn off AI matching and try again, or contact your administrator.";
   }
   if (status === 413) {
-    return "This file is too large to upload. Choose a smaller Excel quote.";
+    return "This file is too large to upload. Choose a smaller Excel or PDF quote.";
   }
-  if (status === 400 && lower.includes("xlsx")) {
-    return "Only .xlsx Excel files are supported.";
+  if (status === 400 && (lower.includes("xlsx") || lower.includes("pdf"))) {
+    return "Only .xlsx Excel or .pdf files are supported.";
   }
   if (status === 400) {
-    return "Unable to process this file. Please verify that it is a valid Excel quote.";
+    return "Unable to process this file. Please verify that it is a valid Excel or PDF quote.";
   }
   if (status === 0) {
     return "The QuoteIQ service is unavailable. Confirm the backend is running and try again.";
   }
-  return "Unable to process this file. Please verify that it is a valid Excel quote.";
+  return "Unable to process this file. Please verify that it is a valid Excel or PDF quote.";
 }
 
 function apiUrl(path: string): string {
@@ -66,11 +66,11 @@ function buildForm(file: File, useAI: boolean): FormData {
 
 function asProcessResponse(body: unknown): QuoteProcessResponse {
   if (!body || typeof body !== "object") {
-    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel quote.", 200);
+    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel or PDF quote.", 200);
   }
   const payload = body as Partial<QuoteProcessResponse>;
   if (!payload.summary || !Array.isArray(payload.results)) {
-    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel quote.", 200);
+    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel or PDF quote.", 200);
   }
   return payload as QuoteProcessResponse;
 }
@@ -97,16 +97,36 @@ export async function processQuote(file: File, useAI: boolean): Promise<QuotePro
     if (err instanceof ApiError) {
       throw err;
     }
-    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel quote.", response.status);
+    throw new ApiError("Unable to process this file. Please verify that it is a valid Excel or PDF quote.", response.status);
   }
 }
 
-export async function processQuoteCsv(file: File, useAI: boolean): Promise<Blob> {
-  const response = await postForm("/api/quote/process", file, useAI);
+async function postResultsForCsv(path: string, results: QuoteMatchResult[]): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ results }),
+    });
+  } catch {
+    throw new ApiError(friendlyMessage(0, ""), 0);
+  }
   if (!response.ok) {
     throw new ApiError(await readError(response), response.status);
   }
   return response.blob();
+}
+
+// These export already-computed results (held in the browser) rather than
+// re-uploading the file, which would re-run the entire matching pipeline
+// from scratch just to produce a CSV of results already on screen.
+export async function downloadResultsCsv(results: QuoteMatchResult[]): Promise<Blob> {
+  return postResultsForCsv("/api/output/csv", results);
+}
+
+export async function downloadCpqReadyCsv(results: QuoteMatchResult[]): Promise<Blob> {
+  return postResultsForCsv("/api/output/cpq-csv", results);
 }
 
 export async function selectQuoteMatch(payload: {

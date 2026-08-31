@@ -33,6 +33,16 @@ def _scores_from_result(result: Any) -> dict[str, float]:
     if breakdown is None and isinstance(result, Mapping):
         breakdown = result.get("match_breakdown")
         candidates = list(result.get("candidates") or [])
+    if not candidates:
+        # FinalMatchResult (the AI-adjudicated result) has no match_breakdown
+        # or candidates attribute at all -- only candidate_details, a plain
+        # dict per candidate. Without this fallback every field row silently
+        # renders "No match" for any row that went through AI, even when the
+        # underlying description/name score was strong.
+        candidate_details = getattr(result, "candidate_details", None)
+        if candidate_details is None and isinstance(result, Mapping):
+            candidate_details = result.get("candidate_details")
+        candidates = list(candidate_details or [])
     scores = {
         "productcode": float((breakdown or {}).get("productcode_score") or 0.0),
         "name": float((breakdown or {}).get("name_score") or 0.0),

@@ -24,10 +24,11 @@ from matching.models import MatchingConfig, QuoteLine
 from matching.selection import SelectionError, apply_user_selection_payload
 from matching.timing_diag import begin, end, should_time, span
 from output.api_results import serialize_process_result, summarize_results
-from output.csv_writer import render_csv_bytes, rows_from_results
+from output.csv_writer import render_cpq_csv_bytes, render_csv_bytes, rows_from_results
 from output.pipeline import process_quote_results
-from output.schema import DOWNLOAD_FILENAME
+from output.schema import CPQ_DOWNLOAD_FILENAME, DOWNLOAD_FILENAME
 from quotes.models import QuoteParseError
+from quotes.parse_diagnostics import collect_parse_warnings
 from quotes.parser import line_items_to_quote_lines, parse_quote_file
 
 app = FastAPI(title="QuoteIQ", version="0.5.0")
@@ -333,12 +334,12 @@ def match_quote_endpoint(
         _finish_timing(session)
 
 
-def _csv_response(payload: bytes) -> Response:
+def _csv_response(payload: bytes, filename: str = DOWNLOAD_FILENAME) -> Response:
     return Response(
         content=payload,
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="{DOWNLOAD_FILENAME}"',
+            "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
 
@@ -352,14 +353,14 @@ def _store_upload(upload: UploadFile) -> Path:
             status_code=400,
             detail="Excel .xls files are not supported. Upload an .xlsx workbook.",
         )
-    if suffix != ".xlsx":
-        raise HTTPException(status_code=400, detail="Only .xlsx quote files are accepted.")
+    if suffix not in {".xlsx", ".pdf"}:
+        raise HTTPException(status_code=400, detail="Only .xlsx or .pdf quote files are accepted.")
     data = upload.file.read(settings.quote_upload_max_bytes + 1)
     if not data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     if len(data) > settings.quote_upload_max_bytes:
         raise HTTPException(status_code=413, detail="Quote file exceeds the maximum allowed size.")
-    handle = tempfile.NamedTemporaryFile(prefix="quoteiq_", suffix=".xlsx", delete=False)
+    handle = tempfile.NamedTemporaryFile(prefix="quoteiq_", suffix=suffix, delete=False)
     try:
         handle.write(data)
     finally:
@@ -373,6 +374,12 @@ def export_csv(payload: CsvExportRequest) -> Response:
     return _csv_response(csv_bytes)
 
 
+@app.post("/api/output/cpq-csv")
+def export_cpq_csv(payload: CsvExportRequest) -> Response:
+    csv_bytes = render_cpq_csv_bytes(payload.results)
+    return _csv_response(csv_bytes, filename=CPQ_DOWNLOAD_FILENAME)
+
+
 @app.post("/api/quote/process")
 def process_quote(
     file: UploadFile = File(...),
@@ -382,6 +389,17 @@ def process_quote(
 ) -> Response:
     csv_bytes = _process_upload_csv(file, use_ai, matcher, service)
     return _csv_response(csv_bytes)
+
+
+@app.post("/api/quote/process/cpq")
+def process_quote_cpq(
+    file: UploadFile = File(...),
+    use_ai: bool = Form(False),
+    matcher: ProductMatcher = Depends(get_matcher),
+    service: AIMatchingService = Depends(get_ai_service),
+) -> Response:
+    csv_bytes = _process_upload_cpq_csv(file, use_ai, matcher, service)
+    return _csv_response(csv_bytes, filename=CPQ_DOWNLOAD_FILENAME)
 
 
 @app.post("/api/quote/process/results")
@@ -396,7 +414,11 @@ def process_quote_results_endpoint(
         results = _process_upload_results(file, use_ai, matcher, service)
         with span("serialize_ms", on_session=True):
             payload_out = [serialize_process_result(item) for item in results]
-            return {"summary": summarize_results(payload_out), "results": payload_out}
+            return {
+                "summary": summarize_results(payload_out),
+                "results": payload_out,
+                "parse_warnings": collect_parse_warnings(),
+            }
     finally:
         _finish_timing(session)
 
@@ -426,7 +448,7 @@ def _process_upload_results(
             matcher,
             use_ai=use_ai,
             ai_service=service if use_ai else None,
-            source_name="quote.xlsx",
+            source_name=upload.filename or "quote.xlsx",
         )
     except QuoteParseError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -444,5 +466,15 @@ def _process_upload_csv(
 ) -> bytes:
     results = _process_upload_results(upload, use_ai, matcher, service)
     return render_csv_bytes(rows_from_results(results))
+
+
+def _process_upload_cpq_csv(
+    upload: UploadFile,
+    use_ai: bool,
+    matcher: ProductMatcher,
+    service: AIMatchingService,
+) -> bytes:
+    results = _process_upload_results(upload, use_ai, matcher, service)
+    return render_cpq_csv_bytes(results)
 
 

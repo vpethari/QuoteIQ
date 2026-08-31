@@ -25,3 +25,6 @@ STATUSES_WITH_PART_NUMBER = frozenset(
     {"CONFIDENT_MATCH", "EXACT_MATCH", "HIGH_CONFIDENCE"}
 )
 DOWNLOAD_FILENAME = "QuoteIQ_results.csv"
+
+CPQ_CSV_COLUMNS: tuple[str, ...] = ("Productcode", "Qty", "Requested Product")
+CPQ_DOWNLOAD_FILENAME = "QuoteIQ_CPQ_Ready.csv"
