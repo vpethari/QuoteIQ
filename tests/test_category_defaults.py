@@ -15,6 +15,7 @@ from matching.category_defaults import (
 from matching.description_normalize import expand_query_for_retrieval, tokenize_description
 from matching.matcher import ProductMatcher
 from matching.models import MatchingConfig, ProductRecord, ScoreBreakdown
+from matching.productcode import is_product_code_query
 from matching.scoring import descriptions_conflict, variant_conflict
 
 
@@ -157,6 +158,7 @@ class _RecordingCatalogSearch:
 
     def __init__(self) -> None:
         self.search_text_queries: list[str] = []
+        self.rank_queries: list[str | None] = []
 
     def lookup_productcode(self, identifier: str, limit: int | None = None) -> list[ProductRecord]:
         return []
@@ -164,8 +166,11 @@ class _RecordingCatalogSearch:
     def fetch_identifier_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
         return []
 
-    def search_text_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
+    def search_text_candidates(
+        self, query: str, limit: int | None = None, *, rank_query: str | None = None
+    ) -> list[ProductRecord]:
         self.search_text_queries.append(query)
+        self.rank_queries.append(rank_query)
         return []
 
 
@@ -181,6 +186,19 @@ def test_retrieval_query_is_not_expanded_but_scoring_query_is() -> None:
     assert catalog_search.search_text_queries
     assert all("SCH40" not in query.upper() for query in catalog_search.search_text_queries)
     assert all("GRAY" not in query.upper() for query in catalog_search.search_text_queries)
+
+
+def test_retrieval_ranking_hint_is_the_expanded_query() -> None:
+    # The expanded query is safe (and useful) as a *ranking* hint even though
+    # it must never narrow eligibility: pg_trgm's similarity() favors short
+    # catalog text over a longer, more precise row that actually spells out
+    # the implied default wording, so ranking against the expanded query
+    # counteracts that bias without touching which rows are eligible.
+    catalog_search = _RecordingCatalogSearch()
+    matcher = ProductMatcher([], catalog_search=catalog_search)
+    matcher.match_description('1" PVC')
+    assert catalog_search.rank_queries
+    assert any("SCH40" in (query or "").upper() for query in catalog_search.rank_queries)
 
 
 def test_matcher_ranks_plain_steel_over_unrequested_stainless_variant() -> None:
@@ -206,3 +224,17 @@ def test_matcher_ranks_plain_steel_over_unrequested_stainless_variant() -> None:
     assert result.candidate_count == 2
     by_part = {item.official_part_number: item.score for item in result.candidates}
     assert by_part["PLAIN-1"] > by_part["STAINLESS-1"]
+
+
+def test_bare_category_queries_are_not_treated_as_product_codes() -> None:
+    # A bare "<size> <category>" description (e.g. "1 PVC") is short and
+    # alphabetic, so it used to pass is_product_code_query() and get routed
+    # to identifier-substring search instead of description search --
+    # producing near-random hits instead of the real SCH40 conduit stick.
+    for category in ("PVC", "EMT", "GRC", "LT", "STRUT", "CHANNEL"):
+        assert is_product_code_query(f"1 {category}") is False
+
+
+def test_real_identifier_queries_are_still_treated_as_product_codes() -> None:
+    assert is_product_code_query("B1EB5-W") is True
+    assert is_product_code_query("2EB40-B-SC") is True

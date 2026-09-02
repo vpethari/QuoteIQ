@@ -245,7 +245,7 @@ class PostgresCatalogRepository:
             where_parts = [f"{search_expr} {like_op} :normalized"]
         order_sql = "1"
         if self._is_postgres() and token_variant_counts:
-            order_sql = f"similarity({search_expr}, :normalized) DESC"
+            order_sql = f"similarity({search_expr}, :rank_normalized) DESC"
         return (
             f"{self._select_catalog_sql()} "
             f"WHERE {' AND '.join(where_parts)} "
@@ -292,13 +292,30 @@ class PostgresCatalogRepository:
             "LIMIT :limit"
         )
 
-    def search_text_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
-        """Return a limited candidate set from PostgreSQL search_text."""
+    def search_text_candidates(
+        self, query: str, limit: int | None = None, *, rank_query: str | None = None
+    ) -> list[ProductRecord]:
+        """Return a limited candidate set from PostgreSQL search_text.
+
+        `rank_query`, when given, drives only the ORDER BY trigram-similarity
+        comparison, not which rows are eligible (that's still `query`). This
+        matters for short, bare queries (e.g. "1 PVC"): pg_trgm's similarity()
+        is a ratio over combined trigram counts, so it systematically favors
+        short catalog text over longer, more precise text -- e.g. "PVC
+        KNOCKOUT PLUG 1 KO10 PVC Gray" outranks a genuine "1 in x 10 ft PVC
+        Schedule 40 Conduit, Belled End" row purely for being shorter,
+        pushing the actually-correct row past the LIMIT before scoring ever
+        sees it. Ranking against the category-defaults-expanded query (see
+        matching.category_defaults) instead gives rows that spell out the
+        implied default wording a comparably-sized string to score against,
+        without narrowing which rows are eligible in the first place.
+        """
         cap = self.retrieval_limit if limit is None else limit
         token_groups = retrieval_search_token_groups(query)
         normalized = retrieval_search_string(query)
         if not normalized:
             return []
+        rank_normalized = retrieval_search_string(rank_query) if rank_query else normalized
         variant_counts = [len(group) for group in token_groups]
         token_params: dict[str, object] = {}
         for position, group in enumerate(token_groups):
@@ -306,7 +323,12 @@ class PostgresCatalogRepository:
                 token_params[f"tok{position}_{variant_index}"] = f"%{variant}%"
 
         sql = text(self.search_text_sql(variant_counts))
-        params: dict[str, object] = {"limit": cap, "normalized": normalized, **token_params}
+        params: dict[str, object] = {
+            "limit": cap,
+            "normalized": normalized,
+            "rank_normalized": rank_normalized,
+            **token_params,
+        }
         rows = self._timed_fetch(sql, params, search="search_text_candidates")
         products = self._rows_to_products(rows)
         if products or not token_groups:

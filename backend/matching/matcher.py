@@ -362,7 +362,7 @@ class ProductMatcher:
             cache.lookups[key] = tuple(found)
         return found
 
-    def _products_for_query(self, query: str) -> Sequence[ProductRecord]:
+    def _products_for_query(self, query: str, *, rank_query: str | None = None) -> Sequence[ProductRecord]:
         query = strip_quantity_and_noise(query)
         cache = get_request_cache()
         key = candidate_cache_key(query)
@@ -389,7 +389,9 @@ class ProductMatcher:
                         cache.candidates[key] = tuple(products)
                     return products
             text_limit = self.config.search_text_candidate_limit
-            text_hits = self.catalog_search.search_text_candidates(query, limit=text_limit)
+            text_hits = self.catalog_search.search_text_candidates(
+                query, limit=text_limit, rank_query=rank_query
+            )
             if text_hits:
                 products = list(text_hits)
                 if cache is not None:
@@ -425,7 +427,19 @@ class ProductMatcher:
             return list(cache.scored[key])
         scored: list[MatchCandidate] = []
         query = strip_quantity_and_noise(requested_description)
-        pool = list(self._products_for_query(query))
+        # Retrieval must stay narrow: Postgres full-text search ANDs every
+        # distinct query token together, so appending extra vocabulary to it
+        # (see category_defaults.py) can silently zero out results instead of
+        # widening them. The expanded form is only safe to use for *scoring*
+        # candidates the narrower retrieval already found, where extra
+        # vocabulary can only help a genuinely-default candidate rank higher,
+        # never exclude one outright. It's also passed as a rank hint to
+        # retrieval's own trigram ORDER BY (still eligibility-neutral) --
+        # pg_trgm's similarity() otherwise favors short catalog text over a
+        # longer, more precise row that happens to spell out the implied
+        # default wording (see search_text_candidates).
+        scoring_query = expand_query_for_retrieval(query)
+        pool = list(self._products_for_query(query, rank_query=scoring_query))
         session = active()
         if session is not None:
             session.set_line(candidate_count=len(pool))
@@ -438,14 +452,6 @@ class ProductMatcher:
                 if product.description
             )
         query_prep = prepare_scoring_text(query, prep_cache)
-        # Retrieval must stay narrow: Postgres full-text search ANDs every
-        # distinct query token together, so appending extra vocabulary to it
-        # (see category_defaults.py) can silently zero out results instead of
-        # widening them. The expanded form is only safe to use for *scoring*
-        # candidates the narrower retrieval already found, where extra
-        # vocabulary can only help a genuinely-default candidate rank higher,
-        # never exclude one outright.
-        scoring_query = expand_query_for_retrieval(query)
         scoring_query_prep = prepare_scoring_text(scoring_query, prep_cache)
         score_started = perf_counter()
         for product in pool:

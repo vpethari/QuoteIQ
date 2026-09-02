@@ -4,6 +4,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
+from matching.category_defaults import CATEGORY_DEFAULTS
 from matching.models import ProductRecord
 from matching.normalizer import fold_whitespace
 
@@ -25,6 +26,13 @@ _PROSE_TOKENS = frozenset(
         "DOUBLE",
         "VOLTAGE",
     }
+    # Bare category/material words (PVC, EMT, GRC, LT, STRUT, CHANNEL) are
+    # short and alphabetic like a real code fragment, so a query like
+    # "1 PVC" was passing is_product_code_query() and getting routed to
+    # identifier-substring search instead of description search -- "1" and
+    # "PVC" both look code-shaped in isolation, but together they're a bare
+    # description, not a part number.
+    | frozenset(CATEGORY_DEFAULTS)
 )
 
 
