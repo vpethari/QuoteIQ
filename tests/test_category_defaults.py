@@ -117,8 +117,14 @@ def test_variant_conflict_true_for_no_spring_when_spring_wanted() -> None:
     ) is True
 
 
-def test_variant_conflict_true_for_unrequested_color() -> None:
-    assert variant_conflict('1" PVC CONDUIT', '1" PVC CONDUIT ORANGE') is True
+def test_variant_conflict_does_not_flag_color_alone() -> None:
+    # variant_conflict deliberately excludes the color-default check: a color
+    # word elsewhere in catalog_text (e.g. a cable's own conductor colors)
+    # doesn't reliably mean "different-colored variant of the same product,"
+    # and treating it as a hard conflict capped too many legitimate
+    # candidates to the same score in production. default_color_for_query /
+    # candidate_color_conflicts remain available as standalone helpers.
+    assert variant_conflict('1" PVC CONDUIT', '1" PVC CONDUIT ORANGE') is False
 
 
 def test_descriptions_conflict_flags_variant_mismatch() -> None:

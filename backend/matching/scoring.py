@@ -6,8 +6,6 @@ from time import perf_counter
 
 from matching.attributes import extract_attributes
 from matching.category_defaults import (
-    candidate_color_conflicts,
-    default_color_for_query,
     mentions_no_spring,
     mentions_stainless,
     unrequested_specialty_marker,
@@ -388,11 +386,20 @@ def calculate_score_gap(scores: Sequence[float]) -> tuple[float, float | None, f
 
 
 def variant_conflict(query: str, catalog_text: str) -> bool:
-    """True when `catalog_text` names a specialty variant, material, or color
-    the customer's `query` didn't ask for. Plain word-overlap scoring can't
-    tell these cases apart on its own, since the conflicting candidate often
+    """True when `catalog_text` names a specialty variant or material the
+    customer's `query` didn't ask for. Plain word-overlap scoring can't tell
+    these cases apart on its own, since the conflicting candidate often
     shares nearly all its vocabulary with the query -- see
     matching.category_defaults for the confirmed cases behind each check.
+
+    Deliberately does NOT include a default-color check: a color word
+    appearing anywhere in catalog_text doesn't reliably mean "this candidate
+    is a different-colored variant of the same product" -- it just as often
+    describes something unrelated (e.g. individual conductor colors inside a
+    multi-conductor cable's own description). That ambiguity made an assumed
+    "PVC implies gray" default cap plenty of legitimate, non-gray candidates
+    to the same score, which then let retrieval-order noise pick the winner
+    instead of an actual best match.
     """
     if mentions_stainless(query) != mentions_stainless(catalog_text):
         return True
@@ -400,9 +407,6 @@ def variant_conflict(query: str, catalog_text: str) -> bool:
     if wants_spring_nut(query_tokens) and mentions_no_spring(catalog_text):
         return True
     if unrequested_specialty_marker(query, catalog_text) is not None:
-        return True
-    default_color = default_color_for_query(query_tokens)
-    if default_color and candidate_color_conflicts(tokenize_description(catalog_text), default_color):
         return True
     return False
 
