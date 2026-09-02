@@ -21,7 +21,7 @@ from matching.normalizer import (
     normalize_part_number,
     part_number_lookup_keys,
 )
-from matching.category_defaults import normalize_strut_catalog_codes
+from matching.category_defaults import normalize_raw_customer_text
 from matching.request_text import InterpretedRequest, interpret_customer_text
 from matching.description_normalize import (
     ABBREV_REASON,
@@ -154,7 +154,7 @@ class ProductMatcher:
             )
         with span("normalize_ms"):
             interpreted = interpret_customer_text(
-                normalize_strut_catalog_codes(requested_description),
+                normalize_raw_customer_text(requested_description),
                 explicit_part_number=requested_part_number,
                 salsify_keys=self._salsify_keys,
                 official_keys=self._official_and_identifier_keys,
@@ -208,7 +208,7 @@ class ProductMatcher:
             session.start_line(1, source_row, requested_description)
         with span("normalize_ms"):
             interpreted = interpret_customer_text(
-                normalize_strut_catalog_codes(requested_description),
+                normalize_raw_customer_text(requested_description),
                 salsify_keys=self._salsify_keys,
                 official_keys=self._official_and_identifier_keys,
             )

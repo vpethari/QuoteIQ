@@ -3,11 +3,13 @@ from __future__ import annotations
 from matching.category_defaults import (
     candidate_color_conflicts,
     default_color_for_query,
+    expand_acronym_phrases,
     expand_bare_category_query,
     expand_hole_count,
     expand_known_phrases,
     mentions_no_spring,
     mentions_stainless,
+    normalize_raw_customer_text,
     normalize_strut_catalog_codes,
     unrequested_specialty_marker,
     wants_spring_nut,
@@ -55,6 +57,18 @@ def test_normalize_strut_catalog_codes_splits_known_finish_code() -> None:
 def test_normalize_strut_catalog_codes_keeps_base_code_letter_glued() -> None:
     # P2072A is a distinct product from P2072, not a finish-code suffix.
     assert normalize_strut_catalog_codes("P-2072A") == "P2072A"
+
+
+def test_expand_acronym_phrases_electrical_metallic_tubing_to_emt() -> None:
+    assert expand_acronym_phrases("3/4\" Electrical Metallic Tubing Conduit") == '3/4" EMT Conduit'
+    # Case-insensitive, flexible whitespace.
+    assert expand_acronym_phrases("electrical  metallic   tubing") == "EMT"
+
+
+def test_normalize_raw_customer_text_composes_both_normalizations() -> None:
+    result = normalize_raw_customer_text('3/4" Electrical Metallic Tubing P-1036GR')
+    assert "EMT" in result
+    assert "P1036" in result
 
 
 def test_expand_query_for_retrieval_chains_all_expansions() -> None:

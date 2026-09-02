@@ -327,3 +327,32 @@ def normalize_strut_catalog_codes(query: str) -> str:
         return match.group(0).replace("-", "")
 
     return _STRUT_CODE_DASH_RE.sub(_replace, query)
+
+
+# A spelled-out catalog acronym has to be replaced with the abbreviation
+# this catalog actually uses, not just have the abbreviation appended for
+# scoring -- retrieval itself requires the literal word to appear in the
+# catalog text, and this catalog spells conduit type as "EMT", never
+# "Electrical Metallic Tubing". Must run on the raw input before
+# interpret_customer_text(), same as normalize_strut_catalog_codes, since
+# retrieval (not just scoring) needs to see "EMT" already in place.
+_ACRONYM_PHRASES: dict[re.Pattern[str], str] = {
+    re.compile(r"\bELECTRICAL\s+METALLIC\s+TUBING\b", re.IGNORECASE): "EMT",
+}
+
+
+def expand_acronym_phrases(query: str) -> str:
+    """Replace a spelled-out catalog acronym phrase with its abbreviation
+    (see _ACRONYM_PHRASES)."""
+    for pattern, replacement in _ACRONYM_PHRASES.items():
+        query = pattern.sub(replacement, query)
+    return query
+
+
+def normalize_raw_customer_text(query: str) -> str:
+    """Every raw-text normalization that must run before
+    interpret_customer_text() touches the line (see normalize_strut_catalog_codes
+    and expand_acronym_phrases for why each one needs this stage)."""
+    query = normalize_strut_catalog_codes(query)
+    query = expand_acronym_phrases(query)
+    return query
