@@ -26,6 +26,12 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("STRUT", ("STRUT", "UNISTRUT")),
     ("TRAY", ("TRAY", "TROF", "TROUGH")),
     ("PVC", ("PVC", "PLASTIC")),
+    # This catalog files strut L/T/X joiners under "Fitting"/"Fittings" and
+    # never uses the word "joiner" itself. A true synonym (not just a phrase
+    # appended for scoring) is required so retrieval's own token matching --
+    # which requires the literal word to appear somewhere in the catalog
+    # text -- also benefits, not just post-retrieval scoring.
+    ("FITTING", ("FITTING", "FITTINGS", "JOINER", "JOINERS")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).

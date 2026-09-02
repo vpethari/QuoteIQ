@@ -68,10 +68,11 @@ def test_plastic_is_a_synonym_for_pvc() -> None:
     assert "SCH40 BE CONDUIT GRAY" in expanded
 
 
-def test_joiner_expands_to_fitting() -> None:
-    expanded = expand_known_phrases("STRUT L JOINER", ["STRUT", "L", "JOINER"])
-    assert "FITTING" in expanded
-    assert "JOINER" in expanded
+def test_joiner_canonicalizes_to_fitting() -> None:
+    # A true synonym (terminology.py), not a category_defaults phrase
+    # expansion, so retrieval's own token matching benefits too -- not just
+    # scoring after the fact.
+    assert tokenize_description("STRUT L JOINER") == tokenize_description("STRUT L FITTING")
 
 
 def test_default_color_for_query_returns_none_when_color_named() -> None:
