@@ -19,6 +19,22 @@ class CandidateEvaluation(BaseModel):
     score: float = Field(ge=0, le=100)
 
 
+def _stringify_attribute_item(key: str | None, item: Any) -> str:
+    """Render one matched/conflicting-attribute entry as a plain string,
+    whatever shape the model actually returned it in (see
+    AIReasoningResult.coerce_attribute_list)."""
+    if isinstance(item, dict):
+        text = "; ".join(
+            f"{sub_key}: {', '.join(str(v) for v in sub_value) if isinstance(sub_value, list) else sub_value}"
+            for sub_key, sub_value in item.items()
+        )
+    elif isinstance(item, list):
+        text = ", ".join(str(entry) for entry in item)
+    else:
+        text = item if isinstance(item, str) else str(item)
+    return f"{key}: {text}" if key is not None else text
+
+
 class AIReasoningResult(BaseModel):
     decision: AIDecision
     selected_part_number: str | None = None
@@ -44,10 +60,14 @@ class AIReasoningResult(BaseModel):
     @classmethod
     def coerce_attribute_list(cls, value: Any) -> Any:
         # The model sometimes returns these as a dict (attribute -> note)
-        # instead of a flat list of strings. Flatten rather than reject an
-        # otherwise-valid response over a shape mismatch.
+        # instead of a flat list of strings, or as a list whose individual
+        # items are themselves dicts/objects (e.g. a candidate-evaluation-
+        # shaped entry) instead of plain strings. Flatten either shape rather
+        # than reject an otherwise-valid response over a shape mismatch.
         if isinstance(value, dict):
-            return [f"{key}: {item}" for key, item in value.items()]
+            return [_stringify_attribute_item(key, item) for key, item in value.items()]
+        if isinstance(value, list):
+            return [_stringify_attribute_item(None, item) for item in value]
         return value
 
 

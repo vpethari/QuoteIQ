@@ -322,6 +322,33 @@ def test_dict_shaped_attribute_lists_are_coerced_not_a_schema_error() -> None:
     assert result.conflicting_attributes == ['TA05: size 1/2" does not match']
 
 
+def test_list_of_dicts_attribute_items_are_coerced_not_a_schema_error() -> None:
+    result = AIReasoningResult.model_validate(
+        {
+            "decision": "REVIEW_REQUIRED",
+            "selected_part_number": None,
+            "confidence_percentage": 40,
+            "reasoning_summary": "ok",
+            "conflicting_attributes": [
+                {
+                    "official_part_number": "1-1/2X1-1/4",
+                    "reasons": ["size mismatch vs candidate 1-1/2 x 1-1/4"],
+                },
+                {
+                    "official_part_number": "2X1-1/2",
+                    "reasons": ["size mismatch vs candidate 2 x 1-1/2"],
+                },
+                "plain string entry is left alone",
+            ],
+        }
+    )
+    assert len(result.conflicting_attributes) == 3
+    assert all(isinstance(item, str) for item in result.conflicting_attributes)
+    assert result.conflicting_attributes[2] == "plain string entry is left alone"
+    assert "1-1/2X1-1/4" in result.conflicting_attributes[0]
+    assert "size mismatch vs candidate 1-1/2 x 1-1/4" in result.conflicting_attributes[0]
+
+
 def test_null_confidence_percentage_is_accepted_not_a_schema_error() -> None:
     result = AIReasoningResult.model_validate(
         {
