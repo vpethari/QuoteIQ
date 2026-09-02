@@ -13,7 +13,8 @@ from matching.category_defaults import (
     wants_spring_nut,
 )
 from matching.description_normalize import expand_query_for_retrieval, tokenize_description
-from matching.models import MatchingConfig, ScoreBreakdown
+from matching.matcher import ProductMatcher
+from matching.models import MatchingConfig, ProductRecord, ScoreBreakdown
 from matching.scoring import descriptions_conflict, variant_conflict
 
 
@@ -128,3 +129,28 @@ def test_descriptions_conflict_flags_variant_mismatch() -> None:
         breakdown,
         MatchingConfig(),
     ) is True
+
+
+def test_matcher_ranks_plain_steel_over_unrequested_stainless_variant() -> None:
+    # Regression test: score_product_fields returns a frozen ScoreBreakdown --
+    # capping a conflicting candidate's score must replace it, not mutate it
+    # in place (that raised dataclasses.FrozenInstanceError in production).
+    products = [
+        ProductRecord(
+            salsify_id="PLAIN-1",
+            official_part_number="PLAIN-1",
+            description="1/2 EMT ONE HOLE STRAP STEEL ZINC PLATED",
+            record_type="product",
+        ),
+        ProductRecord(
+            salsify_id="STAINLESS-1",
+            official_part_number="STAINLESS-1",
+            description="1/2 EMT ONE HOLE STRAP STAINLESS STEEL 316 #4 POLISHED FINISH",
+            record_type="product",
+        ),
+    ]
+    matcher = ProductMatcher(products)
+    result = matcher.match_description("1/2 EMT ONE HOLE STRAP")
+    assert result.candidate_count == 2
+    by_part = {item.official_part_number: item.score for item in result.candidates}
+    assert by_part["PLAIN-1"] > by_part["STAINLESS-1"]

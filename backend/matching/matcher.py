@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from contextlib import nullcontext
@@ -452,7 +453,9 @@ class ProductMatcher:
             loop_started = perf_counter() if session is not None else None
             identifier_hit = (identifier_evidence or {}).get("match_type") in IDENTITY_MATCH_TYPES
             if not identifier_hit and variant_conflict(query, catalog_description_blob(product)):
-                breakdown.final = min(breakdown.final, self.config.description_conflict_max)
+                breakdown = dataclasses.replace(
+                    breakdown, final=min(breakdown.final, self.config.description_conflict_max)
+                )
             if breakdown.final < self.config.candidate_floor and not identifier_hit:
                 continue
             identifier_evidence = self._attach_abbrev_evidence(
