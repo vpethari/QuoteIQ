@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from catalog.postgres_repository import product_from_postgres_row
-from matching.confidence import active_confidence_weights, decide_match_status
+from matching.confidence import active_confidence_weights, combine_confidence, decide_match_status
 from matching.matcher import ProductMatcher
 from matching.models import MatchingConfig, MatchStatus, ProductRecord, QuoteLine
 from output.match_evidence import build_match_evidence
@@ -192,6 +192,23 @@ def test_description_scoring_falls_back_to_description_fields_when_name_is_weak(
     assert "productcode" not in weights
     assert weights["description"] > weights["description2"]
     assert abs(sum(weights.values()) - 1.0) < 1e-9
+
+
+def test_name_direct_match_is_a_full_100_percent() -> None:
+    # A direct match on `name` is the whole answer -- it isn't diluted by
+    # blending in description/description2/numeric on top of it.
+    config = MatchingConfig()
+    confidence, weights = combine_confidence(
+        productcode_score=92.0,
+        name_score=92.0,
+        description_score=10.0,
+        description2_score=0.0,
+        numeric_score=None,
+        ident_type="none",
+        config=config,
+    )
+    assert confidence == 100.0
+    assert weights == {"name": 1.0}
 
 
 def test_description_scoring_never_weights_productcode() -> None:

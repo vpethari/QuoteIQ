@@ -120,6 +120,10 @@ def combine_confidence(
 ) -> tuple[float, dict[str, float]]:
     if ident_type in EXACT_IDENTITY_TYPES:
         return 100.0, _field_weights(config)
+    if ident_type not in IDENTITY_MATCH_TYPES and name_score >= config.high_confidence_min:
+        # Name is a direct match -- that's the whole answer, no need to also
+        # weigh description/description2/numeric in on top of it.
+        return 100.0, {"name": 1.0}
     weights = active_confidence_weights(
         ident_type=ident_type,
         numeric_score=numeric_score,
