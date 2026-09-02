@@ -48,6 +48,30 @@ def _is_descriptive_token(token: str) -> bool:
     return any(character.isalpha() for character in token)
 
 
+def _bare_category_redundant_extras(tokens: list[str]) -> tuple[str, list[str]] | None:
+    """If `tokens` is a size plus a single bare category word, optionally
+    with extra words that are already part of that category's own default
+    phrase, return (category, extra_tokens); otherwise None.
+
+    e.g. "1\" PVC" -> ("PVC", []); "1 1/2\" GRC GALV" -> ("GRC", ["GALV"])
+    since GRC already implies "galvanized"; but "1\" PVC COUPLING" -> None,
+    since "coupling" isn't part of the PVC default and so is a genuinely
+    different, more specific request the customer actually typed.
+    """
+    from matching.description_normalize import tokenize_description
+
+    descriptive = [token for token in tokens if _is_descriptive_token(token)]
+    category_matches = [token for token in descriptive if token.upper() in CATEGORY_DEFAULTS]
+    if len(category_matches) != 1:
+        return None
+    category = category_matches[0].upper()
+    default_tokens = {token.upper() for token in tokenize_description(CATEGORY_DEFAULTS[category])}
+    extra = [token for token in descriptive if token.upper() != category]
+    if any(token.upper() not in default_tokens for token in extra):
+        return None
+    return category, extra
+
+
 def expand_bare_category_query(query: str, tokens: list[str]) -> str:
     """Append the implied qualifier when the query is a size plus a bare
     category word, optionally with extra words that are already part of that
@@ -60,19 +84,32 @@ def expand_bare_category_query(query: str, tokens: list[str]) -> str:
     "GALV" to "GRC") would silently lose the whole default expansion instead
     of just being a little repetitive.
     """
-    from matching.description_normalize import tokenize_description
+    match = _bare_category_redundant_extras(tokens)
+    if match is None:
+        return query
+    category, _extra = match
+    return f"{query} {CATEGORY_DEFAULTS[category]}"
 
-    descriptive = [token for token in tokens if _is_descriptive_token(token)]
-    category_matches = [token for token in descriptive if token.upper() in CATEGORY_DEFAULTS]
-    if len(category_matches) != 1:
-        return query
-    category = category_matches[0].upper()
-    default = CATEGORY_DEFAULTS[category]
-    default_tokens = {token.upper() for token in tokenize_description(default)}
-    extra = [token for token in descriptive if token.upper() != category]
-    if any(token.upper() not in default_tokens for token in extra):
-        return query
-    return f"{query} {default}"
+
+def reduce_bare_category_tokens(tokens: list[str]) -> list[str]:
+    """Drop redundant extra words from a bare-category-plus-own-default query
+    (see _bare_category_redundant_extras) before they become *required*
+    retrieval tokens -- e.g. "EMT CONDUIT" only needs "EMT" to be eligible,
+    since "conduit" is already what EMT implies. Confirmed live: a genuine
+    plain 3/4" EMT conduit stick's own catalog text never happens to say
+    "conduit" (it spells out "Electrical Metallic Tubing" instead), so
+    requiring both words as a strict AND silently excluded it from
+    retrieval entirely, leaving only unrelated straps/couplings that
+    happened to literally contain "conduit" in their own text.
+    """
+    match = _bare_category_redundant_extras(tokens)
+    if match is None:
+        return tokens
+    _category, extra = match
+    if not extra:
+        return tokens
+    extra_upper = {token.upper() for token in extra}
+    return [token for token in tokens if token.upper() not in extra_upper]
 
 
 # Same idea as CATEGORY_DEFAULTS, but for color: when a category is sold in

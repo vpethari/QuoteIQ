@@ -11,6 +11,7 @@ from matching.category_defaults import (
     mentions_stainless,
     normalize_raw_customer_text,
     normalize_strut_catalog_codes,
+    reduce_bare_category_tokens,
     unrequested_specialty_marker,
     wants_spring_nut,
 )
@@ -32,6 +33,32 @@ def test_expand_bare_category_query_leaves_more_specific_request_untouched() -> 
     query = '1" PVC COUPLING'
     tokens = tokenize_description(query)
     assert expand_bare_category_query(query, tokens) == query
+
+
+def test_reduce_bare_category_tokens_drops_implied_default_word() -> None:
+    # "conduit" is already what "EMT" implies (CATEGORY_DEFAULTS), so it
+    # must not become a second *required* retrieval token -- confirmed live:
+    # a genuine plain 3/4" EMT conduit stick's own catalog text never
+    # happens to say "conduit" (it spells out "Electrical Metallic Tubing"
+    # instead), so requiring both words excluded it from retrieval entirely.
+    tokens = tokenize_description("EMT CONDUIT")
+    reduced = reduce_bare_category_tokens(tokens)
+    assert "CONDUIT" not in reduced
+    assert "EMT" in reduced
+
+
+def test_reduce_bare_category_tokens_keeps_genuinely_specific_request() -> None:
+    tokens = tokenize_description("PVC COUPLING")
+    assert reduce_bare_category_tokens(tokens) == tokens
+
+
+def test_retrieval_token_groups_drop_implied_default_word() -> None:
+    from catalog.search_query import retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups("3/4 EMT CONDUIT")
+    flat = {variant for group in groups for variant in group}
+    assert "conduit" not in flat
+    assert "emt" in flat
 
 
 def test_expand_known_phrases_appends_matched_expansion() -> None:

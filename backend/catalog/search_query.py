@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from matching.category_defaults import reduce_bare_category_tokens
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
@@ -41,5 +42,10 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:
         distinctive = [token for token in tokens if token]
+    # A bare category word's own implied default wording (e.g. "conduit" for
+    # "EMT") must not become a second *required* AND term: a genuine plain
+    # EMT conduit stick's own catalog text doesn't necessarily happen to
+    # spell out that exact word (see reduce_bare_category_tokens).
+    distinctive = reduce_bare_category_tokens(distinctive)
     limited = distinctive[:limit]
     return [tuple(variant.lower() for variant in token_variants(token)) for token in limited]
