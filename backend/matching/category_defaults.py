@@ -246,6 +246,10 @@ PHRASE_EXPANSIONS: dict[frozenset[str], str] = {
     # not doesn't change which candidate is meant) since GRC already means
     # rigid conduit -- see CATEGORY_DEFAULTS.
     frozenset({"GRC", "HUB"}): "CONDUIT HUB",
+    # This catalog doesn't use the word "JOINER" anywhere (e.g. a strut
+    # "L-JOINER"/"T-JOINER" is filed as a "Fitting"); appending "FITTING"
+    # lets retrieval find that wording without dropping "JOINER" itself.
+    frozenset({"JOINER"}): "FITTING",
 }
 
 

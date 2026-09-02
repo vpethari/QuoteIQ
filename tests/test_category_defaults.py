@@ -61,6 +61,18 @@ def test_expand_query_for_retrieval_chains_all_expansions() -> None:
     assert "SCH40 BE CONDUIT GRAY" in expanded
 
 
+def test_plastic_is_a_synonym_for_pvc() -> None:
+    assert tokenize_description("1\" PLASTIC") == tokenize_description('1" PVC')
+    expanded = expand_query_for_retrieval('1" PLASTIC')
+    assert "SCH40 BE CONDUIT GRAY" in expanded
+
+
+def test_joiner_expands_to_fitting() -> None:
+    expanded = expand_known_phrases("STRUT L JOINER", ["STRUT", "L", "JOINER"])
+    assert "FITTING" in expanded
+    assert "JOINER" in expanded
+
+
 def test_default_color_for_query_returns_none_when_color_named() -> None:
     tokens = tokenize_description("PVC CONDUIT ORANGE")
     assert default_color_for_query(tokens) is None

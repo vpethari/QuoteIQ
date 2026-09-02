@@ -25,6 +25,7 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("WHIP", ("WHIP", "WHIPS")),
     ("STRUT", ("STRUT", "UNISTRUT")),
     ("TRAY", ("TRAY", "TROF", "TROUGH")),
+    ("PVC", ("PVC", "PLASTIC")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).
