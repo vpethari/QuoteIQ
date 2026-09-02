@@ -307,6 +307,21 @@ def test_pydantic_rejects_invalid_ai_json() -> None:
         AIReasoningResult.model_validate({"decision": "MAYBE"})
 
 
+def test_dict_shaped_attribute_lists_are_coerced_not_a_schema_error() -> None:
+    result = AIReasoningResult.model_validate(
+        {
+            "decision": "REVIEW_REQUIRED",
+            "selected_part_number": None,
+            "confidence_percentage": 40,
+            "reasoning_summary": "ok",
+            "matched_attributes": {"size": '4"', "type": "terminal adapter"},
+            "conflicting_attributes": {"TA05": "size 1/2\" does not match"},
+        }
+    )
+    assert result.matched_attributes == ['size: 4"', "type: terminal adapter"]
+    assert result.conflicting_attributes == ['TA05: size 1/2" does not match']
+
+
 def test_null_confidence_percentage_is_accepted_not_a_schema_error() -> None:
     result = AIReasoningResult.model_validate(
         {

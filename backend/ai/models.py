@@ -40,6 +40,16 @@ class AIReasoningResult(BaseModel):
             return None
         return value
 
+    @field_validator("matched_attributes", "conflicting_attributes", mode="before")
+    @classmethod
+    def coerce_attribute_list(cls, value: Any) -> Any:
+        # The model sometimes returns these as a dict (attribute -> note)
+        # instead of a flat list of strings. Flatten rather than reject an
+        # otherwise-valid response over a shape mismatch.
+        if isinstance(value, dict):
+            return [f"{key}: {item}" for key, item in value.items()]
+        return value
+
 
 class AICandidateInput(BaseModel):
     official_part_number: str
