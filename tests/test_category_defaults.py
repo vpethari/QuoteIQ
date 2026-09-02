@@ -131,6 +131,40 @@ def test_descriptions_conflict_flags_variant_mismatch() -> None:
     ) is True
 
 
+class _RecordingCatalogSearch:
+    """Minimal catalog_search double that just records what query string it
+    was asked to retrieve with, so tests can assert retrieval never sees the
+    category-defaults-expanded query (see the retrieval-vs-scoring split in
+    ProductMatcher._score_description_candidates)."""
+
+    def __init__(self) -> None:
+        self.search_text_queries: list[str] = []
+
+    def lookup_productcode(self, identifier: str, limit: int | None = None) -> list[ProductRecord]:
+        return []
+
+    def fetch_identifier_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
+        return []
+
+    def search_text_candidates(self, query: str, limit: int | None = None) -> list[ProductRecord]:
+        self.search_text_queries.append(query)
+        return []
+
+
+def test_retrieval_query_is_not_expanded_but_scoring_query_is() -> None:
+    # Regression test: expand_query_for_retrieval() must never reach the
+    # catalog_search retrieval call. Postgres full-text search ANDs every
+    # distinct query token together, so appending category-default words
+    # (e.g. "1\" PVC" -> "...SCH40 BE CONDUIT GRAY") to the *retrieval* query
+    # can silently zero out results that a narrower query would have found.
+    catalog_search = _RecordingCatalogSearch()
+    matcher = ProductMatcher([], catalog_search=catalog_search)
+    matcher.match_description('1" PVC')
+    assert catalog_search.search_text_queries
+    assert all("SCH40" not in query.upper() for query in catalog_search.search_text_queries)
+    assert all("GRAY" not in query.upper() for query in catalog_search.search_text_queries)
+
+
 def test_matcher_ranks_plain_steel_over_unrequested_stainless_variant() -> None:
     # Regression test: score_product_fields returns a frozen ScoreBreakdown --
     # capping a conflicting candidate's score must replace it, not mutate it

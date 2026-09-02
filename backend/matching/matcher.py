@@ -424,7 +424,7 @@ class ProductMatcher:
             cache.record_hit()
             return list(cache.scored[key])
         scored: list[MatchCandidate] = []
-        query = expand_query_for_retrieval(strip_quantity_and_noise(requested_description))
+        query = strip_quantity_and_noise(requested_description)
         pool = list(self._products_for_query(query))
         session = active()
         if session is not None:
@@ -438,15 +438,24 @@ class ProductMatcher:
                 if product.description
             )
         query_prep = prepare_scoring_text(query, prep_cache)
+        # Retrieval must stay narrow: Postgres full-text search ANDs every
+        # distinct query token together, so appending extra vocabulary to it
+        # (see category_defaults.py) can silently zero out results instead of
+        # widening them. The expanded form is only safe to use for *scoring*
+        # candidates the narrower retrieval already found, where extra
+        # vocabulary can only help a genuinely-default candidate rank higher,
+        # never exclude one outright.
+        scoring_query = expand_query_for_retrieval(query)
+        scoring_query_prep = prepare_scoring_text(scoring_query, prep_cache)
         score_started = perf_counter()
         for product in pool:
             field_started = perf_counter() if session is not None else None
             breakdown, field_scores, matched_field, identifier_evidence = score_product_fields(
-                query,
+                scoring_query,
                 product,
                 self.config,
                 prep_cache=prep_cache,
-                query_prep=query_prep,
+                query_prep=scoring_query_prep,
             )
             if session is not None and field_started is not None:
                 session.add(score_fields_ms=_ms(perf_counter() - field_started))
