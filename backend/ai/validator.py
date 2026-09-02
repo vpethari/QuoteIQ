@@ -16,6 +16,7 @@ class ValidationOutcome:
     reason: str
     catalog_validated: bool
     candidate_validated: bool
+    selected_orderable_part_number: str | None = None
 
 
 def validate_ai_selection(
@@ -134,6 +135,7 @@ def validate_ai_selection(
         selected_part_number=selected,
         selected_description=candidate.description,
         selected_salsify_id=candidate.salsify_id,
+        selected_orderable_part_number=candidate.orderable_part_number,
         reason="Selection is present in candidates and approved catalog",
         catalog_validated=True,
         candidate_validated=True,

@@ -21,17 +21,18 @@ def test_select_limit_5_reaches_existing_matcher() -> None:
                 "name TEXT, "
                 "description TEXT, "
                 "description2 TEXT, "
-                "record_type TEXT)"
+                "record_type TEXT, "
+                "orderablepartnumber TEXT)"
             )
         )
         connection.execute(
             text(
                 f"INSERT INTO {ACTUAL_TABLE_NAME} "
-                '(id, "Productcode", name, description, description2, record_type) VALUES '
+                '(id, "Productcode", name, description, description2, record_type, orderablepartnumber) VALUES '
                 "(333427, 'B1EB5-W', 'B1EB5-W', 'BRP 120V WHIP END EXT CBL', "
-                "'BRP 120V WHIP END EXT CBL', 'product'), "
-                "(1, 'PP_DBL_EXT_CBL', '-', NULL, NULL, 'family'), "
-                "(900001, 'NA1-2DDDA10-HV', 'NA1-2DDDA10-HV', 'HIGH VOLTAGE', 'HV CABLE', 'product')"
+                "'BRP 120V WHIP END EXT CBL', 'product', 'ORD-B1EB5-W'), "
+                "(1, 'PP_DBL_EXT_CBL', '-', NULL, NULL, 'family', NULL), "
+                "(900001, 'NA1-2DDDA10-HV', 'NA1-2DDDA10-HV', 'HIGH VOLTAGE', 'HV CABLE', 'product', NULL)"
             )
         )
 
@@ -50,6 +51,9 @@ def test_select_limit_5_reaches_existing_matcher() -> None:
     assert all(item.product_code != "333427" for item in loaded)
     assert all(item.official_part_number != item.catalog_row_id for item in loaded)
     assert all(item.product_code.startswith("NA1-") or item.product_code == "B1EB5-W" for item in loaded)
+    by_code = {item.product_code: item for item in loaded}
+    assert by_code["B1EB5-W"].orderable_part_number == "ORD-B1EB5-W"
+    assert by_code["NA1-2DDDA10-HV"].orderable_part_number is None
 
     matcher = ProductMatcher(loaded)
     result = matcher.match_line(
@@ -84,16 +88,17 @@ def test_fetch_identifier_candidates_uses_substring_tokens() -> None:
                 '"Productcode" TEXT, '
                 "name TEXT, "
                 "description TEXT, "
-                "description2 TEXT)"
+                "description2 TEXT, "
+                "orderablepartnumber TEXT)"
             )
         )
         connection.execute(
             text(
                 f"INSERT INTO {ACTUAL_TABLE_NAME} "
-                '(id, "Productcode", name, description, description2) VALUES '
-                "(1, 'RR 2BA KR', 'RR 2BA KR', 'RR 2BA KR', NULL), "
-                "(2, 'RR 2B KR', 'RR 2B KR', 'RR 2B KR', NULL), "
-                "(3, 'B1EB5-W', 'B1EB5-W', 'BRP 120V WHIP END EXT CBL', NULL)"
+                '(id, "Productcode", name, description, description2, orderablepartnumber) VALUES '
+                "(1, 'RR 2BA KR', 'RR 2BA KR', 'RR 2BA KR', NULL, NULL), "
+                "(2, 'RR 2B KR', 'RR 2B KR', 'RR 2B KR', NULL, NULL), "
+                "(3, 'B1EB5-W', 'B1EB5-W', 'BRP 120V WHIP END EXT CBL', NULL, NULL)"
             )
         )
     repository = PostgresCatalogRepository(engine, table=ACTUAL_TABLE_NAME)

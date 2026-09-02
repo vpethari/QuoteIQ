@@ -24,22 +24,23 @@ def _sqlite_catalog() -> PostgresCatalogRepository:
                 "name TEXT, "
                 "description TEXT, "
                 "description2 TEXT, "
-                "search_text TEXT)"
+                "search_text TEXT, "
+                "orderablepartnumber TEXT)"
             )
         )
         rows = [
-            (333427, "B1EB5-W", "B1EB5-W", "BRP 120V WHIP END EXT CBL", "BRP 120V WHIP END EXT CBL"),
-            (333478, "333478", "RR 2BA KL", "RR 2BA KL", None),
-            (333479, "333479", "RR 2BA KR", "RR 2BA KR", None),
-            (1, "NOISE", "UNRELATED", "PURPLE BANANA ENCLOSURE", None),
+            (333427, "B1EB5-W", "B1EB5-W", "BRP 120V WHIP END EXT CBL", "BRP 120V WHIP END EXT CBL", "ORD-B1EB5-W"),
+            (333478, "333478", "RR 2BA KL", "RR 2BA KL", None, None),
+            (333479, "333479", "RR 2BA KR", "RR 2BA KR", None, None),
+            (1, "NOISE", "UNRELATED", "PURPLE BANANA ENCLOSURE", None, None),
         ]
         for row in rows:
-            search_text = " ".join(str(part).lower() for part in row[1:] if part)
+            search_text = " ".join(str(part).lower() for part in row[1:5] if part)
             connection.execute(
                 text(
                     'INSERT INTO productmaster '
-                    '(id, "Productcode", name, description, description2, search_text) '
-                    "VALUES (:id, :code, :name, :description, :description2, :search_text)"
+                    '(id, "Productcode", name, description, description2, search_text, orderablepartnumber) '
+                    "VALUES (:id, :code, :name, :description, :description2, :search_text, :orderablepartnumber)"
                 ),
                 {
                     "id": row[0],
@@ -48,6 +49,7 @@ def _sqlite_catalog() -> PostgresCatalogRepository:
                     "description": row[3],
                     "description2": row[4],
                     "search_text": search_text,
+                    "orderablepartnumber": row[5],
                 },
             )
     return PostgresCatalogRepository(engine, retrieval_limit=100)
@@ -102,7 +104,8 @@ def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_te
                 "name TEXT, "
                 "description TEXT, "
                 "description2 TEXT, "
-                "search_text TEXT)"
+                "search_text TEXT, "
+                "orderablepartnumber TEXT)"
             )
         )
         # Catalog text spells "CABLE" out in full; the query token canonicalizes
@@ -112,8 +115,8 @@ def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_te
         connection.execute(
             text(
                 'INSERT INTO productmaster '
-                '(id, "Productcode", name, description, description2, search_text) '
-                "VALUES (:id, :code, :name, :description, :description2, :search_text)"
+                '(id, "Productcode", name, description, description2, search_text, orderablepartnumber) '
+                "VALUES (:id, :code, :name, :description, :description2, :search_text, NULL)"
             ),
             {
                 "id": row[0],

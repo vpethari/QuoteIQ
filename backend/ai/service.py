@@ -130,17 +130,19 @@ class AIMatchingService:
             selected_pn = None
             selected_desc = None
             selected_salsify = None
+            selected_orderable = None
         else:
             selected_pn = outcome.selected_part_number
             selected_desc = outcome.selected_description
             selected_salsify = outcome.selected_salsify_id
+            selected_orderable = outcome.selected_orderable_part_number
 
         rejected = status != AIDecision.CONFIDENT_MATCH and bool(ai_result.selected_part_number) and not outcome.accepted
         if not outcome.accepted and ai_result.selected_part_number:
             rejected = True
             if status == AIDecision.CONFIDENT_MATCH:
                 status = AIDecision.REVIEW_REQUIRED
-                selected_pn = selected_desc = selected_salsify = None
+                selected_pn = selected_desc = selected_salsify = selected_orderable = None
                 summary = outcome.reason
 
         det_score = _deterministic_score_for_selection(deterministic, selected_pn)
@@ -169,6 +171,7 @@ class AIMatchingService:
             matched_part_number=selected_pn,
             matched_description=selected_desc,
             matched_salsify_id=selected_salsify,
+            matched_orderable_part_number=selected_orderable,
             deterministic_score=det_score,
             ai_confidence=ai_conf,
             final_confidence=final_conf,
@@ -323,6 +326,7 @@ def final_from_deterministic(result: MatchResult, ai_enabled: bool) -> FinalMatc
         matched_part_number=result.matched_part_number,
         matched_description=result.matched_description,
         matched_salsify_id=result.matched_salsify_id,
+        matched_orderable_part_number=result.matched_orderable_part_number,
         deterministic_score=result.top_score,
         ai_confidence=None,
         final_confidence=result.matching_percentage,
@@ -360,6 +364,7 @@ def _candidate_details(candidates: Sequence[MatchCandidate]) -> list[dict]:
     return [
         {
             "official_part_number": item.official_part_number,
+            "orderable_part_number": item.orderable_part_number,
             "description": item.description,
             "salsify_id": item.salsify_id,
             "deterministic_score": item.score,

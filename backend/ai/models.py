@@ -112,6 +112,7 @@ class FinalMatchResult(BaseModel):
     matched_part_number: str | None = None
     matched_description: str | None = None
     matched_salsify_id: str | None = None
+    matched_orderable_part_number: str | None = None
     deterministic_score: float
     ai_confidence: float | None = None
     final_confidence: float

@@ -78,6 +78,7 @@ class ProductRecord:
     name: str | None = None
     description2: str | None = None
     catalog_row_id: str | None = None
+    orderable_part_number: str | None = None
 
     @property
     def product_code(self) -> str:
@@ -119,6 +120,7 @@ class MatchCandidate:
     name: str | None = None
     description2: str | None = None
     rank: int | None = None
+    orderable_part_number: str | None = None
 
 
 @dataclass
@@ -141,6 +143,7 @@ class MatchResult:
     second_score: float | None
     score_gap: float | None
     requested_part_number: str | None = None
+    matched_orderable_part_number: str | None = None
     part_number_match_score: float | None = None
     description_match_score: float | None = None
     overall_match_score: float | None = None
@@ -173,6 +176,7 @@ class MatchResult:
             "matched_part_number": _api_productcode(self.matched_part_number),
             "matched_description": self.matched_description,
             "matched_salsify_id": _api_productcode(self.matched_salsify_id),
+            "matched_orderable_part_number": self.matched_orderable_part_number,
             "matching_percentage": self.matching_percentage,
             "part_number_match_score": self.part_number_match_score,
             "description_match_score": self.description_match_score,

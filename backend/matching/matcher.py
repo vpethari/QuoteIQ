@@ -497,6 +497,7 @@ class ProductMatcher:
                 identifier_evidence=identifier_evidence,
                 name=product.name,
                 description2=product.description2,
+                orderable_part_number=product.orderable_part_number,
             )
             scored.append(candidate)
             if session is not None and loop_started is not None:
@@ -557,6 +558,7 @@ class ProductMatcher:
             identifier_evidence=identifier_evidence or {},
             name=product.name,
             description2=product.description2,
+            orderable_part_number=product.orderable_part_number,
         )
 
     def _match_description_only(
@@ -645,17 +647,18 @@ class ProductMatcher:
         if competing_productcodes and status != MatchStatus.NO_MATCH:
             status = MatchStatus.REVIEW_REQUIRED
 
-        matched_part = matched_description = matched_salsify = None
+        matched_part = matched_description = matched_salsify = matched_orderable = None
         winner_scores: dict[str, float] = dict(candidates[0].field_scores) if candidates else {}
         if status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE} and candidates:
             winner = candidates[0]
             matched_part = winner.official_part_number
             matched_description = winner.description
             matched_salsify = winner.salsify_id
+            matched_orderable = winner.orderable_part_number
 
         matching_percentage = top_score if candidates else 0.0
         if status == MatchStatus.NO_MATCH:
-            matched_part = matched_description = matched_salsify = None
+            matched_part = matched_description = matched_salsify = matched_orderable = None
 
         result_reasons = build_result_reasons(
             match_status=status.value,
@@ -733,6 +736,7 @@ class ProductMatcher:
             matched_part_number=matched_part,
             matched_description=matched_description,
             matched_salsify_id=matched_salsify,
+            matched_orderable_part_number=matched_orderable,
             matching_percentage=overall,
             confidence_level=status.value,
             match_status=status,
@@ -924,7 +928,7 @@ class ProductMatcher:
         decision_started = perf_counter()
         if conflict or not compatible:
             status = MatchStatus.REVIEW_REQUIRED
-            matched_part = matched_description = matched_salsify = None
+            matched_part = matched_description = matched_salsify = matched_orderable = None
             overall = self._combined_overall(100.0, description_score)
             reasons = [PN_EXACT_CONFLICT]
             candidates = [pn_candidate, *description_candidates][: self.config.max_candidates]
@@ -933,6 +937,7 @@ class ProductMatcher:
             matched_part = product.product_code
             matched_description = product.description or product.name
             matched_salsify = product.salsify_id or product.product_code
+            matched_orderable = product.orderable_part_number
             overall = self._combined_overall(100.0, description_score)
             if description_blank:
                 reasons = [identity_reason]
@@ -958,6 +963,7 @@ class ProductMatcher:
             matched_part_number=matched_part,
             matched_description=matched_description,
             matched_salsify_id=matched_salsify,
+            matched_orderable_part_number=matched_orderable,
             matching_percentage=overall,
             confidence_level=status.value,
             match_status=status,

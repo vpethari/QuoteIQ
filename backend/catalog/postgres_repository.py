@@ -45,11 +45,17 @@ def product_from_postgres_row(
     description2: object = None,
     row_id: object = None,
     record_type: object = None,
+    orderablepartnumber: object = None,
 ) -> ProductRecord | None:
     """productmaster.name is the real, external orderable identifier (what
     customers/external agents quote and order by); Productcode is an
     internal-only surrogate key and is never used for matching or search --
     it's kept only as a last-resort internal reference id below.
+
+    orderablepartnumber is a separate, dedicated column that sometimes
+    differs from name (confirmed live: ~11% of rows) -- where present, it's
+    the number to actually show/export for ordering, even though name
+    remains what's searched and matched against.
     """
     name_text = str(name).strip() if name is not None and str(name).strip() else ""
     if not name_text or name_text == FAMILY_PRODUCTCODE_PLACEHOLDER:
@@ -58,6 +64,9 @@ def product_from_postgres_row(
     kind = str(record_type).strip().lower() if record_type is not None and str(record_type).strip() else PRODUCT_RECORD_TYPE
     if kind != PRODUCT_RECORD_TYPE:
         return None
+    orderable_text = (
+        str(orderablepartnumber).strip() if orderablepartnumber is not None and str(orderablepartnumber).strip() else None
+    )
     return ProductRecord(
         salsify_id=name_text,
         official_part_number=name_text,
@@ -66,6 +75,7 @@ def product_from_postgres_row(
         name=name_text,
         description2=str(description2).strip() if description2 else None,
         catalog_row_id=internal_id,
+        orderable_part_number=orderable_text,
     )
 
 
@@ -85,6 +95,7 @@ class PostgresCatalogRepository:
         record_type_column: str = "record_type",
         search_text_column: str = "search_text",
         identifier_search_column: str = "identifier_search",
+        orderablepartnumber_column: str = "orderablepartnumber",
         retrieval_limit: int = 100,
     ) -> None:
         self.engine = engine
@@ -97,6 +108,7 @@ class PostgresCatalogRepository:
         self.record_type_column = record_type_column
         self.search_text_column = search_text_column
         self.identifier_search_column = identifier_search_column
+        self.orderablepartnumber_column = orderablepartnumber_column
         self.retrieval_limit = retrieval_limit
         self._cached_column_names: set[str] | None = None
 
@@ -111,14 +123,19 @@ class PostgresCatalogRepository:
         return _quote(self.search_text_column)
 
     def _select_catalog_sql(self) -> str:
+        """orderablepartnumber is required, same as search_text (both added
+        by the same migration) -- not schema-inspected per query, since this
+        runs on the hot per-line retrieval path."""
         table_sql = _quote(self.table)
         code_sql = self._productcode_sql()
         name_sql = _quote(self.name_column)
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
+        orderable_sql = _quote(self.orderablepartnumber_column)
         return (
             f"SELECT {code_sql} AS productcode, {name_sql} AS name, "
-            f"{desc_sql} AS description, {desc2_sql} AS description2 "
+            f"{desc_sql} AS description, {desc2_sql} AS description2, "
+            f"{orderable_sql} AS orderablepartnumber "
             f"FROM {table_sql}"
         )
 
@@ -203,6 +220,7 @@ class PostgresCatalogRepository:
                 description2=row.get("description2"),
                 row_id=row.get("row_id"),
                 record_type=row.get("record_type"),
+                orderablepartnumber=row.get("orderablepartnumber"),
             )
             if product is not None:
                 records.append(product)
@@ -252,21 +270,23 @@ class PostgresCatalogRepository:
         name_sql = _quote(self.name_column)
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
+        orderable_sql = _quote(self.orderablepartnumber_column)
         table_sql = _quote(self.table)
         branches = [
             "SELECT "
             f"{code_sql} AS productcode, {name_sql} AS name, "
             f"{desc_sql} AS description, {desc2_sql} AS description2, "
+            f"{orderable_sql} AS orderablepartnumber, "
             f"{position} AS token_position "
             f"FROM {table_sql} WHERE "
             + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count))
             for position, count in enumerate(token_variant_counts)
         ]
         return (
-            "SELECT productcode, name, description, description2, "
+            "SELECT productcode, name, description, description2, orderablepartnumber, "
             "COUNT(DISTINCT token_position) AS match_count "
             f"FROM ({' UNION ALL '.join(branches)}) AS hits "
-            "GROUP BY productcode, name, description, description2 "
+            "GROUP BY productcode, name, description, description2, orderablepartnumber "
             "HAVING COUNT(DISTINCT token_position) >= :min_required "
             "ORDER BY match_count DESC "
             "LIMIT :limit"
@@ -434,6 +454,7 @@ class PostgresCatalogRepository:
                 description2=row.get("description2"),
                 row_id=row.get("row_id"),
                 record_type=row.get("record_type"),
+                orderablepartnumber=row.get("orderablepartnumber"),
             )
             if product is not None:
                 records.append(product)
@@ -545,6 +566,8 @@ class PostgresCatalogRepository:
         has_record_type = self.record_type_column in columns
         if has_record_type:
             select_parts.append(f"{_quote(self.record_type_column)} AS record_type")
+        if self.orderablepartnumber_column in columns:
+            select_parts.append(f"{_quote(self.orderablepartnumber_column)} AS orderablepartnumber")
         # Gate on name (the real identifier), not Productcode (internal-only) --
         # a row needs a usable name to be matchable at all now.
         where_parts = [

@@ -79,6 +79,7 @@ def apply_user_selection(result: MatchResult, productcode: str) -> MatchResult:
     result.matched_part_number = wanted
     result.matched_description = chosen.description or chosen.name
     result.matched_salsify_id = chosen.salsify_id
+    result.matched_orderable_part_number = chosen.orderable_part_number
     result.match_status = MatchStatus.HIGH_CONFIDENCE
     result.confidence_level = MatchStatus.HIGH_CONFIDENCE.value
     result.selection_type = USER_SELECTED
@@ -115,6 +116,7 @@ def apply_user_selection_payload(payload: dict, productcode: str, quote_line_id:
     updated["matched_part_number"] = wanted
     updated["matched_description"] = description
     updated["matched_salsify_id"] = chosen.get("salsify_id")
+    updated["matched_orderable_part_number"] = chosen.get("orderable_part_number")
     updated["match_status"] = MatchStatus.HIGH_CONFIDENCE.value
     updated["confidence_level"] = MatchStatus.HIGH_CONFIDENCE.value
     updated["confidence"] = "HIGH"

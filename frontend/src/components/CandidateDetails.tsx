@@ -65,6 +65,12 @@ export function CandidateDetails({
           <dt>Matched Part Number</dt>
           <dd className="part">{displayedMatchedName(row)}</dd>
         </div>
+        {row.matched_orderable_part_number ? (
+          <div>
+            <dt>Orderable Part Number</dt>
+            <dd className="part">{row.matched_orderable_part_number}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Matched Description</dt>
           <dd>{row.matched_description || "—"}</dd>
@@ -131,6 +137,9 @@ export function CandidateDetails({
                       {candidateName(candidate)}
                       <CandidateAtkoreLink candidate={candidate} />
                     </div>
+                    {candidate.orderable_part_number ? (
+                      <div className="hint">Orderable: {candidate.orderable_part_number}</div>
+                    ) : null}
                     {candidate.description && candidate.description !== candidateName(candidate) ? (
                       <div>{candidate.description}</div>
                     ) : null}
@@ -166,6 +175,9 @@ export function CandidateDetails({
                     {candidateName(candidate)}
                     <CandidateAtkoreLink candidate={candidate} />
                   </div>
+                  {candidate.orderable_part_number ? (
+                    <div className="hint">Orderable: {candidate.orderable_part_number}</div>
+                  ) : null}
                   {candidate.description && candidate.description !== candidateName(candidate) ? (
                     <div>{candidate.description}</div>
                   ) : null}

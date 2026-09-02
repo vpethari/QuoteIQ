@@ -21,6 +21,7 @@ def _candidate_dict(item: MatchCandidate | dict[str, Any]) -> dict[str, Any]:
     if isinstance(item, MatchCandidate):
         return {
             "official_part_number": item.official_part_number,
+            "orderable_part_number": item.orderable_part_number,
             "description": item.description,
             "salsify_id": item.salsify_id,
             "score": _numeric_percentage(item.score),
@@ -30,6 +31,7 @@ def _candidate_dict(item: MatchCandidate | dict[str, Any]) -> dict[str, Any]:
     score = item.get("deterministic_score", item.get("score", 0))
     return {
         "official_part_number": item.get("official_part_number"),
+        "orderable_part_number": item.get("orderable_part_number"),
         "description": item.get("description"),
         "salsify_id": item.get("salsify_id"),
         "score": _numeric_percentage(float(score or 0)),
@@ -48,6 +50,7 @@ def serialize_process_result(result: QuoteProcessResult) -> dict[str, Any]:
         matched_part = result.matched_part_number if emit else None
         matched_description = result.matched_description if emit else None
         matched_salsify = result.matched_salsify_id if emit else None
+        matched_orderable = result.matched_orderable_part_number if emit else None
         source_row = result.source_row
         requested = result.requested_description
         quantity = result.quantity
@@ -66,6 +69,7 @@ def serialize_process_result(result: QuoteProcessResult) -> dict[str, Any]:
         matched_part = result.matched_part_number if emit else None
         matched_description = result.matched_description if emit else None
         matched_salsify = result.matched_salsify_id if emit else None
+        matched_orderable = result.matched_orderable_part_number if emit else None
         source_row = result.source_row
         requested = result.requested_description
         quantity = result.quantity
@@ -87,6 +91,7 @@ def serialize_process_result(result: QuoteProcessResult) -> dict[str, Any]:
         "matched_part_number": matched_part,
         "matched_description": matched_description,
         "matched_salsify_id": matched_salsify,
+        "matched_orderable_part_number": matched_orderable,
         "matching_percentage": _numeric_percentage(float(overall or 0)),
         "part_number_match_score": None if pn_score is None else _numeric_percentage(float(pn_score)),
         "description_match_score": None if desc_score is None else _numeric_percentage(float(desc_score)),

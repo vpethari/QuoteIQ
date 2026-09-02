@@ -40,6 +40,7 @@ export interface CandidateProduct {
   rank?: number | null;
   productcode?: string | null;
   official_part_number: string;
+  orderable_part_number?: string | null;
   name?: string | null;
   description: string | null;
   description2?: string | null;
@@ -60,6 +61,7 @@ export interface QuoteMatchResult {
   quantity: number | null;
   matched_part_number: string | null;
   matched_salsify_id?: string | null;
+  matched_orderable_part_number?: string | null;
   matched_description: string | null;
   customer_raw_text?: string | null;
   detected_salsify_id?: string | null;
