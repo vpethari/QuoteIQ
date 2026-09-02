@@ -20,12 +20,14 @@ from matching.normalizer import (
     normalize_part_number,
     part_number_lookup_keys,
 )
+from matching.category_defaults import normalize_strut_catalog_codes
 from matching.request_text import InterpretedRequest, interpret_customer_text
 from matching.description_normalize import (
     ABBREV_REASON,
     abbreviation_evidence,
     catalog_description_blob,
     description_retrieval_hit,
+    expand_query_for_retrieval,
 )
 from matching.noise import prepare_product_search_text, strip_quantity_and_noise
 from matching.request_cache import (
@@ -56,6 +58,7 @@ from matching.scoring import (
     descriptions_conflict,
     score_pair,
     score_product_fields,
+    variant_conflict,
 )
 from matching.timing_diag import _ms, active, span
 from time import perf_counter
@@ -150,7 +153,7 @@ class ProductMatcher:
             )
         with span("normalize_ms"):
             interpreted = interpret_customer_text(
-                requested_description,
+                normalize_strut_catalog_codes(requested_description),
                 explicit_part_number=requested_part_number,
                 salsify_keys=self._salsify_keys,
                 official_keys=self._official_and_identifier_keys,
@@ -204,7 +207,7 @@ class ProductMatcher:
             session.start_line(1, source_row, requested_description)
         with span("normalize_ms"):
             interpreted = interpret_customer_text(
-                requested_description,
+                normalize_strut_catalog_codes(requested_description),
                 salsify_keys=self._salsify_keys,
                 official_keys=self._official_and_identifier_keys,
             )
@@ -420,7 +423,7 @@ class ProductMatcher:
             cache.record_hit()
             return list(cache.scored[key])
         scored: list[MatchCandidate] = []
-        query = strip_quantity_and_noise(requested_description)
+        query = expand_query_for_retrieval(strip_quantity_and_noise(requested_description))
         pool = list(self._products_for_query(query))
         session = active()
         if session is not None:
@@ -448,6 +451,8 @@ class ProductMatcher:
                 session.add(score_fields_ms=_ms(perf_counter() - field_started))
             loop_started = perf_counter() if session is not None else None
             identifier_hit = (identifier_evidence or {}).get("match_type") in IDENTITY_MATCH_TYPES
+            if not identifier_hit and variant_conflict(query, catalog_description_blob(product)):
+                breakdown.final = min(breakdown.final, self.config.description_conflict_max)
             if breakdown.final < self.config.candidate_floor and not identifier_hit:
                 continue
             identifier_evidence = self._attach_abbrev_evidence(

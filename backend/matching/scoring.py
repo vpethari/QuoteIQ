@@ -5,6 +5,14 @@ from difflib import SequenceMatcher
 from time import perf_counter
 
 from matching.attributes import extract_attributes
+from matching.category_defaults import (
+    candidate_color_conflicts,
+    default_color_for_query,
+    mentions_no_spring,
+    mentions_stainless,
+    unrequested_specialty_marker,
+    wants_spring_nut,
+)
 from matching.models import MatchingConfig, ProductRecord, ScoreBreakdown
 from matching.productcode import (
     EXACT_IDENTITY_TYPES,
@@ -12,7 +20,7 @@ from matching.productcode import (
     field_is_code_like,
     score_product_code_identifier,
 )
-from matching.description_normalize import catalog_unit_blob
+from matching.description_normalize import catalog_unit_blob, tokenize_description
 from matching.units import compare_extracted_units, extract_amperages, extract_dimensions, extract_voltages
 from matching.confidence import build_confidence_breakdown
 from matching.request_cache import get_request_cache
@@ -379,6 +387,26 @@ def calculate_score_gap(scores: Sequence[float]) -> tuple[float, float | None, f
     return top, second, gap
 
 
+def variant_conflict(query: str, catalog_text: str) -> bool:
+    """True when `catalog_text` names a specialty variant, material, or color
+    the customer's `query` didn't ask for. Plain word-overlap scoring can't
+    tell these cases apart on its own, since the conflicting candidate often
+    shares nearly all its vocabulary with the query -- see
+    matching.category_defaults for the confirmed cases behind each check.
+    """
+    if mentions_stainless(query) != mentions_stainless(catalog_text):
+        return True
+    query_tokens = tokenize_description(query)
+    if wants_spring_nut(query_tokens) and mentions_no_spring(catalog_text):
+        return True
+    if unrequested_specialty_marker(query, catalog_text) is not None:
+        return True
+    default_color = default_color_for_query(query_tokens)
+    if default_color and candidate_color_conflicts(tokenize_description(catalog_text), default_color):
+        return True
+    return False
+
+
 def descriptions_conflict(
     query: str,
     catalog_description: str,
@@ -393,6 +421,8 @@ def descriptions_conflict(
         right = {item.partition(":")[2] for item in catalog_attrs if item.startswith(f"{kind}:")}
         if left and right and left.isdisjoint(right):
             return True
+    if variant_conflict(query, catalog_description):
+        return True
     return breakdown.exact < 100.0 and breakdown.final < settings.description_conflict_max
 
 

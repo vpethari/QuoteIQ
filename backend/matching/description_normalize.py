@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import re
 
+from matching.category_defaults import (
+    expand_bare_category_query,
+    expand_hole_count,
+    expand_known_phrases,
+)
 from matching.models import ProductRecord
 from matching.normalizer import fold_whitespace, normalize_text
 from matching.terminology import (
@@ -113,6 +118,25 @@ def tokenize_description(value: str | None) -> list[str]:
 
 def canonical_description(value: str | None) -> str:
     return " ".join(tokenize_description(value)).lower()
+
+
+def expand_query_for_retrieval(value: str | None) -> str:
+    """Widen a customer's free-text query with catalog vocabulary the
+    customer left implicit, so retrieval finds catalog rows that carry it
+    (see matching.category_defaults for the evidence behind each expansion).
+
+    Order matters: hole-count spelling runs first since it's pure text
+    rewriting; phrase expansion adds explicit synonym wording next; bare-
+    category expansion runs last so it only fires once nothing else has
+    already broadened the query with a qualifier of its own.
+    """
+    query = fold_whitespace(value)
+    if not query:
+        return query
+    query = expand_hole_count(query)
+    query = expand_known_phrases(query, tokenize_description(query))
+    query = expand_bare_category_query(query, tokenize_description(query))
+    return query
 
 
 def catalog_unit_blob(product: ProductRecord) -> str:
