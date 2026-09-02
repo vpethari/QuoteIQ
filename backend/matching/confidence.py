@@ -75,12 +75,28 @@ def active_confidence_weights(
     ident_type: str,
     numeric_score: float | None,
     config: MatchingConfig,
+    name_score: float | None = None,
 ) -> dict[str, float]:
-    weights = _field_weights(config)
     if ident_type not in IDENTITY_MATCH_TYPES:
-        extra = weights.pop("productcode", 0.0)
-        weights["description"] = weights.get("description", 0.0) + extra * 0.70
-        weights["name"] = weights.get("name", 0.0) + extra * 0.30
+        # Description-only search: `name` is tried first as a direct match
+        # (it's the real orderable identifier); only when it doesn't score
+        # well enough do description/description2 drive confidence instead.
+        # Productcode is never part of this weighting -- it's internal-only,
+        # and in this schema it's always the same value as `name` anyway
+        # (see product_from_postgres_row), so it would just double-count.
+        numeric_weight = config.confidence_weight_numeric if numeric_score is not None else 0.0
+        remaining = 1.0 - numeric_weight
+        direct_match = name_score is not None and name_score >= config.high_confidence_min
+        if direct_match:
+            weights = {"name": remaining, "numeric": numeric_weight}
+        else:
+            weights = {
+                "description": remaining * 0.80,
+                "description2": remaining * 0.20,
+                "numeric": numeric_weight,
+            }
+        return _renormalize(weights)
+    weights = _field_weights(config)
     if numeric_score is None:
         extra = weights.pop("numeric", 0.0)
         if "description" in weights:
@@ -108,6 +124,7 @@ def combine_confidence(
         ident_type=ident_type,
         numeric_score=numeric_score,
         config=config,
+        name_score=name_score,
     )
     numeric_value = 0.0 if numeric_score is None else numeric_score
     values = {

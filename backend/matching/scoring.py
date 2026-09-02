@@ -187,10 +187,12 @@ def score_pair(
 
 
 TEXT_FIELD_WEIGHTS = {
-    "productcode": 0.40,
-    "name": 0.20,
-    "description": 0.25,
-    "description2": 0.15,
+    # productcode is excluded: it's internal-only, and in this schema it's
+    # always the same value as name (see product_from_postgres_row), so
+    # including it here would just double-count the name signal.
+    "name": 1 / 3,
+    "description": 5 / 12,
+    "description2": 0.25,
 }
 
 IDENTITY_WEIGHT = 0.70

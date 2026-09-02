@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from catalog.postgres_repository import product_from_postgres_row
-from matching.confidence import decide_match_status
+from matching.confidence import active_confidence_weights, decide_match_status
 from matching.matcher import ProductMatcher
 from matching.models import MatchingConfig, MatchStatus, ProductRecord, QuoteLine
 from output.match_evidence import build_match_evidence
@@ -171,3 +171,33 @@ def test_no_match_unrelated() -> None:
     result = ProductMatcher(_rr_catalog()).match_line(_line("PURPLE BANANA ENCLOSURE"))
     assert result.match_status == MatchStatus.NO_MATCH
     assert result.matched_part_number is None
+
+
+def test_description_scoring_prefers_name_as_a_direct_match() -> None:
+    config = MatchingConfig()
+    weights = active_confidence_weights(
+        ident_type="none", numeric_score=None, config=config, name_score=95.0
+    )
+    assert weights.get("name") == 1.0
+    assert "description" not in weights
+    assert "productcode" not in weights
+
+
+def test_description_scoring_falls_back_to_description_fields_when_name_is_weak() -> None:
+    config = MatchingConfig()
+    weights = active_confidence_weights(
+        ident_type="none", numeric_score=None, config=config, name_score=20.0
+    )
+    assert "name" not in weights
+    assert "productcode" not in weights
+    assert weights["description"] > weights["description2"]
+    assert abs(sum(weights.values()) - 1.0) < 1e-9
+
+
+def test_description_scoring_never_weights_productcode() -> None:
+    config = MatchingConfig()
+    for name_score in (0.0, 20.0, 50.0, 95.0, 100.0):
+        weights = active_confidence_weights(
+            ident_type="none", numeric_score=50.0, config=config, name_score=name_score
+        )
+        assert "productcode" not in weights
