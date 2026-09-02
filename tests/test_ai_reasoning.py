@@ -307,6 +307,35 @@ def test_pydantic_rejects_invalid_ai_json() -> None:
         AIReasoningResult.model_validate({"decision": "MAYBE"})
 
 
+def test_null_confidence_percentage_is_accepted_not_a_schema_error() -> None:
+    result = AIReasoningResult.model_validate(
+        {
+            "decision": "REVIEW_REQUIRED",
+            "selected_part_number": None,
+            "confidence_percentage": None,
+            "reasoning_summary": "Model could not quantify its confidence.",
+        }
+    )
+    assert result.confidence_percentage is None
+
+
+def test_null_confidence_percentage_routed_to_review_required(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    canned = AIReasoningResult(
+        decision=AIDecision.CONFIDENT_MATCH,
+        selected_part_number="2EB40-B-SC",
+        confidence_percentage=None,
+        reasoning_summary="Model omitted a confidence score.",
+    )
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(canned=canned))
+    result = service.match_description("10/3 MCT")
+    assert result.match_status == "REVIEW_REQUIRED"
+    assert result.matched_part_number is None
+    assert result.ai_confidence is None
+    assert result.final_confidence == result.deterministic_score
+
+
 def test_ai_preview_api_and_disabled_quote(
     matcher: ProductMatcher, catalog_records: list[ProductRecord]
 ) -> None:

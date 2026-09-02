@@ -4,6 +4,7 @@ import json
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from ai.azure_provider import AzureOpenAIReasoningProvider
 from ai.models import AIReasoningRequest
@@ -104,3 +105,32 @@ def test_does_not_retry_non_retryable_status() -> None:
     with pytest.raises(httpx.HTTPStatusError):
         provider.reason_about_candidates(_request())
     assert calls["count"] == 1
+
+
+def test_retries_on_malformed_json_content_then_succeeds() -> None:
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        if calls["count"] < 2:
+            return httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})
+        return httpx.Response(200, json=_success_body())
+
+    provider = _provider(handler)
+    result = provider.reason_about_candidates(_request())
+    assert calls["count"] == 2
+    assert result.reasoning_summary == "ok"
+
+
+def test_gives_up_after_max_retries_on_schema_validation_failure() -> None:
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        content = json.dumps({"decision": "NOT_A_REAL_DECISION"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    provider = _provider(handler)
+    with pytest.raises(ValidationError):
+        provider.reason_about_candidates(_request())
+    assert calls["count"] == provider.max_retries + 1

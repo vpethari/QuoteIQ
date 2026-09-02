@@ -22,7 +22,10 @@ class CandidateEvaluation(BaseModel):
 class AIReasoningResult(BaseModel):
     decision: AIDecision
     selected_part_number: str | None = None
-    confidence_percentage: float = Field(ge=0, le=100)
+    # The model sometimes reports null instead of a number when it genuinely
+    # can't quantify its confidence -- treat that as "not confident enough"
+    # rather than a schema violation that discards an otherwise-valid response.
+    confidence_percentage: float | None = Field(default=None, ge=0, le=100)
     reasoning_summary: str
     matched_attributes: list[str] = Field(default_factory=list)
     conflicting_attributes: list[str] = Field(default_factory=list)

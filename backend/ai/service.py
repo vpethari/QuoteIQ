@@ -272,7 +272,7 @@ def apply_decision_policy(
             outcome.reason,
         )
 
-    if ai_result.confidence_percentage < policy.review_threshold:
+    if ai_result.confidence_percentage is None or ai_result.confidence_percentage < policy.review_threshold:
         return AIDecision.REVIEW_REQUIRED, None, "AI confidence is below the review threshold."
 
     if (

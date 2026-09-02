@@ -4,15 +4,18 @@ import json
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 import httpx
+from pydantic import ValidationError
 
 from ai.models import AIReasoningRequest, AIReasoningResult
 from ai.prompt_builder import PROMPT_VERSION, SYSTEM_PROMPT_V1, build_user_prompt
 from ai.provider import AINotConfiguredError, AIReasoningProvider
 
 logger = logging.getLogger("quoteiq.ai")
+
+T = TypeVar("T")
 
 
 class AzureOpenAIReasoningProvider(AIReasoningProvider):
@@ -83,20 +86,27 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
             "response_format": {"type": "json_object"},
         }
         headers = {"api-key": self._api_key, "Content-Type": "application/json"}
-        data = self._post_with_retry(url, headers, body)
-        content = data["choices"][0]["message"]["content"]
-        parsed = _parse_json_content(content)
-        return AIReasoningResult.model_validate(parsed)
 
-    def _post_with_retry(
-        self, url: str, headers: dict[str, str], body: dict[str, Any]
-    ) -> dict[str, Any]:
+        def _parse(raw_body: dict[str, Any]) -> AIReasoningResult:
+            content = raw_body["choices"][0]["message"]["content"]
+            parsed = _parse_json_content(content)
+            return AIReasoningResult.model_validate(parsed)
+
+        return self._request_with_retry(url, headers, body, _parse)
+
+    def _request_with_retry(
+        self,
+        url: str,
+        headers: dict[str, str],
+        body: dict[str, Any],
+        parse: Callable[[dict[str, Any]], T],
+    ) -> T:
         attempt = 0
         while True:
             try:
                 response = self._client.post(url, headers=headers, json=body)
                 response.raise_for_status()
-                return response.json()
+                return parse(response.json())
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 if status not in self._RETRYABLE_STATUS_CODES or attempt >= self.max_retries:
@@ -115,6 +125,21 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
                 delay = self._retry_delay(None, attempt)
                 logger.warning(
                     "Azure OpenAI request error (%s) (attempt %s/%s); retrying in %.1fs",
+                    exc,
+                    attempt + 1,
+                    self.max_retries,
+                    delay,
+                )
+            except (json.JSONDecodeError, ValidationError) as exc:
+                # The model occasionally returns truncated/non-JSON content or a
+                # payload that fails schema validation on an otherwise-200 response.
+                # That's a transient generation glitch, not a permanent failure --
+                # worth a retry same as a 5xx, up to the same attempt budget.
+                if attempt >= self.max_retries:
+                    raise
+                delay = self._retry_delay(None, attempt)
+                logger.warning(
+                    "Azure OpenAI response failed to parse/validate (%s) (attempt %s/%s); retrying in %.1fs",
                     exc,
                     attempt + 1,
                     self.max_retries,
