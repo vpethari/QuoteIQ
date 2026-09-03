@@ -314,6 +314,15 @@ PHRASE_EXPANSIONS: dict[frozenset[str], str] = {
     # rather than a phrase expansion here: retrieval itself requires the
     # literal word to appear in the catalog text, so this needs to work as a
     # token-level canonicalization, not a string appended only for scoring.
+    #
+    # "Squeeze connector" is what this catalog calls a flex conduit
+    # connector (e.g. "MSC5090KON 1/2\" SQUEEZE CONNECTORS - 90 DEGREE")
+    # and never mentions "flex"/"flexible" -- retrieval eligibility is
+    # already fixed via _INTERCHANGEABLE_QUALIFIERS below, but scoring also
+    # needs "squeeze" appended here, the same two-part fix as conduit/hanger
+    # clamp, since a candidate's own raw text ("squeeze"/"connectors") won't
+    # otherwise overlap the query's "flex"/"conn" at all.
+    frozenset({"FLEX", "CONN"}): "SQUEEZE CONNECTOR",
 }
 
 
@@ -339,6 +348,15 @@ def expand_known_phrases(query: str, tokens: list[str]) -> str:
 # of requiring either specific one.
 _INTERCHANGEABLE_QUALIFIERS: tuple[tuple[str, frozenset[str]], ...] = (
     ("CLAMP", frozenset({"CONDUIT", "HANGER"})),
+    # Same shape of problem for flex conduit connectors: this catalog calls
+    # them "Squeeze Connector[s]" (e.g. "MSC5090KON 1/2\" SQUEEZE CONNECTORS
+    # - 90 DEGREE") and never mentions "flex"/"flexible" anywhere in that
+    # family's own text, so a "... FLEX CONN" query's strict AND search
+    # excluded it entirely. "Squeeze" can't be a blanket synonym for "flex"
+    # (it's a specific connector *mechanism* name, not interchangeable with
+    # "flex" outside this connector context), so this is scoped to the
+    # "CONN" anchor the same way conduit/hanger is scoped to "CLAMP".
+    ("CONN", frozenset({"FLEX", "SQUEEZE"})),
 )
 
 

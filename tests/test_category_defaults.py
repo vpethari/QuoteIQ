@@ -93,6 +93,29 @@ def test_interchangeable_qualifier_variants_conduit_hanger_clamp() -> None:
     assert interchangeable_qualifier_variants(["CONDUIT", "COUPLING"]) == {}
 
 
+def test_interchangeable_qualifier_variants_flex_squeeze_conn() -> None:
+    # This catalog calls flex conduit connectors "Squeeze Connectors" and
+    # never mentions "flex"/"flexible" in that family's own text, so a
+    # "... FLEX CONN" query's strict AND search excluded it entirely.
+    tokens = ["FLEX", "CONN"]
+    extra = interchangeable_qualifier_variants(tokens)
+    assert extra.get("FLEX") == frozenset({"FLEX", "SQUEEZE"})
+
+
+def test_expand_known_phrases_flex_conn_appends_squeeze_connector() -> None:
+    tokens = tokenize_description("STL FLEX CONN")
+    expanded = expand_known_phrases("STL FLEX CONN", tokens)
+    assert "SQUEEZE CONNECTOR" in expanded
+
+
+def test_connectors_is_a_synonym_for_connector() -> None:
+    assert tokenize_description("SQUEEZE CONNECTORS") == tokenize_description("SQUEEZE CONNECTOR")
+
+
+def test_degree_is_a_synonym_for_deg() -> None:
+    assert tokenize_description("90 DEGREE") == tokenize_description("90 DEG")
+
+
 def test_retrieval_token_groups_or_conduit_and_hanger_for_clamp() -> None:
     from catalog.search_query import retrieval_search_token_groups
 
