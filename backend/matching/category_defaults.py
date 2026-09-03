@@ -250,6 +250,28 @@ _SPECIALTY_VARIANT_MARKERS: tuple[str, ...] = (
     # (91.7% vs 90.0%) purely because the coupling's own text happened to
     # spell "GRC" out more explicitly.
     "COUPLING",
+    # Same shape of problem again, but for an accessory rather than a
+    # specialty fitting: a strap's own text always describes what it's FOR
+    # ("... Strap For EMT Conduit"), so it literally contains the word
+    # "conduit" that EMT's own CATEGORY_DEFAULTS expansion adds to the
+    # scoring query -- while the genuine EMT tubing stick's own text spells
+    # out "Electrical Metallic Tubing" instead and never says "conduit" at
+    # all. Confirmed live: a bare "3/4\" EMT CONDUIT" query's top candidate
+    # was a one-hole strap (SE75-1KON, 89.3%) outranking the actual conduit
+    # stick (898303, 63.1%). A query that explicitly asks for a strap still
+    # matches normally -- this only penalizes a strap the query never asked
+    # for, the same as every other marker here.
+    "STRAP",
+    # Same shape of problem for connectors/couplings-with-a-fitting-end vs.
+    # the plain tubing itself: confirmed live, even after the STRAP fix
+    # above, a bare "3/4\" EMT CONDUIT" query's top candidate was still an
+    # accessory -- SC75RKON "3/4\" EMT Set Screw Connector" (68.75%) --
+    # outranking the genuine EMT conduit stick, 898303 (63.07%). Uses the
+    # canonical "CONN" (see terminology.py's CONN group) rather than
+    # "CONNECTOR" so it's recognized whether the query spells it out or
+    # abbreviates it -- a query that actually wants a connector (e.g. "...
+    # SS CONN") is unaffected either way.
+    "CONN",
 )
 
 

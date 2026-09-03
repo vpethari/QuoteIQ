@@ -325,6 +325,47 @@ def test_unrequested_specialty_marker_none_when_coupling_requested_via_cplg() ->
     assert marker is None
 
 
+def test_unrequested_specialty_marker_flags_unrequested_strap() -> None:
+    # A strap's own text always describes what it's FOR ("... Strap For EMT
+    # Conduit"), so it shares more literal wording with a bare "EMT CONDUIT"
+    # query than the genuine tubing stick does (the stick spells out
+    # "Electrical Metallic Tubing" and never says "conduit" at all).
+    # Confirmed live: a strap (SE75-1KON, 89.3%) outranked the actual conduit
+    # stick 898303 (63.1%) for "3/4\" EMT CONDUIT" before this fix.
+    marker = unrequested_specialty_marker(
+        '3/4" EMT CONDUIT', 'SE75-1KON 3/4" ONE HOLE STRAP FOR EMT CONDUIT Steel Zinc Plated'
+    )
+    assert marker == "STRAP"
+
+
+def test_unrequested_specialty_marker_none_when_strap_requested() -> None:
+    marker = unrequested_specialty_marker(
+        '1/2" EMT 1-H STEEL STRAP', 'SE50-1KON 1/2" ONE HOLE STRAP FOR EMT CONDUIT Steel Zinc Plated'
+    )
+    assert marker is None
+
+
+def test_unrequested_specialty_marker_flags_unrequested_connector() -> None:
+    # Same shape of problem for connectors: confirmed live, even after the
+    # STRAP fix, "3/4\" EMT CONDUIT" still top-ranked a Set Screw Connector
+    # (SC75RKON, 68.75%) over the genuine conduit stick 898303 (63.07%).
+    marker = unrequested_specialty_marker(
+        '3/4" EMT CONDUIT', 'SC75RKON 3/4"EMT SET SCREW CONNECTOR Steel Zinc Plated'
+    )
+    assert marker == "CONN"
+
+
+def test_unrequested_specialty_marker_none_when_connector_requested() -> None:
+    # Whether the query spells it out or abbreviates it, a genuine connector
+    # request must not be penalized for being one -- the marker uses the
+    # canonical "CONN" (see terminology.py) specifically so both forms work.
+    for query in ('1/2" EMT STL SS CONN', "1/2 EMT SET SCREW CONNECTOR"):
+        marker = unrequested_specialty_marker(
+            query, 'SC50RKON 1/2"EMT SET SCREW CONNECTOR Steel Zinc Plated'
+        )
+        assert marker is None
+
+
 def test_unrequested_specialty_marker_none_when_implied_by_category() -> None:
     # "RIGID" is already implied by the query's own "GRC", so it isn't unrequested.
     marker = unrequested_specialty_marker("1 1/2 GRC 90 DEG ELBOW", "1 1/2 GALVANIZED RIGID CONDUIT 90 DEG ELBOW")
