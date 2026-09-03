@@ -121,6 +121,12 @@ def test_expand_acronym_phrases_ss_conn_to_set_screw_connector() -> None:
     assert expand_acronym_phrases("ss  conn") == "SET SCREW CONNECTOR"
 
 
+def test_expand_acronym_phrases_comp_conn_to_compression_connector() -> None:
+    assert expand_acronym_phrases('3/4" EMT STL COMP CONN') == '3/4" EMT STL COMPRESSION CONNECTOR'
+    # Case-insensitive, flexible whitespace.
+    assert expand_acronym_phrases("comp  conn") == "COMPRESSION CONNECTOR"
+
+
 def test_expand_acronym_phrases_does_not_touch_bare_ss() -> None:
     # Bare "SS" is ambiguous (often "stainless steel") -- only the specific
     # "SS CONN" pairing is a safe, confirmed replacement.

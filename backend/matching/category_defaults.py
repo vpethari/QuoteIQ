@@ -418,6 +418,16 @@ _ACRONYM_PHRASES: dict[re.Pattern[str], str] = {
     # instead (see mentions_stainless) -- so this is scoped to the specific
     # "SS CONN" pairing, not bare "SS".
     re.compile(r"\bSS\s+CONN\b", re.IGNORECASE): "SET SCREW CONNECTOR",
+    # "COMP CONN" already appears literally in some catalog rows' description
+    # (e.g. "CCR-75KON 3/4"RAINTIGHT COMP CONN"), so retrieval isn't blind to
+    # it the way SS CONN was -- but the abbreviation scores weakly against
+    # SET SCREW connectors that share the same generic EMT/CONN wording
+    # (confirmed live: "3/4\" EMT STL COMP CONN" top-matched SC75RKON, a set
+    # screw connector, at 53%, ahead of the genuine EMT compression
+    # connector at 40%). Expanding to the full words lets it score strongly
+    # against description2's fully-spelled "... Compression Connector ..."
+    # text instead of competing on a weak 4-letter abbreviation.
+    re.compile(r"\bCOMP\s+CONN\b", re.IGNORECASE): "COMPRESSION CONNECTOR",
 }
 
 
