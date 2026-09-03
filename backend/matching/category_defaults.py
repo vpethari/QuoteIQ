@@ -366,21 +366,31 @@ def normalize_strut_catalog_codes(query: str) -> str:
     return _STRUT_CODE_DASH_RE.sub(_replace, query)
 
 
-# A spelled-out catalog acronym has to be replaced with the abbreviation
-# this catalog actually uses, not just have the abbreviation appended for
-# scoring -- retrieval itself requires the literal word to appear in the
-# catalog text, and this catalog spells conduit type as "EMT", never
-# "Electrical Metallic Tubing". Must run on the raw input before
-# interpret_customer_text(), same as normalize_strut_catalog_codes, since
-# retrieval (not just scoring) needs to see "EMT" already in place.
+# Whichever side (customer or catalog) spells a term out in full, the query
+# has to end up matching what the *catalog* actually uses -- not just have
+# the other spelling appended for scoring -- since retrieval itself requires
+# the literal word to appear in the catalog text. Must run on the raw input
+# before interpret_customer_text(), same as normalize_strut_catalog_codes,
+# since retrieval (not just scoring) needs to see the catalog's own spelling
+# already in place.
 _ACRONYM_PHRASES: dict[re.Pattern[str], str] = {
+    # Customer spells it out; catalog abbreviates: "Electrical Metallic
+    # Tubing" -> "EMT".
     re.compile(r"\bELECTRICAL\s+METALLIC\s+TUBING\b", re.IGNORECASE): "EMT",
+    # Customer abbreviates; catalog spells it out (e.g. "SC75RKON 3/4"EMT
+    # SET SCREW CONNECTOR"): "SS CONN" -> "SET SCREW CONNECTOR". "SS" isn't
+    # a substring of "SET SCREW" (no adjacent double-S), so this needs a
+    # real replacement, the same way "SS" alone can't just be a blanket
+    # synonym for "set screw" -- it commonly means "stainless steel"
+    # instead (see mentions_stainless) -- so this is scoped to the specific
+    # "SS CONN" pairing, not bare "SS".
+    re.compile(r"\bSS\s+CONN\b", re.IGNORECASE): "SET SCREW CONNECTOR",
 }
 
 
 def expand_acronym_phrases(query: str) -> str:
-    """Replace a spelled-out catalog acronym phrase with its abbreviation
-    (see _ACRONYM_PHRASES)."""
+    """Replace an abbreviated or spelled-out phrase with whichever form the
+    catalog actually uses (see _ACRONYM_PHRASES)."""
     for pattern, replacement in _ACRONYM_PHRASES.items():
         query = pattern.sub(replacement, query)
     return query

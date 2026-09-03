@@ -92,6 +92,18 @@ def test_expand_acronym_phrases_electrical_metallic_tubing_to_emt() -> None:
     assert expand_acronym_phrases("electrical  metallic   tubing") == "EMT"
 
 
+def test_expand_acronym_phrases_ss_conn_to_set_screw_connector() -> None:
+    assert expand_acronym_phrases('1/2" EMT STL SS CONN') == '1/2" EMT STL SET SCREW CONNECTOR'
+    # Case-insensitive, flexible whitespace.
+    assert expand_acronym_phrases("ss  conn") == "SET SCREW CONNECTOR"
+
+
+def test_expand_acronym_phrases_does_not_touch_bare_ss() -> None:
+    # Bare "SS" is ambiguous (often "stainless steel") -- only the specific
+    # "SS CONN" pairing is a safe, confirmed replacement.
+    assert expand_acronym_phrases("SS316 EMT CONN") == "SS316 EMT CONN"
+
+
 def test_normalize_raw_customer_text_composes_both_normalizations() -> None:
     result = normalize_raw_customer_text('3/4" Electrical Metallic Tubing P-1036GR')
     assert "EMT" in result
