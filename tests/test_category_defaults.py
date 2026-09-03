@@ -53,6 +53,24 @@ def test_reduce_bare_category_tokens_keeps_genuinely_specific_request() -> None:
     assert reduce_bare_category_tokens(tokens) == tokens
 
 
+def test_flexible_is_a_synonym_for_flex() -> None:
+    assert tokenize_description("1/2 FLEXIBLE") == tokenize_description("1/2 FLEX")
+
+
+def test_expand_bare_category_query_steel_flex_implies_conduit() -> None:
+    query = "STEEL FLEX"
+    tokens = tokenize_description(query)
+    expanded = expand_bare_category_query(query, tokens)
+    assert "CONDUIT" in expanded
+
+
+def test_reduce_bare_category_tokens_keeps_steel_as_required() -> None:
+    # "steel" is a compatible material qualifier, not a redundant word --
+    # it must stay a required retrieval token, unlike "conduit" for "EMT".
+    tokens = tokenize_description("STEEL FLEX")
+    assert reduce_bare_category_tokens(tokens) == tokens
+
+
 def test_retrieval_token_groups_drop_implied_default_word() -> None:
     from catalog.search_query import retrieval_search_token_groups
 

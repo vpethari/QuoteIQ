@@ -27,7 +27,20 @@ CATEGORY_DEFAULTS: dict[str, str] = {
     # other qualifier.
     "STRUT": "10 FT PG",
     "CHANNEL": "10 FT PG",
+    # Bare "FLEX"/"FLEXIBLE" (see terminology.py's FLEX synonym group) with
+    # no connector/coupling qualifier means the conduit itself, not a
+    # fitting for it.
+    "FLEX": "CONDUIT",
 }
+
+# Material words that describe *which variant* of a category the customer
+# wants, not a different product type -- e.g. "STEEL FLEX" still means "flex
+# conduit" (material: steel), unlike "PVC COUPLING" which is a genuinely
+# different, more specific product than bare "PVC". These don't disqualify
+# the bare-category treatment the way a real product-type qualifier would,
+# but they also aren't *redundant* with the default phrase (unlike "GALV"
+# for "GRC") -- retrieval must still require them, not drop them.
+_COMPATIBLE_QUALIFIER_WORDS = frozenset({"STEEL"})
 
 # Unit markers that tokenize_description() produces from a size expression
 # (e.g. "1\"" -> "1", "IN") -- these describe the *number* before them, not
@@ -50,13 +63,20 @@ def _is_descriptive_token(token: str) -> bool:
 
 def _bare_category_redundant_extras(tokens: list[str]) -> tuple[str, list[str]] | None:
     """If `tokens` is a size plus a single bare category word, optionally
-    with extra words that are already part of that category's own default
-    phrase, return (category, extra_tokens); otherwise None.
+    with extra words that are either already part of that category's own
+    default phrase or a compatible material qualifier (see
+    _COMPATIBLE_QUALIFIER_WORDS), return (category, redundant_extra_tokens);
+    otherwise None. `redundant_extra_tokens` holds only the extras that
+    duplicate the default phrase (safe to drop from a retrieval requirement)
+    -- a compatible qualifier like "STEEL" is not included there, since it's
+    a real, still-required word, just not a disqualifying one.
 
     e.g. "1\" PVC" -> ("PVC", []); "1 1/2\" GRC GALV" -> ("GRC", ["GALV"])
-    since GRC already implies "galvanized"; but "1\" PVC COUPLING" -> None,
-    since "coupling" isn't part of the PVC default and so is a genuinely
-    different, more specific request the customer actually typed.
+    since GRC already implies "galvanized"; "STEEL FLEX" -> ("FLEX", [])
+    since "steel" is a compatible material, not a redundant word; but
+    "1\" PVC COUPLING" -> None, since "coupling" isn't part of the PVC
+    default and so is a genuinely different, more specific request the
+    customer actually typed.
     """
     from matching.description_normalize import tokenize_description
 
@@ -67,9 +87,13 @@ def _bare_category_redundant_extras(tokens: list[str]) -> tuple[str, list[str]] 
     category = category_matches[0].upper()
     default_tokens = {token.upper() for token in tokenize_description(CATEGORY_DEFAULTS[category])}
     extra = [token for token in descriptive if token.upper() != category]
-    if any(token.upper() not in default_tokens for token in extra):
+    if any(
+        token.upper() not in default_tokens and token.upper() not in _COMPATIBLE_QUALIFIER_WORDS
+        for token in extra
+    ):
         return None
-    return category, extra
+    redundant = [token for token in extra if token.upper() in default_tokens]
+    return category, redundant
 
 
 def expand_bare_category_query(query: str, tokens: list[str]) -> str:

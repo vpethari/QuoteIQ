@@ -32,6 +32,7 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # which requires the literal word to appear somewhere in the catalog
     # text -- also benefits, not just post-retrieval scoring.
     ("FITTING", ("FITTING", "FITTINGS", "JOINER", "JOINERS")),
+    ("FLEX", ("FLEX", "FLEXIBLE")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).
