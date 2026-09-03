@@ -261,9 +261,12 @@ PHRASE_EXPANSIONS: dict[frozenset[str], str] = {
     # "Conduit clamp" and "hanger clamp" are filed as separate catalog lines
     # (conduit clamp brackets/parallel conduit clamps vs. J-hangers), but
     # customers use the two names interchangeably for the same intent.
-    # Appending the other wording broadens retrieval to catch whichever term
-    # the catalog happens to use, rather than asserting the two are identical
-    # -- scoring still decides which specific candidate actually fits.
+    # Appending the other wording here helps *scoring* rank whichever term
+    # the catalog happens to use -- but retrieval also needs its own fix
+    # (see _INTERCHANGEABLE_QUALIFIERS below): confirmed live, a bare
+    # "CONDUIT CLAMP" query retrieves 46 candidates and zero of them are the
+    # "Hanger Rod Beam Clamp" line, since that line's own text never says
+    # "conduit" -- a strict AND search excluded it before scoring ever saw it.
     frozenset({"CONDUIT", "CLAMP"}): "HANGER CLAMP",
     frozenset({"HANGER", "CLAMP"}): "CONDUIT CLAMP",
     # "Spring nut" is this catalog's strut channel nut *with* a spring
@@ -298,6 +301,36 @@ def expand_known_phrases(query: str, tokens: list[str]) -> str:
         if trigger <= token_set:
             query = f"{query} {expansion}"
     return query
+
+
+# Retrieval-side companion to the CONDUIT/HANGER CLAMP entries in
+# PHRASE_EXPANSIONS above: these two qualifier words are only interchangeable
+# next to this specific anchor ("clamp") -- everywhere else in this catalog
+# "conduit" and "hanger" mean unrelated things, so this can't be a blanket
+# terminology.py synonym. Dropping the qualifier entirely (like
+# reduce_bare_category_tokens does for a category's own implied word) would
+# also be wrong here: "clamp" alone is far too generic a retrieval anchor
+# (pipe clamps, ground clamps, beam clamps of every kind), so the fix is to
+# OR the two qualifier spellings together at that one token position instead
+# of requiring either specific one.
+_INTERCHANGEABLE_QUALIFIERS: tuple[tuple[str, frozenset[str]], ...] = (
+    ("CLAMP", frozenset({"CONDUIT", "HANGER"})),
+)
+
+
+def interchangeable_qualifier_variants(tokens: list[str]) -> dict[str, frozenset[str]]:
+    """For each token in `tokens` that's an interchangeable qualifier for an
+    anchor word also present, return the full set of equivalent qualifier
+    words retrieval should OR in at that token's position (see
+    _INTERCHANGEABLE_QUALIFIERS)."""
+    token_set = {token.upper() for token in tokens}
+    extra: dict[str, frozenset[str]] = {}
+    for anchor, qualifiers in _INTERCHANGEABLE_QUALIFIERS:
+        if anchor not in token_set:
+            continue
+        for token in qualifiers & token_set:
+            extra[token] = qualifiers
+    return extra
 
 
 # "1-H"/"2-H" (hole count on a strap) can't be handled the same way as

@@ -7,6 +7,7 @@ from matching.category_defaults import (
     expand_bare_category_query,
     expand_hole_count,
     expand_known_phrases,
+    interchangeable_qualifier_variants,
     mentions_no_spring,
     mentions_stainless,
     normalize_raw_customer_text,
@@ -59,6 +60,28 @@ def test_retrieval_token_groups_drop_implied_default_word() -> None:
     flat = {variant for group in groups for variant in group}
     assert "conduit" not in flat
     assert "emt" in flat
+
+
+def test_interchangeable_qualifier_variants_conduit_hanger_clamp() -> None:
+    tokens = ["CONDUIT", "CLAMP"]
+    extra = interchangeable_qualifier_variants(tokens)
+    assert extra.get("CONDUIT") == frozenset({"CONDUIT", "HANGER"})
+
+    tokens2 = ["HANGER", "CLAMP"]
+    extra2 = interchangeable_qualifier_variants(tokens2)
+    assert extra2.get("HANGER") == frozenset({"CONDUIT", "HANGER"})
+
+    # Anchor word absent -- nothing to widen.
+    assert interchangeable_qualifier_variants(["CONDUIT", "COUPLING"]) == {}
+
+
+def test_retrieval_token_groups_or_conduit_and_hanger_for_clamp() -> None:
+    from catalog.search_query import retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups("CONDUIT CLAMP")
+    flat_by_position = [set(group) for group in groups]
+    assert any({"conduit", "hanger"} <= group for group in flat_by_position)
+    assert any(group == {"clamp"} for group in flat_by_position)
 
 
 def test_expand_known_phrases_appends_matched_expansion() -> None:

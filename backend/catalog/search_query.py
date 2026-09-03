@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from matching.category_defaults import reduce_bare_category_tokens
+from matching.category_defaults import interchangeable_qualifier_variants, reduce_bare_category_tokens
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
@@ -47,5 +47,18 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     # EMT conduit stick's own catalog text doesn't necessarily happen to
     # spell out that exact word (see reduce_bare_category_tokens).
     distinctive = reduce_bare_category_tokens(distinctive)
+    # Some qualifier words are only interchangeable next to a specific other
+    # word (e.g. "conduit"/"hanger" next to "clamp") -- OR the equivalent
+    # spelling in at that one token position rather than requiring either
+    # specific one, so a genuine match filed under the other name isn't
+    # excluded by the AND search (see interchangeable_qualifier_variants).
+    qualifier_variants = interchangeable_qualifier_variants(distinctive)
     limited = distinctive[:limit]
-    return [tuple(variant.lower() for variant in token_variants(token)) for token in limited]
+    groups = []
+    for token in limited:
+        variants = {variant.lower() for variant in token_variants(token)}
+        extra = qualifier_variants.get(token.upper())
+        if extra:
+            variants |= {word.lower() for word in extra}
+        groups.append(tuple(variants))
+    return groups
