@@ -91,6 +91,9 @@ export interface QuoteMatchResult {
   original_confidence?: number | null;
   candidate_count: number;
   candidates: CandidateProduct[];
+  // The uploaded file's own columns for this row, in their original order --
+  // passed straight through to the "Full Results" CSV export unmodified.
+  raw_row?: Record<string, string>;
 }
 
 export interface QuoteSummary {

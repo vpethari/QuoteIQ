@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -100,6 +101,7 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
                 requested_part = fold_whitespace(productcode_as_text(raw_part)) or None
         if not description and not requested_part:
             continue
+        raw_row = {} if header_row_index < 0 else _raw_row(headers, values)
         items.append(
             LineItem(
                 source_file=display_name,
@@ -108,6 +110,7 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
                 requested_description=description,
                 quantity=quantity,
                 requested_part_number=requested_part,
+                raw_row=raw_row,
             )
         )
     if not items:
@@ -129,9 +132,24 @@ def line_items_to_quote_lines(items: list[LineItem]) -> list[QuoteLine]:
             requested_description=item.requested_description,
             quantity=item.quantity,
             requested_part_number=item.requested_part_number,
+            raw_row=item.raw_row,
         )
         for item in items
     ]
+
+
+def _raw_row(headers: dict[str, int], values: list[object]) -> dict[str, str]:
+    return {header: _cell_to_text(_cell(values, col)) for header, col in headers.items()}
+
+
+def _cell_to_text(value: object) -> str:
+    if is_blank(value):
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat() if value.time() == datetime.min.time() else value.isoformat(sep=" ")
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
 
 
 def _find_header_row(rows: list[tuple]) -> tuple[int, dict[str, int]]:

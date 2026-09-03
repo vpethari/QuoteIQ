@@ -205,6 +205,7 @@ class AIMatchingService:
             ai_enabled=True,
             prompt_version=PROMPT_VERSION,
             provider=self.provider.provider_name,
+            raw_row=dict(deterministic.raw_row),
         )
 
     def match_quote(self, lines: Sequence[QuoteLine], use_ai: bool = True) -> list[FinalMatchResult]:
@@ -369,6 +370,7 @@ def final_from_deterministic(result: MatchResult, ai_enabled: bool) -> FinalMatc
         overall_match_score=result.overall_match_score,
         part_number_match=result.part_number_match,
         description_match=result.description_match,
+        raw_row=dict(result.raw_row),
     )
 
 
@@ -422,4 +424,5 @@ def _rejected(
         ai_enabled=True,
         prompt_version=PROMPT_VERSION,
         provider=provider,
+        raw_row=dict(deterministic.raw_row),
     )

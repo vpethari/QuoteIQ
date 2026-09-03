@@ -171,6 +171,7 @@ class ProductMatcher:
             )
             result = self._attach_identity(result, requested_description, interpreted)
         published = prepare_published_result(result, self.config)
+        published.raw_row = dict(line.raw_row)
         if session is not None and session.current is not None:
             session.current.total_ms = _ms(perf_counter() - started)
             if session.current.candidate_count == 0:

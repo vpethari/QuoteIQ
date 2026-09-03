@@ -24,7 +24,7 @@ from matching.models import MatchingConfig, QuoteLine
 from matching.selection import SelectionError, apply_user_selection_payload
 from matching.timing_diag import begin, end, should_time, span
 from output.api_results import serialize_process_result, summarize_results
-from output.csv_writer import render_cpq_csv_bytes, render_csv_bytes, rows_from_results
+from output.csv_writer import render_cpq_csv_bytes, render_full_results_csv_bytes
 from output.pipeline import process_quote_results
 from output.schema import CPQ_DOWNLOAD_FILENAME, DOWNLOAD_FILENAME
 from quotes.models import QuoteParseError
@@ -370,7 +370,7 @@ def _store_upload(upload: UploadFile) -> Path:
 
 @app.post("/api/output/csv")
 def export_csv(payload: CsvExportRequest) -> Response:
-    csv_bytes = render_csv_bytes(rows_from_results(payload.results))
+    csv_bytes = render_full_results_csv_bytes(payload.results)
     return _csv_response(csv_bytes)
 
 
@@ -465,7 +465,7 @@ def _process_upload_csv(
     service: AIMatchingService,
 ) -> bytes:
     results = _process_upload_results(upload, use_ai, matcher, service)
-    return render_csv_bytes(rows_from_results(results))
+    return render_full_results_csv_bytes(results)
 
 
 def _process_upload_cpq_csv(

@@ -144,3 +144,4 @@ class FinalMatchResult(BaseModel):
     overall_match_score: float | None = None
     part_number_match: bool = False
     description_match: bool = False
+    raw_row: dict[str, str] = Field(default_factory=dict)

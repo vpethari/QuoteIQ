@@ -14,7 +14,13 @@ from ai.service import AIMatchingService, AIPolicyConfig, InMemoryAuditStore
 from catalog.excel_loader import load_catalog_records
 from matching.matcher import ProductMatcher
 from matching.models import MatchCandidate, MatchResult, MatchStatus, QuoteLine
-from output.csv_writer import cpq_rows_from_results, render_cpq_csv_bytes, render_csv, render_csv_bytes
+from output.csv_writer import (
+    cpq_rows_from_results,
+    render_cpq_csv_bytes,
+    render_csv,
+    render_csv_bytes,
+    render_full_results_csv_bytes,
+)
 from output.pipeline import process_quote_to_csv
 from output.rows import csv_row_from_final_result, csv_row_from_match_result, format_matching_percentage
 from output.schema import CPQ_CSV_COLUMNS, CSV_COLUMNS
@@ -117,6 +123,86 @@ def test_review_and_no_match_blank_part_number() -> None:
     )
     assert none["Matched Atkore Part Number"] == ""
     assert none["Confidence"] == "LOW"
+
+
+def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
+    matched = MatchResult(
+        source_file="inputfile.xlsx",
+        source_sheet="Sheet1",
+        source_row=2,
+        requested_description="120V LIGHTING WHIP W/PAULEX",
+        quantity=5,
+        matched_part_number="1LBP-W",
+        matched_description="120V LIGHTING WHIP W/PAULEX",
+        matched_salsify_id="NA1-1LBP-W",
+        matched_orderable_part_number="ORD-1LBP-W",
+        matching_percentage=100,
+        confidence_level="HIGH_CONFIDENCE",
+        match_status=MatchStatus.HIGH_CONFIDENCE,
+        candidate_count=1,
+        candidates=[],
+        match_reasons=[],
+        top_score=100,
+        second_score=None,
+        score_gap=None,
+        raw_row={"Name": "120V LIGHTING WHIP W/PAULEX", "Qty": "5", "Notes": "urgent"},
+    )
+    review = MatchResult(
+        source_file="inputfile.xlsx",
+        source_sheet="Sheet1",
+        source_row=3,
+        requested_description="UNKNOWN WIDGET",
+        quantity=3,
+        matched_part_number=None,
+        matched_description=None,
+        matched_salsify_id=None,
+        matching_percentage=40,
+        confidence_level="REVIEW_REQUIRED",
+        match_status=MatchStatus.REVIEW_REQUIRED,
+        candidate_count=0,
+        candidates=[],
+        match_reasons=[],
+        top_score=40,
+        second_score=None,
+        score_gap=None,
+        raw_row={"Name": "UNKNOWN WIDGET", "Qty": "3", "Notes": ""},
+    )
+    csv_bytes = render_full_results_csv_bytes([matched, review])
+    rows = _parse_csv(csv_bytes)
+    assert list(rows[0].keys()) == ["Name", "Qty", "Notes", "Matched Part Number", "Orderable Part Number", "Status"]
+    assert rows[0] == {
+        "Name": "120V LIGHTING WHIP W/PAULEX",
+        "Qty": "5",
+        "Notes": "urgent",
+        "Matched Part Number": "1LBP-W",
+        "Orderable Part Number": "ORD-1LBP-W",
+        "Status": "HIGH_CONFIDENCE",
+    }
+    # Review row keeps its original columns but the two part-number columns
+    # stay blank -- only Status is always populated.
+    assert rows[1]["Matched Part Number"] == ""
+    assert rows[1]["Orderable Part Number"] == ""
+    assert rows[1]["Status"] == "REVIEW_REQUIRED"
+
+
+def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row() -> None:
+    payload = {
+        "requested_description": "10/3 MCT",
+        "quantity": 1,
+        "match_status": "CONFIDENT_MATCH",
+        "matched_part_number": "2EB40-B-SC",
+    }
+    csv_bytes = render_full_results_csv_bytes([payload])
+    rows = _parse_csv(csv_bytes)
+    assert list(rows[0].keys()) == [
+        "Requested Description",
+        "Quantity",
+        "Matched Part Number",
+        "Orderable Part Number",
+        "Status",
+    ]
+    assert rows[0]["Requested Description"] == "10/3 MCT"
+    assert rows[0]["Matched Part Number"] == "2EB40-B-SC"
 
 
 def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
@@ -259,6 +345,21 @@ def test_excel_quote_parser_blank_and_totals(tmp_path: Path) -> None:
     ]
 
 
+def test_parser_captures_raw_row_with_extra_columns_for_full_results_export(tmp_path: Path) -> None:
+    path = _write_xlsx(
+        tmp_path / "quote.xlsx",
+        ["Name", "Qty", "Job", "Unit Price"],
+        [["120V SWITCH MODULE", 10, "J-100", 4.5]],
+    )
+    items = parse_quote_file(path)
+    assert items[0].raw_row == {
+        "Name": "120V SWITCH MODULE",
+        "Qty": "10",
+        "Job": "J-100",
+        "Unit Price": "4.5",
+    }
+
+
 def test_parser_alternate_headers(tmp_path: Path) -> None:
     path = _write_xlsx(
         tmp_path / "desc.xlsx",
@@ -377,7 +478,13 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert "QuoteIQ_results.csv" in response.headers["content-disposition"]
         rows = _parse_csv(response.content)
         assert len(rows) == 3
-        assert all(row["Matched Atkore Part Number"] == "" for row in rows)
+        # "Full Results" mirrors the input file's own columns ("Name", "Qty")
+        # verbatim and appends exactly these three -- it is not the old
+        # fixed CSV_COLUMNS schema.
+        assert list(rows[0].keys()) == ["Name", "Qty", "Matched Part Number", "Orderable Part Number", "Status"]
+        assert rows[0]["Name"] == "120V LIGHTING WHIP W/PAULEX"
+        assert rows[0]["Qty"] == "5"
+        assert all(row["Matched Part Number"] == "" for row in rows)
 
         with QUOTE_PATH.open("rb") as handle:
             ai_response = client.post(
@@ -387,8 +494,8 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
             )
         assert ai_response.status_code == 200
         ai_rows = _parse_csv(ai_response.content)
-        assert all(row["Match Status"] == "REVIEW_REQUIRED" for row in ai_rows)
-        assert all(row["Matched Atkore Part Number"] == "" for row in ai_rows)
+        assert all(row["Status"] == "REVIEW_REQUIRED" for row in ai_rows)
+        assert all(row["Matched Part Number"] == "" for row in ai_rows)
 
         export = client.post(
             "/api/output/csv",
@@ -414,7 +521,17 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         )
         assert export.status_code == 200
         exported = _parse_csv(export.content)
-        assert exported[0]["Matched Atkore Part Number"] == "2EB40-B-SC"
+        # No raw_row was supplied in the JSON payload above (this is the
+        # round-tripped-JSON path, not a fresh file upload), so it falls
+        # back to Requested Description/Quantity as the mirrored columns.
+        assert list(exported[0].keys()) == [
+            "Requested Description",
+            "Quantity",
+            "Matched Part Number",
+            "Orderable Part Number",
+            "Status",
+        ]
+        assert exported[0]["Matched Part Number"] == "2EB40-B-SC"
 
         cpq_export = client.post(
             "/api/output/cpq-csv",

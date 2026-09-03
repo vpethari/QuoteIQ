@@ -94,6 +94,7 @@ class QuoteLine:
     requested_description: str
     quantity: int | float | None = None
     requested_part_number: str | None = None
+    raw_row: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -158,6 +159,7 @@ class MatchResult:
     match_type: str | None = None
     match_type_label: str | None = None
     original_confidence: float | None = None
+    raw_row: dict[str, str] = field(default_factory=dict)
 
     def to_api_dict(self) -> dict[str, Any]:
         from output.candidates import candidate_api_dict
@@ -196,6 +198,7 @@ class MatchResult:
             "match_type": self.match_type,
             "match_type_label": self.match_type_label,
             "original_confidence": self.original_confidence,
+            "raw_row": dict(self.raw_row),
             "match_evidence": build_match_evidence(self),
             "candidates": [
                 candidate_api_dict(item, line_status=self.match_status.value)
