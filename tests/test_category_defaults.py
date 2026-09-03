@@ -57,6 +57,15 @@ def test_flexible_is_a_synonym_for_flex() -> None:
     assert tokenize_description("1/2 FLEXIBLE") == tokenize_description("1/2 FLEX")
 
 
+def test_cplg_is_a_synonym_for_coupling() -> None:
+    # Confirmed live: real steel EMT "SET SCREW COUPLING" products (e.g.
+    # SK75RKON) spell "Coupling" out in full and were excluded from
+    # retrieval entirely for a "... CPLG" query before this synonym existed
+    # -- only the handful of catalog rows that happen to abbreviate it as
+    # "CPLG" themselves were reachable.
+    assert tokenize_description("3/4 EMT CPLG") == tokenize_description("3/4 EMT COUPLING")
+
+
 def test_expand_bare_category_query_steel_flex_implies_conduit() -> None:
     query = "STEEL FLEX"
     tokens = tokenize_description(query)
