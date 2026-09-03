@@ -148,3 +148,5 @@ class FinalMatchResult(BaseModel):
     selection_type: str | None = None
     match_type: str | None = None
     match_type_label: str | None = None
+    quote_line_id: str | None = None
+    original_confidence: float | None = None

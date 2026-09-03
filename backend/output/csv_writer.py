@@ -2,15 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
-from output.rows import (
-    csv_row_from_final_result,
-    csv_row_from_mapping,
-    csv_row_from_match_result,
-)
+from output.result_view import ResultView, normalize_result
+from output.rows import csv_row_from_result
 from output.schema import (
     CPQ_CSV_COLUMNS,
     CSV_COLUMNS,
@@ -81,76 +77,29 @@ TOP_ITEMS_LIMIT = 5
 TOP_ITEMS_SEPARATOR = "||"
 
 
-def _top_orderable_items(candidates: object, limit: int = TOP_ITEMS_LIMIT) -> list[str]:
+def _top_orderable_items(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMIT) -> list[str]:
     """Orderable part numbers for the top `limit` review candidates, in their
     existing (already best-first) order, skipping any without one."""
-    from matching.models import MatchCandidate
-
     items: list[str] = []
-    for candidate in list(candidates or [])[:limit]:
-        if isinstance(candidate, MatchCandidate):
-            value = candidate.orderable_part_number
-        elif isinstance(candidate, Mapping):
-            value = candidate.get("orderable_part_number")
-        else:
-            value = None
+    for candidate in candidates[:limit]:
+        value = candidate.get("orderable_part_number")
         if value:
             items.append(str(value))
     return items
 
 
-def _normalize_full_result(item: object) -> dict[str, Any]:
-    from ai.models import FinalMatchResult
-    from matching.models import MatchResult
-
-    if isinstance(item, FinalMatchResult):
-        return {
-            "raw_row": dict(item.raw_row or {}),
-            "requested_description": item.requested_description,
-            "quantity": item.quantity,
-            "match_status": item.match_status,
-            "matched_part_number": item.matched_part_number,
-            "matched_orderable_part_number": item.matched_orderable_part_number,
-            "top_items": _top_orderable_items(item.candidate_details),
-        }
-    if isinstance(item, MatchResult):
-        return {
-            "raw_row": dict(item.raw_row or {}),
-            "requested_description": item.requested_description,
-            "quantity": item.quantity,
-            "match_status": item.match_status.value,
-            "matched_part_number": item.matched_part_number,
-            "matched_orderable_part_number": item.matched_orderable_part_number,
-            "top_items": _top_orderable_items(item.candidates),
-        }
-    if isinstance(item, Mapping):
-        raw_row = item.get("raw_row") or {}
-        return {
-            "raw_row": {str(key): value for key, value in raw_row.items()},
-            "requested_description": item.get("requested_description"),
-            "quantity": item.get("quantity"),
-            "match_status": str(item.get("match_status") or ""),
-            "matched_part_number": item.get("matched_part_number"),
-            "matched_orderable_part_number": item.get("matched_orderable_part_number"),
-            "top_items": _top_orderable_items(item.get("candidates")),
-        }
-    raise TypeError(f"Unsupported result type: {type(item)!r}")
-
-
-def _full_results_row(data: dict[str, Any]) -> dict[str, str]:
-    status = data["match_status"]
-    emit = (status or "").upper() in STATUSES_WITH_PART_NUMBER
-    raw_row = data["raw_row"]
+def _full_results_row(view: ResultView) -> dict[str, str]:
+    raw_row = view.raw_row
     if not raw_row:
         raw_row = {
-            "Requested Description": data.get("requested_description") or "",
-            "Quantity": "" if data.get("quantity") is None else str(data["quantity"]),
+            "Requested Description": view.requested_description or "",
+            "Quantity": "" if view.quantity is None else str(view.quantity),
         }
     row = {str(key): ("" if value is None else str(value)) for key, value in raw_row.items()}
-    row["Matched Part Number"] = str(data.get("matched_part_number") or "") if emit else ""
-    row["Orderable Part Number"] = str(data.get("matched_orderable_part_number") or "") if emit else ""
-    row["Status"] = status or ""
-    row["Top Items"] = TOP_ITEMS_SEPARATOR.join(data.get("top_items") or [])
+    row["Matched Part Number"] = view.matched_part_number or ""
+    row["Orderable Part Number"] = view.matched_orderable_part_number or ""
+    row["Status"] = view.match_status or ""
+    row["Top Items"] = TOP_ITEMS_SEPARATOR.join(_top_orderable_items(view.candidates))
     return row
 
 
@@ -161,12 +110,12 @@ def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
     Orderablepartnumbers, "||"-joined) appended. Falls back to Requested
     Description/Quantity when a line has no original columns to mirror
     (a PDF quote, or a headerless data dump)."""
-    normalized = [_normalize_full_result(item) for item in results]
-    rows = [_full_results_row(item) for item in normalized]
+    views = [normalize_result(item) for item in results]
+    rows = [_full_results_row(view) for view in views]
     columns: list[str] = []
     seen: set[str] = set()
-    for item in normalized:
-        source_columns = item["raw_row"] or {"Requested Description": None, "Quantity": None}
+    for view in views:
+        source_columns = view.raw_row or {"Requested Description": None, "Quantity": None}
         for key in source_columns:
             if key not in seen:
                 seen.add(key)
@@ -187,17 +136,4 @@ def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
 
 
 def rows_from_results(results: Sequence[object]) -> list[dict[str, str]]:
-    from ai.models import FinalMatchResult
-    from matching.models import MatchResult
-
-    output: list[dict[str, str]] = []
-    for item in results:
-        if isinstance(item, FinalMatchResult):
-            output.append(csv_row_from_final_result(item))
-        elif isinstance(item, MatchResult):
-            output.append(csv_row_from_match_result(item))
-        elif isinstance(item, dict):
-            output.append(csv_row_from_mapping(item))
-        else:
-            raise TypeError(f"Unsupported CSV result type: {type(item)!r}")
-    return output
+    return [csv_row_from_result(item) for item in results]
