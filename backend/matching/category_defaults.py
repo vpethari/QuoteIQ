@@ -365,6 +365,16 @@ _INTERCHANGEABLE_QUALIFIERS: tuple[tuple[str, frozenset[str]], ...] = (
     # "flex" outside this connector context), so this is scoped to the
     # "CONN" anchor the same way conduit/hanger is scoped to "CLAMP".
     ("CONN", frozenset({"FLEX", "SQUEEZE"})),
+    # Retrieval-side companion to the GRC+HUB entry in PHRASE_EXPANSIONS
+    # above: confirmed live, "GRC HUB" retrieved zero of the actual
+    # NHUB*-ICKON "Conduit Hubs With Insulated Throat" family (its own text
+    # never says "GRC") -- the strict AND on the literal "grc" token
+    # excluded that family before scoring ever saw it, so a bare "GRC HUB"
+    # fell back to plain rigid-conduit sticks instead. "GRC" can't be
+    # dropped as merely redundant (reduce_bare_category_tokens) since "HUB"
+    # isn't part of GRC's own CATEGORY_DEFAULTS phrase, so it's scoped here
+    # to the "HUB" anchor instead.
+    ("HUB", frozenset({"GRC", "CONDUIT"})),
 )
 
 

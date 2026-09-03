@@ -127,6 +127,22 @@ def test_expand_known_phrases_flex_conn_appends_squeeze_connector() -> None:
     assert "SQUEEZE CONNECTOR" in expanded
 
 
+def test_interchangeable_qualifier_variants_grc_hub() -> None:
+    # This catalog's rigid-conduit hub family (NHUB*-ICKON, "Conduit Hubs
+    # With Insulated Throat") never says "GRC" anywhere -- confirmed live, a
+    # bare "GRC HUB" query's strict AND search excluded that entire family
+    # and fell back to plain rigid-conduit sticks instead.
+    tokens = ["GRC", "HUB"]
+    extra = interchangeable_qualifier_variants(tokens)
+    assert extra.get("GRC") == frozenset({"GRC", "CONDUIT"})
+
+
+def test_expand_known_phrases_grc_hub_appends_conduit_hub() -> None:
+    tokens = tokenize_description("3/4 GRC HUB")
+    expanded = expand_known_phrases("3/4 GRC HUB", tokens)
+    assert "CONDUIT HUB" in expanded
+
+
 def test_connectors_is_a_synonym_for_connector() -> None:
     assert tokenize_description("SQUEEZE CONNECTORS") == tokenize_description("SQUEEZE CONNECTOR")
 
@@ -142,6 +158,15 @@ def test_retrieval_token_groups_or_conduit_and_hanger_for_clamp() -> None:
     flat_by_position = [set(group) for group in groups]
     assert any({"conduit", "hanger"} <= group for group in flat_by_position)
     assert any(group == {"clamp"} for group in flat_by_position)
+
+
+def test_retrieval_token_groups_or_conduit_for_grc_hub() -> None:
+    from catalog.search_query import retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups("3/4 GRC HUB")
+    flat_by_position = [set(group) for group in groups]
+    assert any({"grc", "conduit"} <= group for group in flat_by_position)
+    assert any(group == {"hub"} for group in flat_by_position)
 
 
 def test_expand_known_phrases_appends_matched_expansion() -> None:
