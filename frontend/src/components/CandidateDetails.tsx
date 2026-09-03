@@ -125,7 +125,7 @@ export function CandidateDetails({
             Input: {row.requested_description || row.requested_part_number}
           </p>
           <ul className="possible-matches">
-            {row.candidates.slice(0, 3).map((candidate, index) => {
+            {row.candidates.slice(0, 6).map((candidate, index) => {
               const code = candidateProductcode(candidate);
               const rank = candidate.rank ?? index + 1;
               const confidence = Math.round(candidate.confidence ?? candidate.score);

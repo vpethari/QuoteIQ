@@ -29,24 +29,22 @@ def test_rr2ba_returns_both_candidates_for_review() -> None:
     assert result.matched_part_number is None
     assert {"RR 2BA KL", "RR 2BA KR"} <= set(codes)
     assert payload["selection_type"] is None
-    assert len(payload["candidates"]) <= 3
+    assert len(payload["candidates"]) <= 6
 
 
-def test_review_returns_at_most_three_ranked_candidates() -> None:
+def test_review_returns_at_most_six_ranked_candidates() -> None:
     catalog = [
-        _pg_product(1, "W1", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
-        _pg_product(2, "W2", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
-        _pg_product(3, "W3", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
-        _pg_product(4, "W4", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None),
+        _pg_product(i, f"W{i}", "WHIP FAMILY", "120V LIGHTING WHIP W/PAULEX", None)
+        for i in range(1, 9)
     ]
     result = ProductMatcher(catalog).match_line(_line("120V LIGHTING WHIP W/PAULEX"))
     assert result.match_status == MatchStatus.REVIEW_REQUIRED
-    assert result.candidate_count == 3
-    assert len(result.candidates) == 3
+    assert result.candidate_count == 6
+    assert len(result.candidates) == 6
     scores = [item.score for item in result.candidates]
     assert scores == sorted(scores, reverse=True)
     ranks = [item.rank for item in result.candidates]
-    assert ranks == [1, 2, 3]
+    assert ranks == [1, 2, 3, 4, 5, 6]
 
 
 def test_candidates_are_sorted_by_confidence_descending() -> None:

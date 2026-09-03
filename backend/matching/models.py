@@ -30,7 +30,7 @@ class MatchingConfig:
     min_score_gap: float = 8.0
     score_tie_epsilon: float = 0.5
     max_candidates: int = 10
-    review_candidate_limit: int = 3
+    review_candidate_limit: int = 6
     candidate_floor: float = 5.0
     retrieval_candidate_limit: int = 100
     search_text_candidate_limit: int = 30
