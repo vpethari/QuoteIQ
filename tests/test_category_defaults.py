@@ -312,6 +312,19 @@ def test_unrequested_specialty_marker_none_when_coupling_requested() -> None:
     assert marker is None
 
 
+def test_unrequested_specialty_marker_none_when_coupling_requested_via_cplg() -> None:
+    # "CPLG" is a real terminology synonym for "COUPLING" (see
+    # terminology.py), so a query that abbreviates it must not be treated as
+    # never having asked for a coupling. Confirmed live: before this fix,
+    # every genuine steel EMT coupling candidate for "3/4 EMT STL SS CPLG"
+    # scored an identical, capped 40% -- description_conflict_max -- because
+    # the raw-text check only recognized the literal word "COUPLING".
+    marker = unrequested_specialty_marker(
+        '3/4" EMT STL SS CPLG', 'SK75RKON 3/4"EMT SET SCREW COUPLING Steel Zinc Plated'
+    )
+    assert marker is None
+
+
 def test_unrequested_specialty_marker_none_when_implied_by_category() -> None:
     # "RIGID" is already implied by the query's own "GRC", so it isn't unrequested.
     marker = unrequested_specialty_marker("1 1/2 GRC 90 DEG ELBOW", "1 1/2 GALVANIZED RIGID CONDUIT 90 DEG ELBOW")

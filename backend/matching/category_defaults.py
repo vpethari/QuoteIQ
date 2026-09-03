@@ -270,11 +270,24 @@ def unrequested_specialty_marker(query_raw: str, candidate_raw: str) -> str | No
     rigid-transition fitting) instead penalizes the correct GRC-family part
     for describing its own, requested category.
     """
+    from matching.terminology import canonicalize_token
+
     query_upper = query_raw.upper()
     candidate_upper = candidate_raw.upper()
+    # Canonicalized single-word check, in addition to the raw phrase check
+    # below -- otherwise a query abbreviation with its own terminology
+    # synonym (e.g. "CPLG" for "COUPLING") looks like it never asked for a
+    # marker it actually did, capping every genuine match to the same
+    # unrequested-specialty penalty. Confirmed live: every real steel "...
+    # CPLG" coupling candidate for "3/4 EMT STL SS CPLG" scored an identical
+    # 40% -- description_conflict_max -- because the raw query text says
+    # "CPLG", never the literal word "COUPLING" the marker list checks for.
+    query_canonical_words = {canonicalize_token(word) for word in re.findall(r"[A-Za-z]+", query_upper)}
     implied_categories = [abbrev for abbrev in CATEGORY_DEFAULTS if _word_present(query_upper, abbrev)]
     for marker in _SPECIALTY_VARIANT_MARKERS:
-        if marker not in candidate_upper or _word_present(query_upper, marker):
+        if marker not in candidate_upper:
+            continue
+        if _word_present(query_upper, marker) or marker in query_canonical_words:
             continue
         if any(marker in CATEGORY_DEFAULTS[category].upper() for category in implied_categories):
             continue
