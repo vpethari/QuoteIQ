@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type MouseEvent } from "react";
 import {
   atkoreProductUrl,
   displayedMatchedName,
@@ -76,9 +76,19 @@ export function ResultsTable({
                   : expanded
                     ? "Hide details"
                     : "Show details";
+              function handleRowClick(event: MouseEvent<HTMLTableRowElement>) {
+                const target = event.target as HTMLElement;
+                if (target.closest("a, button")) {
+                  return;
+                }
+                onToggle(index);
+              }
               return (
                 <Fragment key={index}>
-                  <tr className={expanded ? "is-expanded" : undefined}>
+                  <tr
+                    className={`row-clickable${expanded ? " is-expanded" : ""}`}
+                    onClick={handleRowClick}
+                  >
                     <td>
                       <div className="requested">{requested}</div>
                       {badge === "NO_MATCH" ? (

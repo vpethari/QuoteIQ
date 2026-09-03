@@ -1192,6 +1192,14 @@ th {
   padding: 32px 10px;
 }
 
+.row-clickable {
+  cursor: pointer;
+}
+
+.row-clickable:hover {
+  background: var(--bg);
+}
+
 .th-with-info {
   display: inline-flex;
   align-items: center;

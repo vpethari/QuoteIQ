@@ -178,6 +178,20 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("LTG-WHIP-PAULEX-B")).toBeInTheDocument();
     expect(screen.getByText("LTG-WHIP-PAULEX-C")).toBeInTheDocument();
 
+    // Clicking the button didn't also trigger the row's own click handler
+    // (it would have immediately toggled the panel closed again).
+    expect(screen.getByRole("button", { name: "Hide review" })).toBeInTheDocument();
+
+    // The whole row is clickable, not just the Action icon -- clicking
+    // elsewhere in the row (not a link or button) also toggles it. The
+    // requested description also appears inside the now-open details
+    // panel, so target the row's own copy specifically.
+    const requestedInRow = screen.getAllByText("120V LIGHTING WHIP W/PAULEX")[0];
+    await user.click(requestedInRow);
+    expect(screen.queryByText("Match Details")).not.toBeInTheDocument();
+    await user.click(requestedInRow);
+    expect(screen.getByText("Match Details")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Full Results" }));
     expect(downloadResultsCsv).toHaveBeenCalled();
     expect(downloadBlob).toHaveBeenCalled();
