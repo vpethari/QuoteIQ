@@ -77,6 +77,28 @@ def render_cpq_csv_bytes(results: Sequence[object]) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
+TOP_ITEMS_LIMIT = 5
+TOP_ITEMS_SEPARATOR = "||"
+
+
+def _top_orderable_items(candidates: object, limit: int = TOP_ITEMS_LIMIT) -> list[str]:
+    """Orderable part numbers for the top `limit` review candidates, in their
+    existing (already best-first) order, skipping any without one."""
+    from matching.models import MatchCandidate
+
+    items: list[str] = []
+    for candidate in list(candidates or [])[:limit]:
+        if isinstance(candidate, MatchCandidate):
+            value = candidate.orderable_part_number
+        elif isinstance(candidate, Mapping):
+            value = candidate.get("orderable_part_number")
+        else:
+            value = None
+        if value:
+            items.append(str(value))
+    return items
+
+
 def _normalize_full_result(item: object) -> dict[str, Any]:
     from ai.models import FinalMatchResult
     from matching.models import MatchResult
@@ -89,6 +111,7 @@ def _normalize_full_result(item: object) -> dict[str, Any]:
             "match_status": item.match_status,
             "matched_part_number": item.matched_part_number,
             "matched_orderable_part_number": item.matched_orderable_part_number,
+            "top_items": _top_orderable_items(item.candidate_details),
         }
     if isinstance(item, MatchResult):
         return {
@@ -98,6 +121,7 @@ def _normalize_full_result(item: object) -> dict[str, Any]:
             "match_status": item.match_status.value,
             "matched_part_number": item.matched_part_number,
             "matched_orderable_part_number": item.matched_orderable_part_number,
+            "top_items": _top_orderable_items(item.candidates),
         }
     if isinstance(item, Mapping):
         raw_row = item.get("raw_row") or {}
@@ -108,6 +132,7 @@ def _normalize_full_result(item: object) -> dict[str, Any]:
             "match_status": str(item.get("match_status") or ""),
             "matched_part_number": item.get("matched_part_number"),
             "matched_orderable_part_number": item.get("matched_orderable_part_number"),
+            "top_items": _top_orderable_items(item.get("candidates")),
         }
     raise TypeError(f"Unsupported result type: {type(item)!r}")
 
@@ -125,13 +150,15 @@ def _full_results_row(data: dict[str, Any]) -> dict[str, str]:
     row["Matched Part Number"] = str(data.get("matched_part_number") or "") if emit else ""
     row["Orderable Part Number"] = str(data.get("matched_orderable_part_number") or "") if emit else ""
     row["Status"] = status or ""
+    row["Top Items"] = TOP_ITEMS_SEPARATOR.join(data.get("top_items") or [])
     return row
 
 
 def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
     """"Full Results" -- the input file's own columns, verbatim and in their
     original order, with Matched Part Number / Orderable Part Number (for
-    matched rows only) and Status appended. Falls back to Requested
+    matched rows only), Status, and Top Items (the top 5 review candidates'
+    Orderablepartnumbers, "||"-joined) appended. Falls back to Requested
     Description/Quantity when a line has no original columns to mirror
     (a PDF quote, or a headerless data dump)."""
     normalized = [_normalize_full_result(item) for item in results]

@@ -140,7 +140,9 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
         confidence_level="HIGH_CONFIDENCE",
         match_status=MatchStatus.HIGH_CONFIDENCE,
         candidate_count=1,
-        candidates=[],
+        candidates=[
+            MatchCandidate("1LBP-W", "120V LIGHTING WHIP W/PAULEX", "NA1-1LBP-W", 100, 100, orderable_part_number="ORD-1LBP-W"),
+        ],
         match_reasons=[],
         top_score=100,
         second_score=None,
@@ -159,8 +161,12 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
         matching_percentage=40,
         confidence_level="REVIEW_REQUIRED",
         match_status=MatchStatus.REVIEW_REQUIRED,
-        candidate_count=0,
-        candidates=[],
+        candidate_count=3,
+        candidates=[
+            MatchCandidate("A1", "Widget A", "NA1-A1", 40, 40, orderable_part_number="ORD-A1"),
+            MatchCandidate("A2", "Widget B", "NA1-A2", 35, 35, orderable_part_number="ORD-A2"),
+            MatchCandidate("A3", "Widget C", "NA1-A3", 30, 30, orderable_part_number=None),
+        ],
         match_reasons=[],
         top_score=40,
         second_score=None,
@@ -169,7 +175,15 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
     )
     csv_bytes = render_full_results_csv_bytes([matched, review])
     rows = _parse_csv(csv_bytes)
-    assert list(rows[0].keys()) == ["Name", "Qty", "Notes", "Matched Part Number", "Orderable Part Number", "Status"]
+    assert list(rows[0].keys()) == [
+        "Name",
+        "Qty",
+        "Notes",
+        "Matched Part Number",
+        "Orderable Part Number",
+        "Status",
+        "Top Items",
+    ]
     assert rows[0] == {
         "Name": "120V LIGHTING WHIP W/PAULEX",
         "Qty": "5",
@@ -177,12 +191,16 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
         "Matched Part Number": "1LBP-W",
         "Orderable Part Number": "ORD-1LBP-W",
         "Status": "HIGH_CONFIDENCE",
+        "Top Items": "ORD-1LBP-W",
     }
     # Review row keeps its original columns but the two part-number columns
-    # stay blank -- only Status is always populated.
+    # stay blank -- only Status and Top Items are always populated. Top
+    # Items lists every review candidate's Orderablepartnumber (skipping a
+    # candidate with none), "||"-joined, regardless of match status.
     assert rows[1]["Matched Part Number"] == ""
     assert rows[1]["Orderable Part Number"] == ""
     assert rows[1]["Status"] == "REVIEW_REQUIRED"
+    assert rows[1]["Top Items"] == "ORD-A1||ORD-A2"
 
 
 def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row() -> None:
@@ -200,9 +218,11 @@ def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row
         "Matched Part Number",
         "Orderable Part Number",
         "Status",
+        "Top Items",
     ]
     assert rows[0]["Requested Description"] == "10/3 MCT"
     assert rows[0]["Matched Part Number"] == "2EB40-B-SC"
+    assert rows[0]["Top Items"] == ""
 
 
 def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
@@ -502,9 +522,16 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         rows = _parse_csv(response.content)
         assert len(rows) == 3
         # "Full Results" mirrors the input file's own columns ("Name", "Qty")
-        # verbatim and appends exactly these three -- it is not the old
+        # verbatim and appends exactly these four -- it is not the old
         # fixed CSV_COLUMNS schema.
-        assert list(rows[0].keys()) == ["Name", "Qty", "Matched Part Number", "Orderable Part Number", "Status"]
+        assert list(rows[0].keys()) == [
+            "Name",
+            "Qty",
+            "Matched Part Number",
+            "Orderable Part Number",
+            "Status",
+            "Top Items",
+        ]
         assert rows[0]["Name"] == "120V LIGHTING WHIP W/PAULEX"
         assert rows[0]["Qty"] == "5"
         assert all(row["Matched Part Number"] == "" for row in rows)
@@ -553,6 +580,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
             "Matched Part Number",
             "Orderable Part Number",
             "Status",
+            "Top Items",
         ]
         assert exported[0]["Matched Part Number"] == "2EB40-B-SC"
 

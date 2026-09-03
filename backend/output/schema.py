@@ -30,9 +30,10 @@ CPQ_CSV_COLUMNS: tuple[str, ...] = ("Part Number", "Quantity")
 CPQ_DOWNLOAD_FILENAME = "QuoteIQ_CPQ_Ready.csv"
 
 # "Full Results" mirrors the input file's own columns verbatim and appends
-# just these three -- it does not use CSV_COLUMNS above.
+# just these four -- it does not use CSV_COLUMNS above.
 FULL_RESULTS_APPENDED_COLUMNS: tuple[str, ...] = (
     "Matched Part Number",
     "Orderable Part Number",
     "Status",
+    "Top Items",
 )
