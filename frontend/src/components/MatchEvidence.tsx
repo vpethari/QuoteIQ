@@ -40,7 +40,7 @@ export function MatchEvidencePanel({ row }: { row: QuoteMatchResult }) {
               || (row.selection_type === "USER_SELECTED" ? "User Selected" : row.selection_type === "AUTOMATIC" ? "Automatic" : "—")}
           </span>
         </div>
-        <div>
+        <div className="evidence-reason">
           <span className="evidence-k">Match reason</span>
           <span>{headline}</span>
         </div>
@@ -58,20 +58,26 @@ export function MatchEvidencePanel({ row }: { row: QuoteMatchResult }) {
           </li>
         ))}
       </ul>
-      {evidence?.normalized_terms && evidence.normalized_terms.length > 0 ? (
-        <p className="hint">Normalized terms: {evidence.normalized_terms.join("; ")}</p>
-      ) : null}
-      {evidence?.voltage_evidence && evidence.voltage_evidence.length > 0 ? (
-        <p className="hint">{evidence.voltage_evidence.join("; ")}</p>
-      ) : null}
-      {evidence?.numeric_units ? (
-        <p className="hint">Numeric/Units: {evidence.numeric_units}</p>
-      ) : null}
-      {evidence?.candidate_separation ? (
-        <p className="hint">Candidate separation: {evidence.candidate_separation}</p>
-      ) : null}
-      {evidence?.additional_catalog_tokens && evidence.additional_catalog_tokens.length > 0 ? (
-        <p className="hint">Additional catalog tokens: {evidence.additional_catalog_tokens.join(", ")}</p>
+      {evidence?.normalized_terms?.length
+        || evidence?.voltage_evidence?.length
+        || evidence?.numeric_units
+        || evidence?.candidate_separation
+        || evidence?.additional_catalog_tokens?.length ? (
+        <div className="evidence-hints">
+          {evidence?.normalized_terms && evidence.normalized_terms.length > 0 ? (
+            <span className="hint">Normalized terms: {evidence.normalized_terms.join("; ")}</span>
+          ) : null}
+          {evidence?.voltage_evidence && evidence.voltage_evidence.length > 0 ? (
+            <span className="hint">{evidence.voltage_evidence.join("; ")}</span>
+          ) : null}
+          {evidence?.numeric_units ? <span className="hint">Numeric/Units: {evidence.numeric_units}</span> : null}
+          {evidence?.candidate_separation ? (
+            <span className="hint">Candidate separation: {evidence.candidate_separation}</span>
+          ) : null}
+          {evidence?.additional_catalog_tokens && evidence.additional_catalog_tokens.length > 0 ? (
+            <span className="hint">Additional catalog tokens: {evidence.additional_catalog_tokens.join(", ")}</span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

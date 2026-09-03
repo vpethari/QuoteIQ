@@ -1325,6 +1325,10 @@ th {
   margin: 0 0 14px;
 }
 
+.evidence-reason {
+  grid-column: 1 / -1;
+}
+
 .evidence-k {
   display: block;
   color: var(--muted);
@@ -1339,8 +1343,9 @@ th {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
 }
 
 .evidence-fields li {
@@ -1348,6 +1353,18 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.evidence-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin-top: 10px;
+}
+
+.evidence-hints .hint {
+  margin: 0;
 }
 
 .evidence-mark {
