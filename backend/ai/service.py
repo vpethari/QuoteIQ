@@ -46,7 +46,7 @@ class AIPolicyConfig:
     confident_threshold: float = 90.0
     review_threshold: float = 50.0
     max_candidates: int = 6
-    max_concurrent_requests: int = 6
+    max_concurrent_requests: int = 12
 
 
 @dataclass
