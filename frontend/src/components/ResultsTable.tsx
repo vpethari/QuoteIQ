@@ -37,7 +37,7 @@ export function ResultsTable({
         <table>
           <thead>
             <tr>
-              <th>Requested Product</th>
+              <th>Requested Part / Description</th>
               <th>Qty</th>
               <th>
                 <span className="th-with-info">

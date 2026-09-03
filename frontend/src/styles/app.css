@@ -1133,7 +1133,7 @@ a:focus-visible,
 .table-wrap {
   overflow: auto;
   margin-top: 12px;
-  max-height: 65vh;
+  max-height: 80vh;
   border: 1px solid var(--line);
   border-radius: 10px;
   scrollbar-width: auto;
