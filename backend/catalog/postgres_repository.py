@@ -245,7 +245,28 @@ class PostgresCatalogRepository:
             where_parts = [f"{search_expr} {like_op} :normalized"]
         order_sql = "1"
         if self._is_postgres() and token_variant_counts:
-            order_sql = f"similarity({search_expr}, :rank_normalized) DESC"
+            # word_similarity(short, long) scores the best-matching *substring*
+            # of the second argument against the first, rather than plain
+            # similarity()'s ratio over the two full strings' combined trigram
+            # counts -- the latter systematically favors short catalog rows
+            # over a longer, more precise row that's actually the better
+            # match (confirmed live: for "3 steel flex", the correct 3" FSC
+            # flex conduit row scored 0.078 on similarity() -- ranked below
+            # an unrelated stainless fitting's 0.145 -- but 0.769 on
+            # word_similarity(), correctly above that same row's 0.538).
+            #
+            # word_similarity ties happen often, though: it only cares about
+            # the single best-matching substring, so a long, mostly-unrelated
+            # row (e.g. a fixture-whip cable assembly whose spec text happens
+            # to also mention "steel flexible conduit") can tie a short,
+            # genuinely on-topic row exactly (confirmed live: both scored
+            # 0.7692308 for "3 steel flex"). Break ties with plain
+            # similarity(), which *does* penalize the extra unrelated length
+            # and correctly separated them (0.078 vs 0.042).
+            order_sql = (
+                f"word_similarity(:rank_normalized, {search_expr}) DESC, "
+                f"similarity({search_expr}, :rank_normalized) DESC"
+            )
         return (
             f"{self._select_catalog_sql()} "
             f"WHERE {' AND '.join(where_parts)} "

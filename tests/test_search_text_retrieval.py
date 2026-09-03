@@ -85,6 +85,26 @@ def test_search_text_sql_does_not_inspect_schema() -> None:
     assert "similarity(" in sql
 
 
+def test_search_text_sql_orders_by_word_similarity_with_similarity_tiebreak() -> None:
+    # Plain similarity() is a ratio over the two full strings' combined
+    # trigram counts, so it systematically favors short catalog rows over a
+    # longer, more precise row that's actually the better match (confirmed
+    # live: a correct 3" flex conduit row scored 0.078 vs. an unrelated
+    # fitting's 0.145). word_similarity() scores the best-matching substring
+    # instead, fixing that -- but it can then tie a long, mostly-unrelated
+    # row against a short, genuinely on-topic one (both can contain the same
+    # matching phrase), so plain similarity() is kept as the tiebreaker,
+    # which does still penalize the extra unrelated length.
+    engine = MagicMock()
+    engine.dialect.name = "postgresql"
+    repository = PostgresCatalogRepository(engine)
+    sql = repository.search_text_sql([1, 1, 1])
+    assert "word_similarity(:rank_normalized," in sql
+    word_sim_pos = sql.index("word_similarity(")
+    plain_sim_pos = sql.index("similarity(", word_sim_pos + len("word_similarity("))
+    assert word_sim_pos < plain_sim_pos
+
+
 def test_search_text_sql_ors_synonym_variants_within_a_token_position() -> None:
     repository = _sqlite_catalog()
     sql = repository.search_text_sql([3, 1])
