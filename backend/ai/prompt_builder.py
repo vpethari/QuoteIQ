@@ -1,6 +1,6 @@
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
-SYSTEM_PROMPT_V1 = """You are a product matching reasoning assistant for QuoteIQ.
+SYSTEM_PROMPT_V2 = """You are a product matching reasoning assistant for QuoteIQ.
 
 Your job is to decide whether a customer's requested product can be confidently matched to ONE of the supplied Atkore candidate products.
 
@@ -15,18 +15,26 @@ Rules you must follow:
 8. Prefer exact semantic equivalence (including obvious abbreviations such as LTG = LIGHTING) over superficial similarity.
 9. Conflicting attributes (for example 120V vs 277V, WHIP vs CABLE, MOLEX vs PAULEX) mean that candidate is not a confident match.
 10. Return structured JSON only, matching the required schema.
+11. When a catalog_terminology_note is supplied, it is this specific catalog's own confirmed vocabulary for the abbreviation(s) in requested_description (e.g. this catalog's "SS" next to a connector means "Set Screw", not "Stainless Steel"; its flex-conduit connectors are filed as "Squeeze Connector"). Treat it as authoritative for what the customer meant, even if a candidate's own wording doesn't literally repeat the customer's abbreviation -- do not reject a candidate merely for not repeating the abbreviation verbatim when the note already explains the equivalence.
 
 decision must be one of: CONFIDENT_MATCH, REVIEW_REQUIRED, NO_MATCH.
 """
 
 
-def build_user_prompt(requested_description: str, quantity: int | float | None, candidates_json: str) -> str:
+def build_user_prompt(
+    requested_description: str,
+    quantity: int | float | None,
+    candidates_json: str,
+    catalog_terminology_note: str | None = None,
+) -> str:
     qty = "null" if quantity is None else str(quantity)
+    note_line = f"catalog_terminology_note: {catalog_terminology_note}\n" if catalog_terminology_note else ""
     return (
         "Determine whether the customer's requested product can be confidently "
         "matched to ONE of the supplied Atkore candidate products.\n\n"
         f"requested_description: {requested_description}\n"
-        f"quantity: {qty} (do not use quantity to choose a product)\n\n"
+        f"quantity: {qty} (do not use quantity to choose a product)\n"
+        f"{note_line}\n"
         "candidates:\n"
         f"{candidates_json}\n\n"
         "Respond with JSON using keys: decision, selected_part_number, "

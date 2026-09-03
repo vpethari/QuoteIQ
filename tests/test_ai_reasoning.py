@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from ai.models import AIDecision, AIReasoningResult, CandidateEvaluation
 from ai.provider import MockAIReasoningProvider, UnconfiguredAIReasoningProvider, AINotConfiguredError
-from ai.service import AIMatchingService, AIPolicyConfig, InMemoryAuditStore
+from ai.service import AIMatchingService, AIPolicyConfig, InMemoryAuditStore, _catalog_terminology_note
 from ai.validator import validate_ai_selection
 from catalog.excel_loader import load_catalog_records, load_quote_lines
 from matching.matcher import ProductMatcher
@@ -265,6 +265,35 @@ def test_malformed_ai_response(matcher: ProductMatcher, catalog_records: list[Pr
     assert result.matched_part_number is None
 
 
+def test_catalog_terminology_note_fires_for_known_abbreviations() -> None:
+    # "SS" here means "Set Screw", not "Stainless Steel" -- without this
+    # note, the AI has no way to know that and can reject a genuine plain-
+    # steel set-screw connector for "not being stainless" (confirmed live).
+    note = _catalog_terminology_note('1/2" EMT STL SS CONN')
+    assert note is not None
+    assert "SET SCREW CONNECTOR" in note.upper()
+
+
+def test_catalog_terminology_note_is_none_when_nothing_changes() -> None:
+    assert _catalog_terminology_note("10/3 MCT") is None
+    assert _catalog_terminology_note("") is None
+
+
+def test_catalog_terminology_note_reaches_the_ai_request(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    captured = {}
+
+    def _handler(request):
+        captured["note"] = request.catalog_terminology_note
+        return _confident("SC50RKON")
+
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(handler=_handler))
+    service.match_description('1/2" EMT STL SS CONN')
+    assert captured["note"] is not None
+    assert "SET SCREW CONNECTOR" in captured["note"].upper()
+
+
 def test_multiple_quote_lines_with_mock_ai(
     matcher: ProductMatcher, catalog_records: list[ProductRecord]
 ) -> None:
@@ -298,7 +327,7 @@ def test_audit_record_creation(matcher: ProductMatcher, catalog_records: list[Pr
     assert record.ai_decision == "CONFIDENT_MATCH"
     assert record.selected_part_number == "2EB40-B-SC"
     assert record.provider == "mock"
-    assert record.prompt_version == "v1"
+    assert record.prompt_version == "v2"
     assert record.timestamp is not None
 
 

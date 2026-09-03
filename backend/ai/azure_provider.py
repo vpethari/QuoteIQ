@@ -10,7 +10,7 @@ import httpx
 from pydantic import ValidationError
 
 from ai.models import AIReasoningRequest, AIReasoningResult
-from ai.prompt_builder import PROMPT_VERSION, SYSTEM_PROMPT_V1, build_user_prompt
+from ai.prompt_builder import PROMPT_VERSION, SYSTEM_PROMPT_V2, build_user_prompt
 from ai.provider import AINotConfiguredError, AIReasoningProvider
 
 logger = logging.getLogger("quoteiq.ai")
@@ -62,6 +62,7 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
             request.requested_description,
             request.quantity,
             json.dumps(payload, indent=2),
+            request.catalog_terminology_note,
         )
         logger.debug(
             "Azure reasoning request prompt_version=%s candidate_count=%s",
@@ -74,7 +75,7 @@ class AzureOpenAIReasoningProvider(AIReasoningProvider):
         )
         body = {
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT_V1},
+                {"role": "system", "content": SYSTEM_PROMPT_V2},
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0,

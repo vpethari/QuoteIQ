@@ -83,6 +83,15 @@ class AIReasoningRequest(BaseModel):
     requested_description: str
     quantity: int | float | None = None
     candidates: list[AICandidateInput]
+    # The deterministic matcher's own catalog-terminology expansion (e.g.
+    # "SS CONN" -> "SET SCREW CONNECTOR", "FLEX CONN" -> "SQUEEZE
+    # CONNECTOR") applied for retrieval/scoring, only set when it actually
+    # changes the wording -- see matching.category_defaults. Without this,
+    # the AI reasons from the customer's raw abbreviation alone and can
+    # reject a candidate the deterministic matcher already knows is correct
+    # (confirmed live: "SS" read as "Stainless Steel" instead of "Set
+    # Screw", rejecting a genuine plain-steel set-screw connector).
+    catalog_terminology_note: str | None = None
 
 
 class AIAuditRecord(BaseModel):

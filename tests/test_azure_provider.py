@@ -51,6 +51,38 @@ def test_request_body_includes_fixed_seed_and_zero_temperature() -> None:
     assert captured["body"]["temperature"] == 0
 
 
+def test_catalog_terminology_note_reaches_the_prompt() -> None:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_success_body())
+
+    provider = _provider(handler)
+    request = AIReasoningRequest(
+        requested_description='1/2" EMT STL SS CONN',
+        quantity=1,
+        candidates=[],
+        catalog_terminology_note='1/2" EMT STL SET SCREW CONNECTOR',
+    )
+    provider.reason_about_candidates(request)
+    user_message = next(m["content"] for m in captured["body"]["messages"] if m["role"] == "user")
+    assert "SET SCREW CONNECTOR" in user_message
+
+
+def test_no_terminology_note_line_when_none() -> None:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_success_body())
+
+    provider = _provider(handler)
+    provider.reason_about_candidates(_request())
+    user_message = next(m["content"] for m in captured["body"]["messages"] if m["role"] == "user")
+    assert "catalog_terminology_note" not in user_message
+
+
 def test_retries_on_429_then_succeeds() -> None:
     calls = {"count": 0}
 

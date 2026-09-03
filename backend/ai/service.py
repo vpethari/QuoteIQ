@@ -17,9 +17,28 @@ from ai.models import (
 from ai.prompt_builder import PROMPT_VERSION
 from ai.provider import AINotConfiguredError, AIReasoningProvider
 from ai.validator import ValidationOutcome, validate_ai_selection
+from matching.category_defaults import normalize_raw_customer_text
+from matching.description_normalize import expand_query_for_retrieval, tokenize_description
 from matching.matcher import ProductMatcher
 from matching.models import MatchCandidate, MatchResult, MatchStatus, ProductRecord, QuoteLine
+from matching.noise import strip_quantity_and_noise
 from matching.request_cache import end_request_cache, start_request_cache, use_request_cache
+
+
+def _catalog_terminology_note(raw_description: str) -> str | None:
+    """The deterministic matcher's own catalog-terminology expansion for
+    this description (see matching.category_defaults), surfaced for the AI
+    only when it actually adds something -- most queries don't need it, so
+    this keeps the common case's prompt unchanged."""
+    if not raw_description:
+        return None
+    normalized = normalize_raw_customer_text(raw_description)
+    expanded = expand_query_for_retrieval(strip_quantity_and_noise(normalized))
+    if not expanded:
+        return None
+    if set(tokenize_description(expanded)) == set(tokenize_description(raw_description)):
+        return None
+    return expanded
 
 
 @dataclass
@@ -84,6 +103,7 @@ class AIMatchingService:
         request = AIReasoningRequest(
             requested_description=line.requested_description,
             quantity=line.quantity,
+            catalog_terminology_note=_catalog_terminology_note(line.requested_description),
             candidates=[
                 AICandidateInput(
                     official_part_number=item.official_part_number,
