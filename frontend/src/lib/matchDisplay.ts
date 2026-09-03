@@ -72,11 +72,23 @@ export function displayedMatchedName(row: QuoteMatchResult): string {
 
 const ATKORE_PRODUCTS_URL = "https://www.atkore.com/product/";
 
+// productmaster.name is raw, unnormalized catalog data -- some rows carry
+// fixed-width padding (e.g. "P6291     EG") that would otherwise turn into a
+// broken-looking link full of encoded spaces ("P6291%20%20%20%20%20EG").
+// This only affects the link; the name is still displayed as-is elsewhere.
+function trimmedNameForLink(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
 export function atkoreUrlForName(name: string | null | undefined): string | null {
   if (!name) {
     return null;
   }
-  return `${ATKORE_PRODUCTS_URL}${encodeURIComponent(name)}`;
+  const trimmed = trimmedNameForLink(name);
+  if (!trimmed) {
+    return null;
+  }
+  return `${ATKORE_PRODUCTS_URL}${encodeURIComponent(trimmed)}`;
 }
 
 export function atkoreProductUrl(row: QuoteMatchResult): string | null {
