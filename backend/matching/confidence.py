@@ -90,9 +90,14 @@ def active_confidence_weights(
         if direct_match:
             weights = {"name": remaining, "numeric": numeric_weight}
         else:
+            # Equal, not description-favored: description2 is populated on
+            # ~95% of rows and is actually the longer, more detailed field
+            # on ~42% of those (confirmed live), so it isn't a minor
+            # supplement -- a fixed skew toward description would
+            # systematically under-count it on nearly half the catalog.
             weights = {
-                "description": remaining * 0.80,
-                "description2": remaining * 0.20,
+                "description": remaining * 0.50,
+                "description2": remaining * 0.50,
                 "numeric": numeric_weight,
             }
         return _renormalize(weights)

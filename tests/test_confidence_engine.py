@@ -190,7 +190,7 @@ def test_description_scoring_falls_back_to_description_fields_when_name_is_weak(
     )
     assert "name" not in weights
     assert "productcode" not in weights
-    assert weights["description"] > weights["description2"]
+    assert weights["description"] == weights["description2"]
     assert abs(sum(weights.values()) - 1.0) < 1e-9
 
 
