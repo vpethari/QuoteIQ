@@ -73,6 +73,10 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
             "columns were inferred from the data."
         )
 
+    header_names = (
+        None if header_row_index < 0 else _ordered_header_names(list(rows[header_row_index] or ()))
+    )
+
     items: list[LineItem] = []
     skipped_repeated_header = False
     for offset, raw in enumerate(rows[header_row_index + 1 :]):
@@ -101,7 +105,7 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
                 requested_part = fold_whitespace(productcode_as_text(raw_part)) or None
         if not description and not requested_part:
             continue
-        raw_row = {} if header_row_index < 0 else _raw_row(headers, values)
+        raw_row = {} if header_names is None else _raw_row(header_names, values)
         items.append(
             LineItem(
                 source_file=display_name,
@@ -138,8 +142,33 @@ def line_items_to_quote_lines(items: list[LineItem]) -> list[QuoteLine]:
     ]
 
 
-def _raw_row(headers: dict[str, int], values: list[object]) -> dict[str, str]:
-    return {header: _cell_to_text(_cell(values, col)) for header, col in headers.items()}
+def _ordered_header_names(header_values: list[object]) -> list[str | None]:
+    """One display name per column position, left to right -- unlike the
+    alias-lookup `headers` dict, a repeated header name (real quotes often
+    have two "PRICE" or "NOTES" columns) does not collapse to a single
+    column here. Repeats are suffixed "(2)", "(3)", ... so every column's
+    data survives into the raw row instead of the first occurrence being
+    silently overwritten by the last."""
+    seen: dict[str, int] = {}
+    names: list[str | None] = []
+    for value in header_values:
+        if is_blank(value):
+            names.append(None)
+            continue
+        name = str(value).strip()
+        seen[name] = seen.get(name, 0) + 1
+        if seen[name] > 1:
+            name = f"{name} ({seen[name]})"
+        names.append(name)
+    return names
+
+
+def _raw_row(header_names: list[str | None], values: list[object]) -> dict[str, str]:
+    return {
+        name: _cell_to_text(_cell(values, col))
+        for col, name in enumerate(header_names)
+        if name is not None
+    }
 
 
 def _cell_to_text(value: object) -> str:

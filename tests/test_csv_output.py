@@ -360,6 +360,29 @@ def test_parser_captures_raw_row_with_extra_columns_for_full_results_export(tmp_
     }
 
 
+def test_parser_preserves_both_columns_when_a_header_name_repeats(tmp_path: Path) -> None:
+    # Confirmed from a real customer file: PRICE and NOTES each appeared
+    # twice. Before this fix, the header-name -> column-index lookup used to
+    # build raw_row collapsed to the *last* matching column, silently
+    # dropping the first PRICE/NOTES column's data (a real price, a real
+    # part-number note) from the "Full Results" export entirely.
+    path = _write_xlsx(
+        tmp_path / "quote.xlsx",
+        ["DESCRIPTION", "QTY", "UNIT", "PRICE", "NOTES", "PRICE", "NOTES"],
+        [['3/4" EMT CONDUIT', 5723, 100, 70.15, "898303", None, None]],
+    )
+    items = parse_quote_file(path)
+    assert items[0].raw_row == {
+        "DESCRIPTION": '3/4" EMT CONDUIT',
+        "QTY": "5723",
+        "UNIT": "100",
+        "PRICE": "70.15",
+        "NOTES": "898303",
+        "PRICE (2)": "",
+        "NOTES (2)": "",
+    }
+
+
 def test_parser_alternate_headers(tmp_path: Path) -> None:
     path = _write_xlsx(
         tmp_path / "desc.xlsx",
