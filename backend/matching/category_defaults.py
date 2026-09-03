@@ -428,6 +428,12 @@ _ACRONYM_PHRASES: dict[re.Pattern[str], str] = {
     # against description2's fully-spelled "... Compression Connector ..."
     # text instead of competing on a weak 4-letter abbreviation.
     re.compile(r"\bCOMP\s+CONN\b", re.IGNORECASE): "COMPRESSION CONNECTOR",
+    # Same shape of problem, for couplings: catalog spells this "COMPR CPLG"
+    # (e.g. "S20700CC00 3/4 SS316 EMT COMPR CPLG"), not "COMP CPLG" -- "COMP"
+    # is already a substring of "COMPR" so retrieval isn't blind to it, but
+    # the abbreviation scores weakly against description2's fully-spelled
+    # "... Compression Coupling ..." text.
+    re.compile(r"\bCOMP\s+CPLG\b", re.IGNORECASE): "COMPRESSION COUPLING",
 }
 
 
