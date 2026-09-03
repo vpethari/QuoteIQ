@@ -145,3 +145,6 @@ class FinalMatchResult(BaseModel):
     part_number_match: bool = False
     description_match: bool = False
     raw_row: dict[str, str] = Field(default_factory=dict)
+    selection_type: str | None = None
+    match_type: str | None = None
+    match_type_label: str | None = None

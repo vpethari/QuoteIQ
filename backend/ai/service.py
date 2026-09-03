@@ -23,6 +23,7 @@ from matching.matcher import ProductMatcher
 from matching.models import MatchCandidate, MatchResult, MatchStatus, ProductRecord, QuoteLine
 from matching.noise import strip_quantity_and_noise
 from matching.request_cache import end_request_cache, start_request_cache, use_request_cache
+from matching.selection import AUTOMATIC
 
 
 def _catalog_terminology_note(raw_description: str) -> str | None:
@@ -182,6 +183,7 @@ class AIMatchingService:
         )
         self.audit_store.add(audit)
 
+        is_confident = status == AIDecision.CONFIDENT_MATCH
         return FinalMatchResult(
             source_file=line.source_file or None,
             source_sheet=line.source_sheet or None,
@@ -206,6 +208,9 @@ class AIMatchingService:
             prompt_version=PROMPT_VERSION,
             provider=self.provider.provider_name,
             raw_row=dict(deterministic.raw_row),
+            selection_type=AUTOMATIC if is_confident else None,
+            match_type=AUTOMATIC if is_confident else None,
+            match_type_label="Automatic — AI Confirmed" if is_confident else None,
         )
 
     def match_quote(self, lines: Sequence[QuoteLine], use_ai: bool = True) -> list[FinalMatchResult]:
@@ -371,6 +376,9 @@ def final_from_deterministic(result: MatchResult, ai_enabled: bool) -> FinalMatc
         part_number_match=result.part_number_match,
         description_match=result.description_match,
         raw_row=dict(result.raw_row),
+        selection_type=result.selection_type,
+        match_type=result.match_type,
+        match_type_label=result.match_type_label,
     )
 
 

@@ -105,6 +105,9 @@ def serialize_process_result(result: QuoteProcessResult) -> dict[str, Any]:
         "candidates": candidates,
         "match_evidence": build_match_evidence(result),
         "raw_row": dict(getattr(result, "raw_row", None) or {}),
+        "selection_type": result.selection_type,
+        "match_type": result.match_type,
+        "match_type_label": result.match_type_label,
     }
 
 

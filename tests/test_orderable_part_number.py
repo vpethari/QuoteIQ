@@ -52,6 +52,12 @@ def test_matched_orderable_part_number_flows_through_automatic_match() -> None:
 
     payload = serialize_process_result(result)
     assert payload["matched_orderable_part_number"] == "ORD-B1EB5-W"
+    # Match Type was showing "--" for every system-matched row -- the
+    # backend computed it (see matching.selection.prepare_published_result)
+    # but serialize_process_result never included it in the JSON payload.
+    assert payload["selection_type"] == "AUTOMATIC"
+    assert payload["match_type"] == "AUTOMATIC"
+    assert payload["match_type_label"] == "Automatic — Exact Productcode"
 
 
 def test_orderable_part_number_absent_when_no_winner() -> None:
@@ -66,6 +72,7 @@ def test_orderable_part_number_absent_when_no_winner() -> None:
     codes = {item.official_part_number: item.orderable_part_number for item in result.candidates}
     assert codes.get("WHIP-A") == "ORD-A"
     assert codes.get("WHIP-B") == "ORD-B"
+    assert result.match_type_label is None
 
 
 def test_manual_selection_carries_orderable_part_number() -> None:

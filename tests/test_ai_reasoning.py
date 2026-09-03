@@ -68,6 +68,21 @@ def test_ai_selects_valid_candidate(matcher: ProductMatcher, catalog_records: li
     assert result.matched_salsify_id == "NA1-2EB40-B-SC"
 
 
+def test_ai_confident_match_gets_automatic_match_type_label(
+    matcher: ProductMatcher, catalog_records: list[ProductRecord]
+) -> None:
+    # Match Type was showing "--" for every system-matched row (nothing --
+    # deterministic or AI -- ever set it on FinalMatchResult) until this
+    # fix. AI-confirmed rows get their own label distinguishing them from a
+    # purely deterministic automatic match.
+    service = _service(matcher, catalog_records, MockAIReasoningProvider(canned=_confident("2EB40-B-SC")))
+    result = service.match_description("10/3 MCT")
+    assert result.match_status == "CONFIDENT_MATCH"
+    assert result.selection_type == "AUTOMATIC"
+    assert result.match_type == "AUTOMATIC"
+    assert result.match_type_label == "Automatic — AI Confirmed"
+
+
 def test_ai_selects_nonexistent_candidate_rejected(
     matcher: ProductMatcher, catalog_records: list[ProductRecord]
 ) -> None:
@@ -76,6 +91,7 @@ def test_ai_selects_nonexistent_candidate_rejected(
     assert result.match_status == "REVIEW_REQUIRED"
     assert result.matched_part_number is None
     assert result.validation_rejected is True
+    assert result.match_type_label is None
 
 
 def test_ai_selects_family_id_rejected(
