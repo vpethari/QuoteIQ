@@ -34,6 +34,7 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # text -- also benefits, not just post-retrieval scoring.
     ("FITTING", ("FITTING", "FITTINGS", "JOINER", "JOINERS")),
     ("FLEX", ("FLEX", "FLEXIBLE")),
+    ("GALV", ("GALV", "GALVANIZED", "GALVANISED")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).

@@ -71,6 +71,25 @@ def test_reduce_bare_category_tokens_keeps_steel_as_required() -> None:
     assert reduce_bare_category_tokens(tokens) == tokens
 
 
+def test_expand_bare_category_query_grc_galv_is_still_bare() -> None:
+    # "GALV" is just the customer's own abbreviation of the "Galvanized"
+    # that GRC's own CATEGORY_DEFAULTS phrase already spells out -- it must
+    # not be treated as a genuinely more specific request. Confirmed live:
+    # before adding a GALV/GALVANIZED terminology synonym, "1 GRC (GALV)"
+    # matched nothing while bare "1 GRC" correctly matched product 278895.
+    query = '1" GRC (GALV)'
+    tokens = tokenize_description(query)
+    expanded = expand_bare_category_query(query, tokens)
+    assert "RIGID CONDUIT" in expanded
+
+
+def test_reduce_bare_category_tokens_drops_galv_for_grc() -> None:
+    tokens = tokenize_description('1" GRC GALV')
+    reduced = reduce_bare_category_tokens(tokens)
+    assert "GALV" not in reduced
+    assert "GRC" in reduced
+
+
 def test_retrieval_token_groups_drop_implied_default_word() -> None:
     from catalog.search_query import retrieval_search_token_groups
 
