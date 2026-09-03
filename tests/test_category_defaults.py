@@ -240,6 +240,25 @@ def test_unrequested_specialty_marker_flags_unrequested_elbow() -> None:
     assert marker == "ELBOW"
 
 
+def test_unrequested_specialty_marker_flags_unrequested_coupling() -> None:
+    # Bare "GRC" means the plain 10' conduit stick -- a coupling is a
+    # genuinely different, more specific fitting, the same way an elbow or
+    # nipple is (confirmed live: a coupling slightly outranked the correct
+    # plain conduit stick, 91.7% vs 90.0%, purely for spelling "GRC" out
+    # more explicitly in its own catalog text).
+    marker = unrequested_specialty_marker('3/4" GRC', "3/4 Coupling, Galvanized Rigid Conduit, GRC, Galvanized Steel")
+    assert marker == "COUPLING"
+
+
+def test_unrequested_specialty_marker_none_when_coupling_requested() -> None:
+    # An explicit "GRC COUPLING" request must not penalize a genuine
+    # coupling candidate for being one.
+    marker = unrequested_specialty_marker(
+        '1 1/2" GRC COUPLING', '1 1/2" GRC COUPLING DOMESTIC Steel Electrogalvanized'
+    )
+    assert marker is None
+
+
 def test_unrequested_specialty_marker_none_when_implied_by_category() -> None:
     # "RIGID" is already implied by the query's own "GRC", so it isn't unrequested.
     marker = unrequested_specialty_marker("1 1/2 GRC 90 DEG ELBOW", "1 1/2 GALVANIZED RIGID CONDUIT 90 DEG ELBOW")

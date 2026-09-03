@@ -242,6 +242,14 @@ _SPECIALTY_VARIANT_MARKERS: tuple[str, ...] = (
     "IMC",
     "GRC",
     "NIPPLE",
+    # The comment above already anticipated "a coupling that transitions
+    # EMT to threaded rigid/IMC/GRC conduit" as exactly this kind of
+    # unrequested-specialty case, but "COUPLING" was never actually added
+    # to this list -- confirmed live: a bare "3/4\" GRC" query slightly
+    # outranked the correct plain 10' conduit stick with a coupling
+    # (91.7% vs 90.0%) purely because the coupling's own text happened to
+    # spell "GRC" out more explicitly.
+    "COUPLING",
 )
 
 
