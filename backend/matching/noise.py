@@ -69,7 +69,7 @@ PROTECTED_PRODUCT_TERMS: frozenset[str] = frozenset(
 
 assert NOISE_WORDS.isdisjoint(PROTECTED_PRODUCT_TERMS)
 
-_TOKEN_SPAN = re.compile(r"[A-Za-z0-9]+(?:/[A-Za-z0-9]+)*")
+_TOKEN_SPAN = re.compile(r"[A-Za-z0-9]+(?:/[A-Za-z0-9]+)*(?:[\"″”'′])?")
 _VOLTAGE_FOLLOW = re.compile(r"(?i)^(V|VAC|VDC|KV|VOLT|VOLTS|VOLTAGE)\b")
 
 # Group 1 is always the numeric quantity.

@@ -7,9 +7,15 @@ from matching.tokenizer import tokenize_description
 
 
 def retrieval_search_string(query: str) -> str:
-    """Lowercased retrieval string. Python still owns synonym/unit/noise handling."""
+    """Lowercased retrieval string. Python still owns synonym/unit/noise handling.
+
+    apply_units=False: `search_text` is a raw generated column, never unit-
+    normalized, so a fraction size like "1/2" must stay literal here instead
+    of being rewritten to "0.5 IN" -- which the catalog's own text would
+    never contain.
+    """
     cleaned = strip_quantity_and_noise(query)
-    tokens = [token.lower() for token in tokenize_description(cleaned) if token]
+    tokens = [token.lower() for token in tokenize_description(cleaned, apply_units=False) if token]
     if tokens:
         return " ".join(tokens)
     return cleaned.lower().strip()
@@ -38,7 +44,9 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     candidates that only differ in which spelling the catalog happened to use.
     """
     cleaned = strip_quantity_and_noise(query)
-    tokens = tokenize_description(cleaned)
+    # apply_units=False: see retrieval_search_string -- a fraction size must
+    # stay literal ("1/2", not "0.5 IN") to match the catalog's raw text.
+    tokens = tokenize_description(cleaned, apply_units=False)
     distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:
         distinctive = [token for token in tokens if token]

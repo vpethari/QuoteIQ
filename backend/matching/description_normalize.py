@@ -93,18 +93,23 @@ def raw_description_tokens(value: str | None, *, apply_units: bool = True) -> li
     return tokens
 
 
-def tokenize_description(value: str | None) -> list[str]:
+def tokenize_description(value: str | None, *, apply_units: bool | None = None) -> list[str]:
     """Token-based comparison form for quote text and catalog name/description.
 
     Productcode-like strings skip measurement rewriting so codes are not parsed as units.
+    Pass `apply_units` explicitly to override that auto-detection -- retrieval's SQL
+    matches against catalog text that was never unit-normalized (it's a raw generated
+    column), so it needs `apply_units=False` to keep a fraction size like "1/2" as a
+    literal substring instead of rewriting it to "0.5 IN", which would never match.
     """
     from matching.productcode import field_is_code_like
 
-    apply_units = not (
-        field_is_code_like(value)
-        and not extract_voltages(value)
-        and not extract_dimensions(value)
-    )
+    if apply_units is None:
+        apply_units = not (
+            field_is_code_like(value)
+            and not extract_voltages(value)
+            and not extract_dimensions(value)
+        )
     tokens: list[str] = []
     for raw in raw_description_tokens(value, apply_units=apply_units):
         mapped = canonicalize_token(raw)

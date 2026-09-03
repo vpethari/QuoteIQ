@@ -64,6 +64,37 @@ def test_search_text_candidates_are_limited_and_relevant() -> None:
     assert len(hits) <= 100
 
 
+def test_retrieval_keeps_fraction_sizes_literal_not_decimal() -> None:
+    # search_text is a raw generated column, never unit-normalized -- a
+    # fraction size must stay "1/2" here to match the catalog's own literal
+    # text ("MSC5090KON 1/2\" SQUEEZE CONNECTORS..."). Converting it to
+    # "0.5 IN" (which scoring *does* want, for consistent token comparison
+    # against the candidate's own unit-normalized text) would search for a
+    # substring the catalog's raw text never contains, silently excluding
+    # every fraction-size row from retrieval.
+    from catalog.search_query import retrieval_search_string, retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups('1/2" STL FLEX CONN')
+    flat = {variant for group in groups for variant in group}
+    assert "1/2" in flat
+    assert "0.5" not in flat
+
+    normalized = retrieval_search_string('1/2" STL FLEX CONN')
+    assert "1/2" in normalized
+    assert "0.5" not in normalized
+
+
+def test_scoring_tokenization_still_converts_fraction_to_decimal() -> None:
+    # The retrieval-side fix above must not regress scoring, which needs
+    # both the query and the candidate's raw text unit-normalized the same
+    # way for token comparison to work at all.
+    from matching.description_normalize import tokenize_description
+
+    tokens = tokenize_description('1/2" STL FLEX CONN')
+    assert "0.5" in tokens
+    assert "IN" in tokens
+
+
 def test_search_text_sql_targets_search_text_column() -> None:
     repository = _sqlite_catalog()
     sql = repository.search_text_sql([1, 1, 1])
@@ -153,6 +184,47 @@ def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_te
     # Identity now comes from `name` ("NMAHCTC 24"), not the internal
     # Productcode value (1915974) -- name is the real orderable identifier.
     assert "NMAHCTC 24" in codes
+
+
+def test_search_text_candidates_matches_fraction_size_against_raw_catalog_text() -> None:
+    # Regression test: a query fraction size (e.g. "1/2") must still find a
+    # catalog row that spells the same size the same way, not get rewritten
+    # to a decimal form ("0.5 IN") the row's raw text never contains.
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                'CREATE TABLE productmaster ('
+                "id INTEGER, "
+                '"Productcode" TEXT, '
+                "name TEXT, "
+                "description TEXT, "
+                "description2 TEXT, "
+                "search_text TEXT, "
+                "orderablepartnumber TEXT)"
+            )
+        )
+        row = (2180287, "MSC5090KON", "MSC5090KON", 'MSC5090KON 1/2" SQUEEZE CONNECTORS - 90 DEGREE', None)
+        search_text = " ".join(str(part).lower() for part in row[1:] if part)
+        connection.execute(
+            text(
+                'INSERT INTO productmaster '
+                '(id, "Productcode", name, description, description2, search_text, orderablepartnumber) '
+                "VALUES (:id, :code, :name, :description, :description2, :search_text, NULL)"
+            ),
+            {
+                "id": row[0],
+                "code": row[1],
+                "name": row[2],
+                "description": row[3],
+                "description2": row[4],
+                "search_text": search_text,
+            },
+        )
+    repository = PostgresCatalogRepository(engine, retrieval_limit=100)
+    hits = repository.search_text_candidates('1/2" STL FLEX CONN', limit=100)
+    codes = {item.product_code for item in hits}
+    assert "MSC5090KON" in codes
 
 
 def test_connection_scope_reuses_one_connection_across_searches() -> None:
