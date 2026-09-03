@@ -1,4 +1,4 @@
-import { Fragment, type MouseEvent } from "react";
+import { Fragment, type KeyboardEvent, type MouseEvent } from "react";
 import {
   atkoreProductUrl,
   displayedMatchedName,
@@ -12,7 +12,7 @@ import {
 import type { QuoteMatchResult } from "../types/quote";
 import { AtkoreProductLink } from "./AtkoreProductLink";
 import { CandidateDetails } from "./CandidateDetails";
-import { IconEye, IconInfo } from "./Icons";
+import { IconInfo } from "./Icons";
 
 export function ResultsTable({
   results,
@@ -51,13 +51,12 @@ export function ResultsTable({
               <th>Confidence</th>
               <th>Status</th>
               <th>Why</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {indices.length === 0 ? (
               <tr>
-                <td colSpan={8} className="filter-empty">
+                <td colSpan={7} className="filter-empty">
                   No rows match this filter.
                 </td>
               </tr>
@@ -83,11 +82,22 @@ export function ResultsTable({
                 }
                 onToggle(index);
               }
+              function handleRowKeyDown(event: KeyboardEvent<HTMLTableRowElement>) {
+                if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) {
+                  return;
+                }
+                event.preventDefault();
+                onToggle(index);
+              }
               return (
                 <Fragment key={index}>
                   <tr
                     className={`row-clickable${expanded ? " is-expanded" : ""}`}
                     onClick={handleRowClick}
+                    onKeyDown={handleRowKeyDown}
+                    tabIndex={0}
+                    aria-expanded={expanded}
+                    aria-label={actionLabel}
                   >
                     <td>
                       <div className="requested">{requested}</div>
@@ -115,24 +125,10 @@ export function ResultsTable({
                     <td>
                       <div className="why-cell">{matchWhyHeadline(row)}</div>
                     </td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => onToggle(index)}
-                          aria-expanded={expanded}
-                          aria-label={actionLabel}
-                          title={actionLabel}
-                        >
-                          <IconEye />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                   {expanded ? (
                     <tr className="details">
-                      <td colSpan={8}>
+                      <td colSpan={7}>
                         <CandidateDetails
                           row={row}
                           selecting={selectingIndex === index}

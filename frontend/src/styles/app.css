@@ -1211,30 +1211,6 @@ th {
   display: inline-flex;
 }
 
-.row-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--navy);
-  cursor: pointer;
-  padding: 0;
-}
-
-.icon-btn:hover:not(:disabled) {
-  color: var(--orange);
-  border-color: var(--orange);
-}
-
 .part {
   font-weight: 700;
   font-variant-numeric: lining-nums tabular-nums;

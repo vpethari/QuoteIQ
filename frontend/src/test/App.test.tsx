@@ -170,7 +170,7 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("No part selected")).toBeInTheDocument();
     expect(screen.getByText("Multiple products have equivalent description matches")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Review Match" }));
+    await user.click(screen.getByRole("row", { name: "Review Match" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
     expect(screen.getByText("Possible Matches")).toBeInTheDocument();
@@ -180,7 +180,7 @@ describe("QuoteIQ app", () => {
 
     // Clicking the button didn't also trigger the row's own click handler
     // (it would have immediately toggled the panel closed again).
-    expect(screen.getByRole("button", { name: "Hide review" })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: "Hide review" })).toBeInTheDocument();
 
     // The whole row is clickable, not just the Action icon -- clicking
     // elsewhere in the row (not a link or button) also toggles it. The
@@ -267,7 +267,7 @@ describe("QuoteIQ app", () => {
       expect.stringContaining("width="),
     );
     openSpy.mockRestore();
-    await user.click(screen.getByRole("button", { name: "Show details" }));
+    await user.click(screen.getByRole("row", { name: "Show details" }));
     expect(screen.getByText("Match Details")).toBeInTheDocument();
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
     expect(screen.getByText("120V DBL HEAD EXT CABLE W/MOLEX")).toBeInTheDocument();
@@ -332,7 +332,7 @@ describe("QuoteIQ app", () => {
     expect(await screen.findByText("B1EB5-W-BRP-WHIP")).toBeInTheDocument();
     expect(screen.queryByText("333427")).not.toBeInTheDocument();
     expect(screen.getByText("Exact Productcode + Description Match")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Show details" }));
+    await user.click(screen.getByRole("row", { name: "Show details" }));
     expect(screen.queryByText(/^Productcode —/)).not.toBeInTheDocument();
     expect(screen.getByText("Part Description — Strong match")).toBeInTheDocument();
     expect(screen.getByText("Part Number — No match")).toBeInTheDocument();
@@ -432,7 +432,7 @@ describe("QuoteIQ app", () => {
     expect(screen.getAllByText("No matching Atkore part found").length).toBeGreaterThan(0);
     expect(screen.getByText("No part selected")).toBeInTheDocument();
     expect(screen.getByText("No sufficiently similar product found")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Show details" }));
+    await user.click(screen.getByRole("row", { name: "Show details" }));
     expect(screen.getByText("Match Evidence")).toBeInTheDocument();
     expect(screen.getByText("No catalog candidates were returned for this line.")).toBeInTheDocument();
   });
@@ -467,7 +467,7 @@ describe("QuoteIQ app", () => {
       }),
     );
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
-    await user.click(await screen.findByRole("button", { name: "Review Match" }));
+    await user.click(await screen.findByRole("row", { name: "Review Match" }));
     const selectButtons = screen.getAllByRole("button", { name: "Select" });
     await user.click(selectButtons[1]);
     expect(selectQuoteMatch).toHaveBeenCalledWith(
