@@ -248,6 +248,22 @@ def test_compound_box_dimensions_split_into_comparable_tokens() -> None:
     ]
 
 
+def test_space_separated_mixed_number_matches_dash_separated() -> None:
+    # Customers commonly write a mixed-number size with a space ("1 1/2\"")
+    # rather than this catalog's own dash form ("1-1/2\""). The dimension
+    # regex previously required a literal dash, so "1 1/2\"" fell through
+    # to matching only the bare fraction "1/2" -> "0.5 IN", leaving the
+    # leading "1" as an unrelated whole-number token -- "1 1/2\"" and
+    # "1-1/2\"" never token-matched on size at all. Confirmed live: this
+    # silently ranked the wrong-size 1/2" squeeze connector above the
+    # correct 1-1/2" one for a "1 1/2\" ... FLEX CONN" query.
+    assert apply_unit_normalization('1 1/2" FLEX CONN') == apply_unit_normalization('1-1/2" FLEX CONN')
+    assert tokenize_description('1 1/2" FLEX CONN') == tokenize_description('1-1/2" FLEX CONN')
+    space_dims = extract_dimensions('1 1/2" FLEX CONN')
+    dash_dims = extract_dimensions('1-1/2" FLEX CONN')
+    assert [(d.inches, d.unit) for d in space_dims] == [(d.inches, d.unit) for d in dash_dims]
+
+
 def test_productcode_is_not_parsed_as_measurement() -> None:
     code = "1MD12BZUZ115EB1"
     assert productcode_as_text(code) == code

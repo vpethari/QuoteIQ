@@ -41,7 +41,7 @@ _DIMENSION_EXPR = re.compile(
     r"""
     (?<![A-Z0-9])
     (?:
-        (?P<mixed_whole>\d+)\s*-\s*(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
+        (?P<mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
       | (?P<frac_num>\d+)\s*/\s*(?P<frac_den>\d+)
       | (?P<decimal>\d+\.\d+)
       | (?P<whole>\d+)
