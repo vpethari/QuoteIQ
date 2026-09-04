@@ -652,14 +652,40 @@ def query_has_leading_label_marker(query: str) -> bool:
     return query.lstrip().upper().startswith(_LABEL_MARKER_PREFIX)
 
 
-def decode_label_marker_token(token: str) -> list[str] | None:
+def decode_label_marker_token(token: str, *, head_noun_only: bool = False) -> list[str] | None:
     """The literal words a single leading-label marker token stands for, or
     None if `token` isn't one (see catalog.search_query._restore_label_tokens
     -- retrieval's default, label-required search expands the marker back
-    into these words in place, rather than dropping it)."""
+    into these words in place, rather than dropping it).
+
+    head_noun_only: keep just the label's last word (its head noun -- e.g.
+    "Tray" in "Cable Tray") instead of all of them. Confirmed live: "Cable
+    Tray: 90 Degree Bend R12\" W36\"" found nothing with the full label
+    required, so retrieval fell all the way back to dropping "Tray" too --
+    leaving only generic words ("90", "degree", "bend") that match any
+    90-degree conduit elbow in the entire catalog, surfacing a completely
+    unrelated PVC conduit fitting. "Cable" is a qualifier; "Tray" is the
+    actual product-type word and should never be dropped for a multi-word
+    label (see catalog.postgres_repository.search_text_candidates, which
+    tries this middle tier before ever fully dropping a multi-word label,
+    and simply returns nothing rather than fully dropping it)."""
     if not is_leading_label_marker(token):
         return None
-    return _decode_label_words(token.upper()[len(_LABEL_MARKER_PREFIX):])
+    words = _decode_label_words(token.upper()[len(_LABEL_MARKER_PREFIX):])
+    return words[-1:] if head_noun_only and words else words
+
+
+def leading_label_word_count(query: str) -> int:
+    """How many words the leading label (if any) decodes to -- 0 if there
+    isn't one. Used to decide whether a label is a single word (e.g.
+    "Conduit", safe to drop entirely as a last resort -- see
+    decode_label_marker_token) or multi-word (e.g. "Cable Tray", where only
+    the qualifier should ever be dropped, never the head noun)."""
+    marker = query.lstrip()
+    if not is_leading_label_marker(marker.split(" ", 1)[0] if marker else ""):
+        return 0
+    decoded = decode_label_marker_token(marker.split(" ", 1)[0])
+    return len(decoded) if decoded else 0
 
 
 def restore_leading_label_words(query: str) -> str:

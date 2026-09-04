@@ -9,7 +9,7 @@ from sqlalchemy import bindparam, inspect, text
 from sqlalchemy.engine import Connection, Engine
 
 from catalog.search_query import retrieval_search_string, retrieval_search_token_groups
-from matching.category_defaults import query_has_leading_label_marker
+from matching.category_defaults import leading_label_word_count, query_has_leading_label_marker
 from matching.models import ProductRecord
 from matching.normalizer import part_number_lookup_keys
 from matching.productcode import compact_code, productcode_as_text
@@ -338,25 +338,35 @@ class PostgresCatalogRepository:
         an unrelated PVC elbow fitting tie a genuine coupling on token
         overlap and outrank it, since the catalog usually does spell the
         label word out. Only if that attempt finds nothing at all is it
-        retried with the label dropped -- the confirmed rescue case (e.g.
-        "Conduit:" over an Innerduct family that never spells "conduit"
-        out at all).
+        retried:
+        - A multi-word label (e.g. "Cable Tray") only ever drops its
+          qualifier word(s), never its head noun ("Tray") -- confirmed
+          live, dropping "Tray" too let an unrelated PVC conduit elbow
+          satisfy the remaining generic words ("90"/"degree"/"bend") alone
+          and surface for "Cable Tray: 90 Degree Bend R12\" W36\"". If
+          that still finds nothing, this returns nothing rather than ever
+          fully dropping the head noun.
+        - A single-word label (e.g. "Conduit") has no qualifier/head-noun
+          split, so it's dropped entirely -- the confirmed rescue case
+          (an Innerduct family that never spells "conduit" out at all).
         """
         cap = self.retrieval_limit if limit is None else limit
-        products = self._search_text_candidates_attempt(query, cap, rank_query, restore_label=True)
+        products = self._search_text_candidates_attempt(query, cap, rank_query, label_mode="full")
         if products or not query_has_leading_label_marker(query):
             return products
-        return self._search_text_candidates_attempt(query, cap, rank_query, restore_label=False)
+        if leading_label_word_count(query) > 1:
+            return self._search_text_candidates_attempt(query, cap, rank_query, label_mode="head_noun")
+        return self._search_text_candidates_attempt(query, cap, rank_query, label_mode="dropped")
 
     def _search_text_candidates_attempt(
-        self, query: str, cap: int, rank_query: str | None, *, restore_label: bool
+        self, query: str, cap: int, rank_query: str | None, *, label_mode: str
     ) -> list[ProductRecord]:
-        token_groups = retrieval_search_token_groups(query, restore_label=restore_label)
-        normalized = retrieval_search_string(query, restore_label=restore_label)
+        token_groups = retrieval_search_token_groups(query, label_mode=label_mode)
+        normalized = retrieval_search_string(query, label_mode=label_mode)
         if not normalized:
             return []
         rank_normalized = (
-            retrieval_search_string(rank_query, restore_label=restore_label) if rank_query else normalized
+            retrieval_search_string(rank_query, label_mode=label_mode) if rank_query else normalized
         )
         variant_counts = [len(group) for group in token_groups]
         token_params: dict[str, object] = {}

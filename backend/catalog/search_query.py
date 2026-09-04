@@ -17,7 +17,7 @@ from matching.tokenizer import tokenize_description
 _LEADING_ZERO_RE = re.compile(r"^0+(\d)")
 
 
-def _restore_label_tokens(tokens: list[str]) -> list[str]:
+def _restore_label_tokens(tokens: list[str], *, head_noun_only: bool = False) -> list[str]:
     """Expand a leading-label marker token back into its literal words, in
     place of the marker -- used for retrieval's *first* attempt, where the
     label word should be treated exactly like any other required word (see
@@ -28,12 +28,24 @@ def _restore_label_tokens(tokens: list[str]) -> list[str]:
     elbow fitting tie a genuine coupling on token overlap and outrank it.
     Only the confirmed cases (Conduit:, Cable Tray:) where the label is
     never actually excluded need it dropped -- and only as a fallback once
-    requiring it finds nothing at all, not by default."""
+    requiring it finds nothing at all, not by default.
+
+    head_noun_only: see matching.category_defaults.decode_label_marker_token
+    -- the middle fallback tier for a multi-word label, keeping just its
+    head noun (e.g. "Tray") required."""
     expanded: list[str] = []
     for token in tokens:
-        decoded = decode_label_marker_token(token)
+        decoded = decode_label_marker_token(token, head_noun_only=head_noun_only)
         expanded.extend(decoded if decoded is not None else [token])
     return expanded
+
+
+def _apply_label_mode(tokens: list[str], label_mode: str) -> list[str]:
+    if label_mode == "full":
+        return _restore_label_tokens(tokens)
+    if label_mode == "head_noun":
+        return _restore_label_tokens(tokens, head_noun_only=True)
+    return [token for token in tokens if not is_leading_label_marker(token)]
 
 
 def _strip_leading_zero(token: str) -> str:
@@ -50,7 +62,7 @@ def _strip_leading_zero(token: str) -> str:
     return token
 
 
-def retrieval_search_string(query: str, *, restore_label: bool = True) -> str:
+def retrieval_search_string(query: str, *, label_mode: str = "full") -> str:
     """Lowercased retrieval string. Python still owns synonym/unit/noise handling.
 
     apply_units=False: `search_text` is a raw generated column, never unit-
@@ -58,13 +70,11 @@ def retrieval_search_string(query: str, *, restore_label: bool = True) -> str:
     of being rewritten to "0.5 IN" -- which the catalog's own text would
     never contain.
 
-    restore_label: see retrieval_search_token_groups.
+    label_mode: see retrieval_search_token_groups.
     """
     cleaned = strip_quantity_and_noise(query)
     raw_tokens = [token for token in tokenize_description(cleaned, apply_units=False) if token]
-    raw_tokens = _restore_label_tokens(raw_tokens) if restore_label else [
-        token for token in raw_tokens if not is_leading_label_marker(token)
-    ]
+    raw_tokens = _apply_label_mode(raw_tokens, label_mode)
     tokens = [_strip_leading_zero(token.lower()) for token in raw_tokens]
     if tokens:
         return " ".join(tokens)
@@ -85,7 +95,7 @@ def _is_distinctive(token: str) -> bool:
 
 
 def retrieval_search_token_groups(
-    query: str, *, limit: int = 8, restore_label: bool = True
+    query: str, *, limit: int = 8, label_mode: str = "full"
 ) -> list[tuple[str, ...]]:
     """Expand each retrieval-worthy query token to every catalog spelling it
     could stand for (e.g. "cbl" -> ("cable", "cables", "cbl")).
@@ -95,25 +105,32 @@ def retrieval_search_token_groups(
     must search for any equivalent spelling so a synonym never zeroes out
     candidates that only differ in which spelling the catalog happened to use.
 
-    restore_label: a leading "<Category>:" RFQ label (see
+    label_mode: a leading "<Category>:" RFQ label (see
     matching.category_defaults) is usually a genuinely useful, literal
     catalog word -- confirmed live, unconditionally dropping "Coupling:"
     let an unrelated PVC elbow fitting tie a genuine coupling on token
-    overlap and outrank it. So by default (True) the label's real words are
-    restored and required exactly like any other query word. Only
-    catalog.postgres_repository.search_text_candidates passes False, and
-    only as a fallback once that default search finds nothing at all --
-    the confirmed rescue case (e.g. "Conduit:" over an Innerduct family
-    that never spells "conduit" out).
+    overlap and outrank it. So by default ("full") the label's real words
+    are restored and required exactly like any other query word. Only
+    catalog.postgres_repository.search_text_candidates passes anything
+    else, and only as a fallback once that default search finds nothing at
+    all:
+    - "head_noun" keeps just the label's last word (e.g. "Tray" in "Cable
+      Tray") required, dropping only the qualifier ("Cable"/"Coupling
+      Category"/etc.) -- tried before ever fully dropping a multi-word
+      label. Confirmed live: dropping "Tray" too let an unrelated PVC
+      conduit elbow satisfy "90"/"degree"/"bend" alone and surface for
+      "Cable Tray: 90 Degree Bend R12\" W36\"".
+    - "dropped" removes the label entirely -- the confirmed rescue case
+      for a single-word label (e.g. "Conduit:" over an Innerduct family
+      that never spells "conduit" out at all). Never used for a
+      multi-word label -- see search_text_candidates.
     """
     cleaned = strip_quantity_and_noise(query)
     # apply_units=False: see retrieval_search_string -- a fraction size must
     # stay literal ("1/2", not "0.5 IN") to match the catalog's raw text.
     # _strip_leading_zero: "02\"" must still match the catalog's own "2".
     raw_tokens = tokenize_description(cleaned, apply_units=False)
-    raw_tokens = _restore_label_tokens(raw_tokens) if restore_label else [
-        token for token in raw_tokens if not is_leading_label_marker(token)
-    ]
+    raw_tokens = _apply_label_mode(raw_tokens, label_mode)
     tokens = [_strip_leading_zero(token) for token in raw_tokens]
     distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:

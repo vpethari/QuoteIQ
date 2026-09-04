@@ -220,7 +220,7 @@ def test_normalize_raw_customer_text_marks_any_leading_category_label() -> None:
 
 
 def test_leading_label_is_required_by_default_and_restored_for_scoring() -> None:
-    # By default (restore_label=True, retrieval's normal call), a leading
+    # By default (label_mode="full", retrieval's normal call), a leading
     # label's real words are required exactly like any other query word --
     # confirmed live, unconditionally dropping "Coupling:" let an unrelated
     # PVC elbow fitting tie a genuine coupling on token overlap and outrank
@@ -245,12 +245,14 @@ def test_leading_label_is_required_by_default_and_restored_for_scoring() -> None
         for word in expected_words.lower().split():
             assert word in flat_default
 
-        # search_text_candidates' fallback attempt, only made if the
-        # default (label-required) search finds nothing at all (see
-        # catalog.postgres_repository.search_text_candidates) -- confirmed
-        # rescue case: "Conduit:" over an Innerduct family that never
-        # spells "conduit" out at all.
-        dropped = retrieval_search_token_groups(normalized, restore_label=False)
+        # search_text_candidates' fallback attempt for a single-word label,
+        # only made if the default (label-required) search finds nothing at
+        # all (see catalog.postgres_repository.search_text_candidates) --
+        # confirmed rescue case: "Conduit:" over an Innerduct family that
+        # never spells "conduit" out at all. A multi-word label never
+        # drops this far -- see
+        # test_multiword_label_never_drops_its_head_noun below.
+        dropped = retrieval_search_token_groups(normalized, label_mode="dropped")
         flat_dropped = {variant for group in dropped for variant in group}
         assert "qiqlbl" not in " ".join(flat_dropped)
         for word in expected_words.lower().split():
@@ -260,6 +262,26 @@ def test_leading_label_is_required_by_default_and_restored_for_scoring() -> None
         # retrieval attempt eventually finds the candidate.
         expanded = expand_query_for_retrieval(normalized)
         assert expected_words in expanded
+
+
+def test_multiword_label_never_drops_its_head_noun() -> None:
+    # Confirmed live: "Cable Tray: 90 Degree Bend R12\" W36\"" found nothing
+    # with "Cable Tray" required (no catalog cable-tray bend fitting spells
+    # out "degree"/"bend"/"r12"/"w36"), so retrieval fell all the way back
+    # to dropping "Tray" too -- leaving only generic words ("90", "degree",
+    # "bend") that matched an unrelated PVC conduit elbow (F801009036P,
+    # "90 deg ... Bend Radius PVC Schedule 80 Elbow") in the entire
+    # catalog. "Tray" is the label's head noun, "Cable" just a qualifier --
+    # search_text_candidates' middle fallback tier (label_mode="head_noun")
+    # must drop only "Cable", never "Tray".
+    from catalog.search_query import retrieval_search_token_groups
+
+    normalized = normalize_raw_customer_text('Cable Tray: 90 Degree Bend R12" W36"')
+    head_noun = retrieval_search_token_groups(normalized, label_mode="head_noun")
+    flat = {variant for group in head_noun for variant in group}
+    assert "qiqlbl" not in " ".join(flat)
+    assert "cable" not in flat
+    assert "tray" in flat
 
 
 def test_expand_known_phrases_appends_matched_expansion() -> None:
