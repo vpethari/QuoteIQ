@@ -2,13 +2,38 @@ from __future__ import annotations
 
 import re
 
-from matching.category_defaults import interchangeable_qualifier_variants, reduce_bare_category_tokens
+from matching.category_defaults import (
+    decode_label_marker_token,
+    interchangeable_qualifier_variants,
+    is_leading_label_marker,
+    reduce_bare_category_tokens,
+    reduce_tray_filler_tokens,
+)
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
 
 
 _LEADING_ZERO_RE = re.compile(r"^0+(\d)")
+
+
+def _restore_label_tokens(tokens: list[str]) -> list[str]:
+    """Expand a leading-label marker token back into its literal words, in
+    place of the marker -- used for retrieval's *first* attempt, where the
+    label word should be treated exactly like any other required word (see
+    catalog.postgres_repository.search_text_candidates: most labels really
+    are spelled out in the matching catalog family -- e.g. "Coupling:" --
+    and requiring it there is a genuine, useful discriminator, not noise;
+    dropping it unconditionally, as retrieval used to, let an unrelated PVC
+    elbow fitting tie a genuine coupling on token overlap and outrank it.
+    Only the confirmed cases (Conduit:, Cable Tray:) where the label is
+    never actually excluded need it dropped -- and only as a fallback once
+    requiring it finds nothing at all, not by default."""
+    expanded: list[str] = []
+    for token in tokens:
+        decoded = decode_label_marker_token(token)
+        expanded.extend(decoded if decoded is not None else [token])
+    return expanded
 
 
 def _strip_leading_zero(token: str) -> str:
@@ -25,18 +50,22 @@ def _strip_leading_zero(token: str) -> str:
     return token
 
 
-def retrieval_search_string(query: str) -> str:
+def retrieval_search_string(query: str, *, restore_label: bool = True) -> str:
     """Lowercased retrieval string. Python still owns synonym/unit/noise handling.
 
     apply_units=False: `search_text` is a raw generated column, never unit-
     normalized, so a fraction size like "1/2" must stay literal here instead
     of being rewritten to "0.5 IN" -- which the catalog's own text would
     never contain.
+
+    restore_label: see retrieval_search_token_groups.
     """
     cleaned = strip_quantity_and_noise(query)
-    tokens = [
-        _strip_leading_zero(token.lower()) for token in tokenize_description(cleaned, apply_units=False) if token
+    raw_tokens = [token for token in tokenize_description(cleaned, apply_units=False) if token]
+    raw_tokens = _restore_label_tokens(raw_tokens) if restore_label else [
+        token for token in raw_tokens if not is_leading_label_marker(token)
     ]
+    tokens = [_strip_leading_zero(token.lower()) for token in raw_tokens]
     if tokens:
         return " ".join(tokens)
     return cleaned.lower().strip()
@@ -55,7 +84,9 @@ def _is_distinctive(token: str) -> bool:
     return len(token) >= 3
 
 
-def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[str, ...]]:
+def retrieval_search_token_groups(
+    query: str, *, limit: int = 8, restore_label: bool = True
+) -> list[tuple[str, ...]]:
     """Expand each retrieval-worthy query token to every catalog spelling it
     could stand for (e.g. "cbl" -> ("cable", "cables", "cbl")).
 
@@ -63,12 +94,27 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     are canonicalized (e.g. "cable" -> "cbl") for scoring purposes. Retrieval
     must search for any equivalent spelling so a synonym never zeroes out
     candidates that only differ in which spelling the catalog happened to use.
+
+    restore_label: a leading "<Category>:" RFQ label (see
+    matching.category_defaults) is usually a genuinely useful, literal
+    catalog word -- confirmed live, unconditionally dropping "Coupling:"
+    let an unrelated PVC elbow fitting tie a genuine coupling on token
+    overlap and outrank it. So by default (True) the label's real words are
+    restored and required exactly like any other query word. Only
+    catalog.postgres_repository.search_text_candidates passes False, and
+    only as a fallback once that default search finds nothing at all --
+    the confirmed rescue case (e.g. "Conduit:" over an Innerduct family
+    that never spells "conduit" out).
     """
     cleaned = strip_quantity_and_noise(query)
     # apply_units=False: see retrieval_search_string -- a fraction size must
     # stay literal ("1/2", not "0.5 IN") to match the catalog's raw text.
     # _strip_leading_zero: "02\"" must still match the catalog's own "2".
-    tokens = [_strip_leading_zero(token) for token in tokenize_description(cleaned, apply_units=False)]
+    raw_tokens = tokenize_description(cleaned, apply_units=False)
+    raw_tokens = _restore_label_tokens(raw_tokens) if restore_label else [
+        token for token in raw_tokens if not is_leading_label_marker(token)
+    ]
+    tokens = [_strip_leading_zero(token) for token in raw_tokens]
     distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:
         distinctive = [token for token in tokens if token]
@@ -77,13 +123,32 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     # EMT conduit stick's own catalog text doesn't necessarily happen to
     # spell out that exact word (see reduce_bare_category_tokens).
     distinctive = reduce_bare_category_tokens(distinctive)
-    # "CONDUITLBL" is a synthetic marker (see
-    # matching.category_defaults._mark_leading_conduit_label) standing in
-    # for a leading "Conduit:" section label -- the customer's own stated
-    # product category, real intent, so PHRASE_EXPANSIONS puts "CONDUIT"
-    # back for scoring. But it's never itself a literal catalog word, so it
-    # must never be a retrieval search term at all, required or otherwise.
-    distinctive = [token for token in distinctive if token.upper() != "CONDUITLBL"]
+    # Same treatment for cable-tray-specific filler words ("ladder", and
+    # "wide"/"long" right after a dimension) -- see
+    # matching.category_defaults.reduce_tray_filler_tokens.
+    distinctive = reduce_tray_filler_tokens(distinctive)
+    # A repeated word must occupy only one required token *position*, not
+    # one per occurrence -- confirmed live: restoring a leading label whose
+    # own word coincidentally repeats later in the line ("Cable Tray:
+    # Ladder Tray...", "tray" both as the label and the body's own noun)
+    # produced two separate "tray" positions from one real signal. The
+    # partial-match SQL (postgres_repository.partial_search_text_sql)
+    # counts *distinct token positions* satisfied, so a single literal
+    # "tray" substring in an unrelated candidate's text satisfied both
+    # positions at once -- letting an unrelated cable product clear the
+    # 60% overlap floor on "cable"+"tray" alone, without needing to also
+    # match either dimension, and outrank the genuine tray family. A
+    # catalog row's real content shouldn't count more just because the
+    # customer's own phrasing happened to repeat a word.
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for token in distinctive:
+        upper = token.upper()
+        if upper in seen:
+            continue
+        seen.add(upper)
+        deduped.append(token)
+    distinctive = deduped
     # Some qualifier words are only interchangeable next to a specific other
     # word (e.g. "conduit"/"hanger" next to "clamp") -- OR the equivalent
     # spelling in at that one token position rather than requiring either

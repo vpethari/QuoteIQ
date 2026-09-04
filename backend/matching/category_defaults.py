@@ -366,13 +366,9 @@ PHRASE_EXPANSIONS: dict[frozenset[str], str] = {
     # clamp, since a candidate's own raw text ("squeeze"/"connectors") won't
     # otherwise overlap the query's "flex"/"conn" at all.
     frozenset({"FLEX", "CONN"}): "SQUEEZE CONNECTOR",
-    # See _mark_leading_conduit_label / normalize_raw_customer_text: a
-    # leading "Conduit:" label is rewritten to this marker on the raw text
-    # so retrieval can drop it unconditionally (catalog/search_query.py)
-    # without colliding with a genuine "CONDUIT CLAMP"-style query. This
-    # puts the real word back for scoring, same as any other phrase
-    # expansion here.
-    frozenset({"CONDUITLBL"}): "CONDUIT",
+    # A leading "<Category>:" RFQ label (e.g. "Conduit:", "Cable Tray:") is
+    # handled separately, by restore_leading_label_words() below, not a
+    # fixed entry here -- see _mark_leading_label / normalize_raw_customer_text.
 }
 
 
@@ -547,48 +543,185 @@ def expand_acronym_phrases(query: str) -> str:
     return query
 
 
-# Some RFQs prefix each line with "Conduit:" -- e.g. "Conduit: 2\"
-# Innerduct, Smooth, Orange". This is a genuine statement of the
-# customer's intended product category, not a throwaway section header --
-# it must stay in the query (scoring should still credit a candidate that
-# happens to say "conduit"), but it also must not become a hard, literal
-# retrieval requirement, since some catalog sub-categories under it
-# (Innerduct) never spell the parent category word out in their own text.
-# Confirmed live: with "conduit" required, retrieval needed "conduit" AND
-# "innerduct" AND "smooth" AND "orange" all in one catalog row; no
-# Innerduct product's own text says "conduit" (or "smooth" -- this catalog
-# only distinguishes GenPur/Riser/Plenum/Kortech innerduct types, not wall
-# texture), so at most 2 of those 4 tokens could ever match -- below the
-# retrieval fallback's 60% overlap floor, producing a hard NO_MATCH despite
-# real 2" orange Innerduct products existing. Scoped to "Conduit:"
-# specifically (not any arbitrary leading "Word:") since that's the one
-# confirmed case.
+# This RFQ format prefixes every line with "<Category>:" -- e.g. "Conduit:
+# 2\" Innerduct, Smooth, Orange", "Cable Tray: Ladder Tray, 36\" Wide, 144\"
+# Long", "Coupling: 02\" PVC...", "Sweep: 08\" PVC...", "Grounding:
+# Compression Crimp...". Each is a genuine statement of the customer's
+# intended product category, not a throwaway section header -- it must stay
+# in the query (scoring should still credit a candidate whose text happens
+# to say the label word), but it also must not become a hard, literal
+# retrieval requirement, since a catalog sub-category under a given label
+# doesn't always spell the parent label word out in its own text.
+# Confirmed live (the first case found): with "conduit" required, "Conduit:
+# 2\" Innerduct, Smooth, Orange" needed "conduit" AND "innerduct" AND
+# "smooth" AND "orange" all in one catalog row; no Innerduct product's own
+# text says "conduit" (or "smooth" -- this catalog only distinguishes
+# GenPur/Riser/Plenum/Kortech innerduct types, not wall texture), so at most
+# 2 of those 4 tokens could ever match -- below the retrieval fallback's 60%
+# overlap floor, producing a hard NO_MATCH despite real 2" orange Innerduct
+# products existing. The same shape of bug then reappeared for "Cable
+# Tray:" -- confirmed the fix needs to generalize to *any* leading label
+# this RFQ format uses, not one hand-picked category at a time.
 #
-# Rewritten to a synthetic marker word ("CONDUITLBL") here, on the raw
-# text, rather than just remembering "there was a colon" -- checking
-# "CONDUIT is the first token" further down the pipeline instead was tried
-# and rejected: interpret_customer_text() strips punctuation before
-# retrieval ever runs, so the colon itself doesn't survive that far, and a
-# plain word-position check collides with a genuine query like "CONDUIT
-# CLAMP" (a real, required product-type word that also happens to come
-# first) -- caught immediately by the existing test suite. A marker word
-# that can never occur naturally has no such ambiguity: it only exists
-# when this exact regex fired on the original raw text. PHRASE_EXPANSIONS
-# below maps it back to "CONDUIT" for scoring; retrieval drops it
-# unconditionally (see catalog/search_query.py) since it is never a real
+# Generalized as: fold the whole leading "<label words>:" into one opaque
+# marker token on the raw text, rather than just remembering "there was a
+# colon" -- checking "the label word is the first token" further down the
+# pipeline instead was tried and rejected for the Conduit case:
+# interpret_customer_text() strips punctuation before retrieval ever runs,
+# so the colon itself doesn't survive that far, and a plain word-position
+# check collides with a genuine query like "CONDUIT CLAMP" (a real,
+# required product-type word that also happens to come first) -- caught
+# immediately by the existing test suite. A marker token that can never
+# occur naturally has no such ambiguity: it only exists when this exact
+# regex fired on the original raw text. Any retrieval token starting with
+# the marker prefix is dropped unconditionally (see
+# catalog/search_query.py's is_leading_label_marker(), matched generically
+# by prefix, not a fixed per-category list) since it is never a real
 # catalog word to search for.
-_LEADING_CONDUIT_LABEL_RE = re.compile(r"^\s*CONDUIT\s*:\s*", re.IGNORECASE)
+#
+# The marker glues the label's words together with no separator at all
+# ("CABLETRAY", not "CABLE_TRAY") -- tokenize_description()'s own token
+# regex only keeps runs of [A-Z0-9] as one token (confirmed live: an
+# underscore- or slash-joined marker silently fragments back into separate
+# "CABLE"/"TRAY" tokens, defeating the whole point -- only a run with no
+# non-alphanumeric separator at all survives as one token). Each word is
+# prefixed with its own zero-padded length (e.g. "05CABLE04TRAY") so
+# restore_leading_label_words() below can split it back into the original
+# words unambiguously (digits are never part of a real word, so a length
+# prefix can't be confused with word content) -- this is the same reason a
+# plain concatenation like "CABLETRAY" can't just be split back into words
+# again: nothing marks where one word ends and the next begins.
+#
+# retrieval (catalog/search_query.py) drops any QIQLBL-prefixed token
+# unconditionally, since it's never a real catalog word to search for.
+# Scoring is different: normalize_raw_customer_text() feeds *both* paths
+# from the same shared string, so the literal words can't simply be left in
+# place there too (retrieval would then require them, right back to the
+# original bug) -- restore_leading_label_words() instead decodes the
+# marker and appends the plain words, but only in
+# description_normalize.expand_query_for_retrieval(), the scoring-only
+# expansion step that runs after retrieval has already built its own
+# token groups from the un-restored, marker-only string.
+#
+# Scoped to 1-3 leading words so it only matches this RFQ format's actual
+# category-header convention, not any arbitrary sentence that happens to
+# contain a colon somewhere -- and anchored to the very start of the line
+# (re.match, not search), so a colon anywhere else in the text never
+# triggers it.
+_LEADING_LABEL_RE = re.compile(r"^\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,2})\s*:\s*")
+
+# Distinctive enough that no real catalog word or customer abbreviation
+# could ever collide with it.
+_LABEL_MARKER_PREFIX = "QIQLBL"
+_LABEL_MARKER_RE = re.compile(rf"\b{_LABEL_MARKER_PREFIX}((?:\d{{2}}[A-Z]+)+)\b")
 
 
-def _mark_leading_conduit_label(query: str) -> str:
-    return _LEADING_CONDUIT_LABEL_RE.sub("CONDUITLBL ", query, count=1)
+def _encode_label_words(words: list[str]) -> str:
+    return "".join(f"{len(word):02d}{word}" for word in words)
+
+
+def _decode_label_words(encoded: str) -> list[str]:
+    words = []
+    position = 0
+    while position < len(encoded):
+        length = int(encoded[position : position + 2])
+        words.append(encoded[position + 2 : position + 2 + length])
+        position += 2 + length
+    return words
+
+
+def _mark_leading_label(query: str) -> str:
+    match = _LEADING_LABEL_RE.match(query)
+    if not match:
+        return query
+    label_words = match.group(1).upper().split()
+    marker = _LABEL_MARKER_PREFIX + _encode_label_words(label_words)
+    return f"{marker} {query[match.end():]}"
+
+
+def is_leading_label_marker(token: str) -> bool:
+    return token.upper().startswith(_LABEL_MARKER_PREFIX)
+
+
+def query_has_leading_label_marker(query: str) -> bool:
+    """Cheap check for whether `_mark_leading_label` fired on this query,
+    without re-tokenizing it -- the marker, if present, is always the very
+    first thing in the string (see _mark_leading_label). Used by
+    catalog.postgres_repository.search_text_candidates to decide whether a
+    second, label-word-dropped retrieval attempt is worth making at all."""
+    return query.lstrip().upper().startswith(_LABEL_MARKER_PREFIX)
+
+
+def decode_label_marker_token(token: str) -> list[str] | None:
+    """The literal words a single leading-label marker token stands for, or
+    None if `token` isn't one (see catalog.search_query._restore_label_tokens
+    -- retrieval's default, label-required search expands the marker back
+    into these words in place, rather than dropping it)."""
+    if not is_leading_label_marker(token):
+        return None
+    return _decode_label_words(token.upper()[len(_LABEL_MARKER_PREFIX):])
+
+
+def restore_leading_label_words(query: str) -> str:
+    """Append the literal words a leading-label marker (see
+    _mark_leading_label) stands for, back onto the query -- for scoring
+    credit only (see description_normalize.expand_query_for_retrieval).
+    Retrieval drops any marker token unconditionally instead and never
+    calls this (see catalog/search_query.py)."""
+
+    def _replace(match: re.Match[str]) -> str:
+        return f"{match.group(0)} {' '.join(_decode_label_words(match.group(1)))}"
+
+    return _LABEL_MARKER_RE.sub(_replace, query)
+
+
+# Confirmed live: "Cable Tray: Ladder Tray, 36\" Wide, 144\" Long" found zero
+# candidates even after the leading-label fix above, because the catalog's own
+# EGL straight-section text ("EGL TRAY 4\"H X 36\"W X 10'L STR") never says
+# "ladder", "wide", or "long" -- it spells dimensions as bare numbers with a
+# single-letter code, nothing else. A full catalog search confirms this
+# catalog sells exactly one bare "Tray" product line (EGL, steel ladder
+# tray) -- nothing else is filed under a standalone "Tray" name here -- so
+# "ladder" is always redundant once "tray" itself is present. "Wide"/"Long"
+# are dropped only when they directly follow a dimension number, so a
+# genuine product name where one of those words is load-bearing (e.g. "PVC
+# LONG LINE COUPLING", where "long" is the first word, not dimension-
+# adjacent) is unaffected. Scoped to only fire when "tray" is present at
+# all, so this never touches an unrelated query.
+_TRAY_REDUNDANT_WORDS = frozenset({"LADDER"})
+_DIMENSION_ADJACENT_FILLER = frozenset({"WIDE", "LONG", "TALL", "DEEP", "HIGH"})
+
+
+def _looks_like_size_token(token: str) -> bool:
+    bare = token.replace(".", "", 1)
+    if "/" in bare:
+        left, _, right = bare.partition("/")
+        return left.isdigit() and right.isdigit()
+    return bare.isdigit()
+
+
+def reduce_tray_filler_tokens(tokens: list[str]) -> list[str]:
+    """Drop cable-tray-specific filler words before they become *required*
+    retrieval tokens (see the comment above)."""
+    upper_tokens = [token.upper() for token in tokens]
+    if "TRAY" not in upper_tokens:
+        return tokens
+    kept: list[str] = []
+    for index, token in enumerate(tokens):
+        upper = token.upper()
+        if upper in _TRAY_REDUNDANT_WORDS:
+            continue
+        if upper in _DIMENSION_ADJACENT_FILLER and index > 0 and _looks_like_size_token(tokens[index - 1]):
+            continue
+        kept.append(token)
+    return kept
 
 
 def normalize_raw_customer_text(query: str) -> str:
     """Every raw-text normalization that must run before
     interpret_customer_text() touches the line (see normalize_strut_catalog_codes
     and expand_acronym_phrases for why each one needs this stage)."""
-    query = _mark_leading_conduit_label(query)
+    query = _mark_leading_label(query)
     query = normalize_strut_catalog_codes(query)
     query = expand_acronym_phrases(query)
     return query

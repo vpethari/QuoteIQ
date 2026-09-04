@@ -9,6 +9,7 @@ from sqlalchemy import bindparam, inspect, text
 from sqlalchemy.engine import Connection, Engine
 
 from catalog.search_query import retrieval_search_string, retrieval_search_token_groups
+from matching.category_defaults import query_has_leading_label_marker
 from matching.models import ProductRecord
 from matching.normalizer import part_number_lookup_keys
 from matching.productcode import compact_code, productcode_as_text
@@ -330,13 +331,33 @@ class PostgresCatalogRepository:
         matching.category_defaults) instead gives rows that spell out the
         implied default wording a comparably-sized string to score against,
         without narrowing which rows are eligible in the first place.
+
+        A leading "<Category>:" RFQ label (see matching.category_defaults)
+        is required like any other query word on this first attempt --
+        confirmed live, unconditionally dropping it (e.g. "Coupling:") let
+        an unrelated PVC elbow fitting tie a genuine coupling on token
+        overlap and outrank it, since the catalog usually does spell the
+        label word out. Only if that attempt finds nothing at all is it
+        retried with the label dropped -- the confirmed rescue case (e.g.
+        "Conduit:" over an Innerduct family that never spells "conduit"
+        out at all).
         """
         cap = self.retrieval_limit if limit is None else limit
-        token_groups = retrieval_search_token_groups(query)
-        normalized = retrieval_search_string(query)
+        products = self._search_text_candidates_attempt(query, cap, rank_query, restore_label=True)
+        if products or not query_has_leading_label_marker(query):
+            return products
+        return self._search_text_candidates_attempt(query, cap, rank_query, restore_label=False)
+
+    def _search_text_candidates_attempt(
+        self, query: str, cap: int, rank_query: str | None, *, restore_label: bool
+    ) -> list[ProductRecord]:
+        token_groups = retrieval_search_token_groups(query, restore_label=restore_label)
+        normalized = retrieval_search_string(query, restore_label=restore_label)
         if not normalized:
             return []
-        rank_normalized = retrieval_search_string(rank_query) if rank_query else normalized
+        rank_normalized = (
+            retrieval_search_string(rank_query, restore_label=restore_label) if rank_query else normalized
+        )
         variant_counts = [len(group) for group in token_groups]
         token_params: dict[str, object] = {}
         for position, group in enumerate(token_groups):

@@ -178,42 +178,88 @@ def test_retrieval_token_groups_or_conduit_for_grc_hub() -> None:
     assert any(group == {"hub"} for group in flat_by_position)
 
 
-def test_normalize_raw_customer_text_marks_leading_conduit_label() -> None:
-    # Confirmed live: "Conduit: 2\" Innerduct, Smooth, Orange" required
-    # "conduit" AND "innerduct" AND "smooth" AND "orange" all in one
-    # catalog row for retrieval -- no Innerduct product's own text ever
-    # says "conduit", so at most 2 of those 4 tokens could match, below
+def test_normalize_raw_customer_text_marks_any_leading_category_label() -> None:
+    # This RFQ format prefixes every line with "<Category>:" -- confirmed
+    # live for several different categories, not just one: "Conduit: 2\"
+    # Innerduct, Smooth, Orange" required "conduit" AND "innerduct" AND
+    # "smooth" AND "orange" all in one catalog row for retrieval (no
+    # Innerduct product's own text ever says "conduit"), and "Cable Tray:
+    # Ladder Tray, 36\" Wide, 144\" Long" required "cable" (the catalog's
+    # own EGL tray family text never says it, only "TRAY") -- both below
     # the retrieval fallback's 60% overlap floor, producing a hard
-    # NO_MATCH despite real 2" orange Innerduct products existing.
+    # NO_MATCH despite real matching products existing. The fix has to
+    # generalize to *any* leading label this RFQ format uses (also
+    # confirmed live: "Coupling:", "Sweep:", "Grounding:"), not one
+    # hand-picked category at a time.
     #
-    # Marked as a synthetic "CONDUITLBL" token rather than just dropped:
+    # Marked as a synthetic "QIQLBL..." token rather than just dropped:
     # interpret_customer_text() strips the colon before retrieval ever
-    # runs, so checking for a literal colon (or even "CONDUIT is the
-    # first word") that far down the pipeline never fires -- and a plain
-    # word-position check collides with a genuine "CONDUIT CLAMP"-style
-    # query where "conduit" is a real, required word that also happens to
-    # come first (see test_retrieval_token_groups_or_conduit_and_hanger_for_clamp).
+    # runs, so checking for a literal colon (or even "the label word is
+    # the first token") that far down the pipeline never fires -- and a
+    # plain word-position check collides with a genuine "CONDUIT
+    # CLAMP"-style query where "conduit" is a real, required word that
+    # also happens to come first (see
+    # test_retrieval_token_groups_or_conduit_and_hanger_for_clamp).
     assert normalize_raw_customer_text('Conduit: 2" Innerduct, Smooth, Orange') == (
-        'CONDUITLBL 2" Innerduct, Smooth, Orange'
+        'QIQLBL07CONDUIT 2" Innerduct, Smooth, Orange'
     )
-    # Not a label -- "conduit" appearing elsewhere, or without a colon, is
-    # left completely untouched.
+    assert normalize_raw_customer_text('Cable Tray: Ladder Tray, 36" Wide, 144" Long') == (
+        'QIQLBL05CABLE04TRAY Ladder Tray, 36" Wide, 144" Long'
+    )
+    assert normalize_raw_customer_text('Coupling: 02" PVC, Grey, SCH 40/80') == (
+        'QIQLBL08COUPLING 02" PVC, Grey, SCH 40/80'
+    )
+    assert normalize_raw_customer_text('Grounding: Compression Crimp 4/0 To 4/0 Cu.') == (
+        'QIQLBL09GROUNDING Compression Crimp 4/0 To 4/0 Cu.'
+    )
+    # Not a label -- a category word appearing elsewhere, or without a
+    # colon, is left completely untouched.
     assert normalize_raw_customer_text("3/4 EMT CONDUIT") == "3/4 EMT CONDUIT"
     assert normalize_raw_customer_text("CONDUIT CLAMP") == "CONDUIT CLAMP"
+    assert normalize_raw_customer_text('24" CABLE TRAY LOWER COVER') == '24" CABLE TRAY LOWER COVER'
 
 
-def test_conduit_label_marker_excluded_from_retrieval_but_restored_for_scoring() -> None:
+def test_leading_label_is_required_by_default_and_restored_for_scoring() -> None:
+    # By default (restore_label=True, retrieval's normal call), a leading
+    # label's real words are required exactly like any other query word --
+    # confirmed live, unconditionally dropping "Coupling:" let an unrelated
+    # PVC elbow fitting tie a genuine coupling on token overlap and outrank
+    # it, since the catalog usually *does* spell the label word out.
+    #
+    # `rest` deliberately never repeats any of the label's own words, so a
+    # word appearing (or not) in retrieval's required set can only have
+    # come from the label itself, not a genuine independent mention later
+    # in the line.
     from catalog.search_query import retrieval_search_token_groups
 
-    tokens = tokenize_description("CONDUITLBL INNERDUCT SMOOTH ORANGE")
-    groups = retrieval_search_token_groups("CONDUITLBL INNERDUCT SMOOTH ORANGE")
-    flat = {variant for group in groups for variant in group}
-    assert "conduit" not in flat
-    assert "conduitlbl" not in flat
-    assert {"innerduct", "smooth", "orange"} <= flat
+    for label, rest, expected_words in [
+        ("Conduit", '2" Innerduct, Smooth, Orange', "CONDUIT"),
+        ("Cable Tray", "Kwik Splice 24 inch", "CABLE TRAY"),
+        ("Grounding", "Compression Crimp 4/0 To 4/0 Cu.", "GROUNDING"),
+    ]:
+        normalized = normalize_raw_customer_text(f"{label}: {rest}")
 
-    expanded = expand_known_phrases("CONDUITLBL INNERDUCT SMOOTH ORANGE", tokens)
-    assert "CONDUIT" in expanded
+        required_by_default = retrieval_search_token_groups(normalized)
+        flat_default = {variant for group in required_by_default for variant in group}
+        assert "qiqlbl" not in " ".join(flat_default)
+        for word in expected_words.lower().split():
+            assert word in flat_default
+
+        # search_text_candidates' fallback attempt, only made if the
+        # default (label-required) search finds nothing at all (see
+        # catalog.postgres_repository.search_text_candidates) -- confirmed
+        # rescue case: "Conduit:" over an Innerduct family that never
+        # spells "conduit" out at all.
+        dropped = retrieval_search_token_groups(normalized, restore_label=False)
+        flat_dropped = {variant for group in dropped for variant in group}
+        assert "qiqlbl" not in " ".join(flat_dropped)
+        for word in expected_words.lower().split():
+            assert word not in flat_dropped
+
+        # Scoring always credits the literal words, regardless of which
+        # retrieval attempt eventually finds the candidate.
+        expanded = expand_query_for_retrieval(normalized)
+        assert expected_words in expanded
 
 
 def test_expand_known_phrases_appends_matched_expansion() -> None:
@@ -221,6 +267,75 @@ def test_expand_known_phrases_appends_matched_expansion() -> None:
     tokens = tokenize_description(query)
     expanded = expand_known_phrases(query, tokens)
     assert "STEEL SET SCREW" in expanded
+
+
+def test_reduce_tray_filler_tokens_drops_ladder_and_dimension_adjacent_wide_long() -> None:
+    # Confirmed live: the catalog's own EGL straight-section text ("EGL TRAY
+    # 4\"H X 36\"W X 10'L STR") never says "ladder", "wide", or "long" -- a
+    # full catalog search confirmed this catalog sells exactly one bare
+    # "Tray" product line (EGL, inherently ladder-style), so "ladder" is
+    # always redundant once "tray" is present, and "wide"/"long" are pure
+    # unit-descriptor filler right after a dimension number.
+    from matching.category_defaults import reduce_tray_filler_tokens
+
+    # apply_units=False: this is how search_query.py's retrieval path always
+    # calls it -- a bare size stays "36" (no inserted "IN" marker between it
+    # and "WIDE"), matching the catalog's own raw, never-unit-normalized text.
+    tokens = tokenize_description('Ladder Tray, 36" Wide, 144" Long', apply_units=False)
+    reduced = reduce_tray_filler_tokens(tokens)
+    assert "LADDER" not in reduced
+    assert "WIDE" not in reduced
+    assert "LONG" not in reduced
+    assert "TRAY" in reduced
+    assert "36" in reduced
+    assert "144" in reduced
+
+
+def test_retrieval_token_groups_dedupes_a_word_repeated_across_label_and_body() -> None:
+    # Confirmed live: "Cable Tray: Ladder Tray..." repeats "tray" once from
+    # the restored label and once from the body's own "Ladder Tray" -- the
+    # partial-match SQL counts *distinct token positions* satisfied, so
+    # without dedup, a single literal "tray" in an unrelated candidate's
+    # text satisfied two positions at once, letting it clear the 60%
+    # overlap floor on "cable"+"tray" alone without matching either
+    # dimension, and outrank the genuine tray family.
+    from catalog.search_query import retrieval_search_token_groups
+
+    normalized = normalize_raw_customer_text('Cable Tray: Ladder Tray, 36" Wide, 144" Long')
+    groups = retrieval_search_token_groups(normalized)
+    tray_positions = [group for group in groups if "tray" in group]
+    assert len(tray_positions) == 1
+
+
+def test_reduce_tray_filler_tokens_only_applies_when_tray_is_present() -> None:
+    # "Long" is a real, load-bearing catalog word outside a tray context
+    # (e.g. "PVC LONG LINE COUPLING") -- must be left completely untouched
+    # when "tray" isn't in the query at all.
+    from matching.category_defaults import reduce_tray_filler_tokens
+
+    tokens = tokenize_description("PVC LONG LINE COUPLING")
+    assert reduce_tray_filler_tokens(tokens) == tokens
+
+
+def test_cable_tray_ladder_tray_line_now_retrieves_the_real_egl_family() -> None:
+    # End-to-end retrieval check for the exact confirmed-live regression:
+    # this used to return zero token groups worth matching against (cable,
+    # ladder, tray x2, wide, 144, long all required, 8 total), now reduces
+    # to just the words the catalog family actually uses -- "cable" and
+    # "tray" collapse to one position each (see the dedup comment in
+    # retrieval_search_token_groups: the label's own "tray" and the body's
+    # independent "Ladder Tray" are the same literal word, and must not
+    # count as two separate required positions).
+    from catalog.search_query import retrieval_search_token_groups
+
+    normalized = normalize_raw_customer_text('Cable Tray: Ladder Tray, 36" Wide, 144" Long')
+    groups = retrieval_search_token_groups(normalized)
+    flat_positions = [set(group) for group in groups]
+    assert any(group == {"cable", "cbl", "cables"} for group in flat_positions)
+    assert any(group == {"tray", "trough", "trof"} for group in flat_positions)
+    assert any(group == {"36"} for group in flat_positions)
+    assert any(group == {"144"} for group in flat_positions)
+    assert len(groups) == 4
 
 
 def test_expand_hole_count_spells_out_abbreviation() -> None:
