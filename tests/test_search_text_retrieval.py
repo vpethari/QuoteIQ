@@ -84,6 +84,26 @@ def test_retrieval_keeps_fraction_sizes_literal_not_decimal() -> None:
     assert "0.5" not in normalized
 
 
+def test_retrieval_strips_leading_zero_from_whole_number_sizes() -> None:
+    # Confirmed live: 'Coupling: 02" PVC...' never matched the catalog's own
+    # "2" literally -- apply_units=False keeps a fraction like "1/2" literal
+    # on purpose, but that also means a bare leading zero on a whole number
+    # never goes through unit normalization (which strips it via int()) the
+    # way scoring's own tokenize_description() does.
+    from catalog.search_query import retrieval_search_string, retrieval_search_token_groups
+
+    normalized = retrieval_search_string('02" PVC COUPLING')
+    assert "02" not in normalized.split()
+    assert "2" in normalized.split()
+
+    groups = retrieval_search_token_groups('02" PVC COUPLING')
+    flat = {variant for group in groups for variant in group}
+    assert "02" not in flat
+
+    # A fraction size must still be untouched -- no leading zero to strip.
+    assert "1/2" in retrieval_search_string('1/2" PVC COUPLING').split()
+
+
 def test_scoring_tokenization_still_converts_fraction_to_decimal() -> None:
     # The retrieval-side fix above must not regress scoring, which needs
     # both the query and the candidate's raw text unit-normalized the same

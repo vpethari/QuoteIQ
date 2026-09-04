@@ -1,9 +1,28 @@
 from __future__ import annotations
 
+import re
+
 from matching.category_defaults import interchangeable_qualifier_variants, reduce_bare_category_tokens
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
+
+
+_LEADING_ZERO_RE = re.compile(r"^0+(\d)")
+
+
+def _strip_leading_zero(token: str) -> str:
+    """A whole-number size written with a leading zero ("02\"") never
+    matches the catalog's own "2" literally -- apply_units=False keeps a
+    fraction like "1/2" literal on purpose (see retrieval_search_string),
+    but that also means a bare leading zero on a whole number never goes
+    through unit normalization (which already strips it via int()) the
+    way scoring's own tokenize_description() does. Only touches a token
+    that's purely digits (never "1/2" or "1-1/2", which have no leading
+    zero to strip in the first place)."""
+    if token.isdigit():
+        return _LEADING_ZERO_RE.sub(r"\1", token)
+    return token
 
 
 def retrieval_search_string(query: str) -> str:
@@ -15,7 +34,9 @@ def retrieval_search_string(query: str) -> str:
     never contain.
     """
     cleaned = strip_quantity_and_noise(query)
-    tokens = [token.lower() for token in tokenize_description(cleaned, apply_units=False) if token]
+    tokens = [
+        _strip_leading_zero(token.lower()) for token in tokenize_description(cleaned, apply_units=False) if token
+    ]
     if tokens:
         return " ".join(tokens)
     return cleaned.lower().strip()
@@ -46,7 +67,8 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     cleaned = strip_quantity_and_noise(query)
     # apply_units=False: see retrieval_search_string -- a fraction size must
     # stay literal ("1/2", not "0.5 IN") to match the catalog's raw text.
-    tokens = tokenize_description(cleaned, apply_units=False)
+    # _strip_leading_zero: "02\"" must still match the catalog's own "2".
+    tokens = [_strip_leading_zero(token) for token in tokenize_description(cleaned, apply_units=False)]
     distinctive = [token for token in tokens if _is_distinctive(token)]
     if not distinctive:
         distinctive = [token for token in tokens if token]

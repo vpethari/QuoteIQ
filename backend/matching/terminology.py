@@ -36,6 +36,10 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("FLEX", ("FLEX", "FLEXIBLE")),
     ("GALV", ("GALV", "GALVANIZED", "GALVANISED")),
     ("COUPLING", ("COUPLING", "COUPLINGS", "CPLG")),
+    # Confirmed live: a customer's British spelling "Grey" never matched
+    # this catalog's own American "Gray" (e.g. "CP20 PVC COUPLING 2 ...
+    # PVC Gray"), excluding otherwise-correct candidates from retrieval.
+    ("GRAY", ("GRAY", "GREY")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).
