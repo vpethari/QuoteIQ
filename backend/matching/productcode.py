@@ -94,7 +94,14 @@ def is_product_code_query(query: str | None) -> bool:
     tokens = code_tokens(query)
     if not tokens or len(tokens) > 6:
         return False
-    return not any(token in _PROSE_TOKENS for token in tokens)
+    # code_tokens() only splits on whitespace, so a real prose word carrying
+    # a comma or colon from ordinary sentence punctuation ("Conduit:",
+    # "Innerduct,") never matches the bare word already listed in
+    # _PROSE_TOKENS -- confirmed live: "Conduit: 2\" Innerduct, Smooth,
+    # Orange" was routed into identifier-only matching instead of
+    # description search, finding zero candidates despite real matching
+    # products, purely because "CONDUIT:" != "CONDUIT" as a raw string.
+    return not any(token.strip(":,;.") in _PROSE_TOKENS for token in tokens)
 
 
 def field_is_code_like(value: str | None) -> bool:
@@ -102,7 +109,7 @@ def field_is_code_like(value: str | None) -> bool:
     tokens = code_tokens(value)
     if not tokens or len(tokens) > 8:
         return False
-    if any(token in _PROSE_TOKENS for token in tokens):
+    if any(token.strip(":,;.") in _PROSE_TOKENS for token in tokens):
         return False
     compact = compact_code(value)
     return bool(compact) and any(character.isdigit() for character in compact)

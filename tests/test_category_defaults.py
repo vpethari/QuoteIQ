@@ -178,6 +178,44 @@ def test_retrieval_token_groups_or_conduit_for_grc_hub() -> None:
     assert any(group == {"hub"} for group in flat_by_position)
 
 
+def test_normalize_raw_customer_text_marks_leading_conduit_label() -> None:
+    # Confirmed live: "Conduit: 2\" Innerduct, Smooth, Orange" required
+    # "conduit" AND "innerduct" AND "smooth" AND "orange" all in one
+    # catalog row for retrieval -- no Innerduct product's own text ever
+    # says "conduit", so at most 2 of those 4 tokens could match, below
+    # the retrieval fallback's 60% overlap floor, producing a hard
+    # NO_MATCH despite real 2" orange Innerduct products existing.
+    #
+    # Marked as a synthetic "CONDUITLBL" token rather than just dropped:
+    # interpret_customer_text() strips the colon before retrieval ever
+    # runs, so checking for a literal colon (or even "CONDUIT is the
+    # first word") that far down the pipeline never fires -- and a plain
+    # word-position check collides with a genuine "CONDUIT CLAMP"-style
+    # query where "conduit" is a real, required word that also happens to
+    # come first (see test_retrieval_token_groups_or_conduit_and_hanger_for_clamp).
+    assert normalize_raw_customer_text('Conduit: 2" Innerduct, Smooth, Orange') == (
+        'CONDUITLBL 2" Innerduct, Smooth, Orange'
+    )
+    # Not a label -- "conduit" appearing elsewhere, or without a colon, is
+    # left completely untouched.
+    assert normalize_raw_customer_text("3/4 EMT CONDUIT") == "3/4 EMT CONDUIT"
+    assert normalize_raw_customer_text("CONDUIT CLAMP") == "CONDUIT CLAMP"
+
+
+def test_conduit_label_marker_excluded_from_retrieval_but_restored_for_scoring() -> None:
+    from catalog.search_query import retrieval_search_token_groups
+
+    tokens = tokenize_description("CONDUITLBL INNERDUCT SMOOTH ORANGE")
+    groups = retrieval_search_token_groups("CONDUITLBL INNERDUCT SMOOTH ORANGE")
+    flat = {variant for group in groups for variant in group}
+    assert "conduit" not in flat
+    assert "conduitlbl" not in flat
+    assert {"innerduct", "smooth", "orange"} <= flat
+
+    expanded = expand_known_phrases("CONDUITLBL INNERDUCT SMOOTH ORANGE", tokens)
+    assert "CONDUIT" in expanded
+
+
 def test_expand_known_phrases_appends_matched_expansion() -> None:
     query = "STL SS SCREW"
     tokens = tokenize_description(query)

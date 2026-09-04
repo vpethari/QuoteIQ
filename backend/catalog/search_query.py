@@ -55,6 +55,13 @@ def retrieval_search_token_groups(query: str, *, limit: int = 8) -> list[tuple[s
     # EMT conduit stick's own catalog text doesn't necessarily happen to
     # spell out that exact word (see reduce_bare_category_tokens).
     distinctive = reduce_bare_category_tokens(distinctive)
+    # "CONDUITLBL" is a synthetic marker (see
+    # matching.category_defaults._mark_leading_conduit_label) standing in
+    # for a leading "Conduit:" section label -- the customer's own stated
+    # product category, real intent, so PHRASE_EXPANSIONS puts "CONDUIT"
+    # back for scoring. But it's never itself a literal catalog word, so it
+    # must never be a retrieval search term at all, required or otherwise.
+    distinctive = [token for token in distinctive if token.upper() != "CONDUITLBL"]
     # Some qualifier words are only interchangeable next to a specific other
     # word (e.g. "conduit"/"hanger" next to "clamp") -- OR the equivalent
     # spelling in at that one token position rather than requiring either

@@ -366,6 +366,13 @@ PHRASE_EXPANSIONS: dict[frozenset[str], str] = {
     # clamp, since a candidate's own raw text ("squeeze"/"connectors") won't
     # otherwise overlap the query's "flex"/"conn" at all.
     frozenset({"FLEX", "CONN"}): "SQUEEZE CONNECTOR",
+    # See _mark_leading_conduit_label / normalize_raw_customer_text: a
+    # leading "Conduit:" label is rewritten to this marker on the raw text
+    # so retrieval can drop it unconditionally (catalog/search_query.py)
+    # without colliding with a genuine "CONDUIT CLAMP"-style query. This
+    # puts the real word back for scoring, same as any other phrase
+    # expansion here.
+    frozenset({"CONDUITLBL"}): "CONDUIT",
 }
 
 
@@ -540,10 +547,48 @@ def expand_acronym_phrases(query: str) -> str:
     return query
 
 
+# Some RFQs prefix each line with "Conduit:" -- e.g. "Conduit: 2\"
+# Innerduct, Smooth, Orange". This is a genuine statement of the
+# customer's intended product category, not a throwaway section header --
+# it must stay in the query (scoring should still credit a candidate that
+# happens to say "conduit"), but it also must not become a hard, literal
+# retrieval requirement, since some catalog sub-categories under it
+# (Innerduct) never spell the parent category word out in their own text.
+# Confirmed live: with "conduit" required, retrieval needed "conduit" AND
+# "innerduct" AND "smooth" AND "orange" all in one catalog row; no
+# Innerduct product's own text says "conduit" (or "smooth" -- this catalog
+# only distinguishes GenPur/Riser/Plenum/Kortech innerduct types, not wall
+# texture), so at most 2 of those 4 tokens could ever match -- below the
+# retrieval fallback's 60% overlap floor, producing a hard NO_MATCH despite
+# real 2" orange Innerduct products existing. Scoped to "Conduit:"
+# specifically (not any arbitrary leading "Word:") since that's the one
+# confirmed case.
+#
+# Rewritten to a synthetic marker word ("CONDUITLBL") here, on the raw
+# text, rather than just remembering "there was a colon" -- checking
+# "CONDUIT is the first token" further down the pipeline instead was tried
+# and rejected: interpret_customer_text() strips punctuation before
+# retrieval ever runs, so the colon itself doesn't survive that far, and a
+# plain word-position check collides with a genuine query like "CONDUIT
+# CLAMP" (a real, required product-type word that also happens to come
+# first) -- caught immediately by the existing test suite. A marker word
+# that can never occur naturally has no such ambiguity: it only exists
+# when this exact regex fired on the original raw text. PHRASE_EXPANSIONS
+# below maps it back to "CONDUIT" for scoring; retrieval drops it
+# unconditionally (see catalog/search_query.py) since it is never a real
+# catalog word to search for.
+_LEADING_CONDUIT_LABEL_RE = re.compile(r"^\s*CONDUIT\s*:\s*", re.IGNORECASE)
+
+
+def _mark_leading_conduit_label(query: str) -> str:
+    return _LEADING_CONDUIT_LABEL_RE.sub("CONDUITLBL ", query, count=1)
+
+
 def normalize_raw_customer_text(query: str) -> str:
     """Every raw-text normalization that must run before
     interpret_customer_text() touches the line (see normalize_strut_catalog_codes
     and expand_acronym_phrases for why each one needs this stage)."""
+    query = _mark_leading_conduit_label(query)
     query = normalize_strut_catalog_codes(query)
     query = expand_acronym_phrases(query)
     return query
