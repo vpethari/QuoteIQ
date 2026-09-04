@@ -1,0 +1,1217 @@
+[
+  {
+    "description": "3/4\" EMT CONDUIT",
+    "quantity": 5723,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 66.9643,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" EMT CONDUIT",
+    "quantity": 610,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 40.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" EMT STL SS CONN",
+    "quantity": 3,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" EMT STL SS CONN",
+    "quantity": 181,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" EMT STL SS CONN",
+    "quantity": 122,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" EMT STL SS CPLG",
+    "quantity": 170,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" EMT STL COMP CONN",
+    "quantity": 358,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 66.6667,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" EMT STL COMP CPLG",
+    "quantity": 178,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 66.6667,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" EMT 1-H STEEL STRAP",
+    "quantity": 3,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" EMT 1-H STEEL STRAP",
+    "quantity": 95,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" EMT 1-H STEEL STRAP",
+    "quantity": 122,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" PVC",
+    "quantity": 4240,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" PVC",
+    "quantity": 7579,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.2941,
+    "match_type_label": null
+  },
+  {
+    "description": "2\" PVC",
+    "quantity": 20427,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" PVC",
+    "quantity": 4419,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PVC",
+    "quantity": 154872,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" PVC",
+    "quantity": 66626,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" PVC TERM ADAPTER",
+    "quantity": 120,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\" PVC TERM ADAPTER",
+    "quantity": 102,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" PVC TERM ADAPTER",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PVC TERM ADAPTER",
+    "quantity": 56,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" PVC TERM ADAPTER",
+    "quantity": 24,
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "TA50",
+    "matched_orderable_part_number": "59625",
+    "final_confidence": 92.8571,
+    "match_type_label": "Automatic"
+  },
+  {
+    "description": "1\" PVC COUPLING",
+    "quantity": 100,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" PVC COUPLING",
+    "quantity": 120,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\" PVC COUPLING",
+    "quantity": 153,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" PVC COUPLING",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PVC COUPLING",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" PVC COUPLING",
+    "quantity": 24,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" PVC 90 DEG ELBOW",
+    "quantity": 98,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" PVC 90 DEG ELBOW",
+    "quantity": 120,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\" PVC 90 DEG ELBOW",
+    "quantity": 102,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" PVC 90 DEG ELBOW",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PVC 90 DEG ELBOW",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PVC END BELL",
+    "quantity": 2738,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" PVC END BELL",
+    "quantity": 1122,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\"x3\" BASE SPACER",
+    "quantity": 2043,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\"x3\" BASE SPACER",
+    "quantity": 442,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 63.75,
+    "match_type_label": null
+  },
+  {
+    "description": "4\"x3\" BASE SPACER",
+    "quantity": 15273,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\"x3\" BASE SPACER",
+    "quantity": 6660,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\"x3\" INTERMEDIATE SPACER",
+    "quantity": 2043,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\"x3\" INTERMEDIATE SPACER",
+    "quantity": 442,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 63.75,
+    "match_type_label": null
+  },
+  {
+    "description": "4\"x3\" INTERMEDIATE SPACER",
+    "quantity": 321,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\"x3\" INTERMEDIATE SPACER",
+    "quantity": 5562,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 60.0,
+    "match_type_label": null
+  },
+  {
+    "description": "PVC J-BOX 8x8x4",
+    "quantity": 71,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "PVC J-BOX 12x12x6",
+    "quantity": 22,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" STEEL FLEX",
+    "quantity": 85,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.9524,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" STEEL FLEX",
+    "quantity": 5,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.2083,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" STEEL FLEX",
+    "quantity": 5,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.2083,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" STL FLEX CONN",
+    "quantity": 17,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" STL FLEX CONN",
+    "quantity": 1,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" STL FLEX CONN",
+    "quantity": 1,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" STL 90 DEG FLEX CONN",
+    "quantity": 17,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.25,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" STL 90 DEG FLEX CONN",
+    "quantity": 1,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.25,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" STL 90 DEG FLEX CONN",
+    "quantity": 1,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.25,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" ALUMINUM FLEX",
+    "quantity": 38,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" STRAIGHT FLEX CONN",
+    "quantity": 19,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 78.125,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" 90 DEG FLEX CONN",
+    "quantity": 19,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" LT FLEX",
+    "quantity": 20,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 62.5,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" LT FLEX",
+    "quantity": 30,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 77.9412,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" LT FLEX",
+    "quantity": 40,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 77.7027,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" LT FLEX",
+    "quantity": 110,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 66.9643,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" LT STRAIGHT CONN",
+    "quantity": 4,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 76.6667,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" LT STRAIGHT CONN",
+    "quantity": 6,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 76.6667,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" LT STRAIGHT CONN",
+    "quantity": 8,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 72.5,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" LT STRAIGHT CONN",
+    "quantity": 22,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 71.1111,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2\" LT 90 DEG CONN",
+    "quantity": 4,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" LT 90 DEG CONN",
+    "quantity": 6,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" LT 90 DEG CONN",
+    "quantity": 8,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" LT 90 DEG CONN",
+    "quantity": 22,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" GRC (GALV)",
+    "quantity": 10671,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" GRC (GALV)",
+    "quantity": 456,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" GRC (GALV)",
+    "quantity": 2740,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" GRC (GALV)",
+    "quantity": 108,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" GRC MYERS HUB",
+    "quantity": 72,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 50.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" GRC COUPLING",
+    "quantity": 12,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" GRC COUPLING",
+    "quantity": 108,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" GRC ERICKSON CPLG",
+    "quantity": 126,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 72.5,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" LB DC BODY, CVR, GSKT",
+    "quantity": 52,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 48.4127,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" GRC 90 DEG ELBOW",
+    "quantity": 12,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 73.8636,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" GRC 90 DEG ELBOW",
+    "quantity": 108,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 73.8636,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" STEEL LOCKNUT",
+    "quantity": 360,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" STEEL LOCKNUT",
+    "quantity": 32,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" STEEL LOCKNUT",
+    "quantity": 184,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "2\" STEEL LOCKNUT",
+    "quantity": 102,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3\" STEEL LOCKNUT",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" STEEL LOCKNUT",
+    "quantity": 200,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" STEEL LOCKNUT",
+    "quantity": 24,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" SEALING LOCKNUT",
+    "quantity": 2,
+    "match_status": "EXACT_MATCH",
+    "matched_part_number": "SL15KON",
+    "matched_orderable_part_number": "SL15KON",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic \u2014 Description Match"
+  },
+  {
+    "description": "1/2\" PLASTIC BUSHING",
+    "quantity": 42,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" PLASTIC BUSHING",
+    "quantity": 208,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1\" PLASTIC BUSHING",
+    "quantity": 77,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" PLASTIC BUSHING",
+    "quantity": 50,
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV1500H1035DC",
+    "matched_orderable_part_number": "PV1500H1035DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
+  },
+  {
+    "description": "3\" PLASTIC BUSHING",
+    "quantity": 44,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" PLASTIC BUSHING",
+    "quantity": 72,
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV4000H1040DC",
+    "matched_orderable_part_number": "PV4000H1040DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
+  },
+  {
+    "description": "3/4\" GRC STRUT CLAMP",
+    "quantity": 270,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 70.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" GRC STRUT CLAMP",
+    "quantity": 11,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 69.0909,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" SPRING STL CONDUIT CLAMP W/ BOLT",
+    "quantity": 561,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" SPRING STL CONDUIT CLAMP W/ BOLT",
+    "quantity": 84,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\"xCLOSE GRC NIPPLE",
+    "quantity": 1,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 71.1111,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4\" GRC CUT & THREAD",
+    "quantity": 360,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 71.1111,
+    "match_type_label": null
+  },
+  {
+    "description": "1 1/2\" GRC CUT & THREAD",
+    "quantity": 236,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 71.1111,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" GRC CUT & THREAD",
+    "quantity": 144,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 40.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" FRE CONDUIT",
+    "quantity": 4190,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 27.0429,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" HW FRE CONDUIT",
+    "quantity": 7740,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 23.582,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" FRE CONDUIT",
+    "quantity": 4780,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 27.0429,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" FRE>PVC ADAPTER",
+    "quantity": 2200,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 74.2857,
+    "match_type_label": null
+  },
+  {
+    "description": "4 1/2\" FRE>PVC ADAPTER",
+    "quantity": 36,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 38.7777,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" FRE>PVC ADAPTER",
+    "quantity": 968,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 74.2857,
+    "match_type_label": null
+  },
+  {
+    "description": "4\" FRE 90 DEG BEND",
+    "quantity": 1205,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 40.0,
+    "match_type_label": null
+  },
+  {
+    "description": "5\" FRE 90 DEG BEND",
+    "quantity": 490,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 40.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#2/0 MECH LUG",
+    "quantity": 3,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#500MCM MECH LUG",
+    "quantity": 4,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#500MCM TRIPLE MECH LUG",
+    "quantity": 108,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#1 HYPRESS 2-HOLE LUG",
+    "quantity": 18,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "4/0 HYPRESS 2-HOLE LUG",
+    "quantity": 258,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "250MCM HYPRESS 2-HOLE LUG",
+    "quantity": 24,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "350MCM HYPRESS 2-HOLE LUG",
+    "quantity": 54,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "500MCM HYPRESS 2-HOLE LUG",
+    "quantity": 48,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "750MCM HYPRESS 2-HOLE LUG",
+    "quantity": 492,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#8-2/0 15KV HV TERMINATION",
+    "quantity": 18,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#3/0-#300 15KV HV TERMINATION",
+    "quantity": 138,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 27.7778,
+    "match_type_label": null
+  },
+  {
+    "description": "#350-750 15KV HV TERMINATION",
+    "quantity": 90,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "#4/0 15KV HV TERMINATION",
+    "quantity": 120,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "250 15KV HV TERMINATION",
+    "quantity": 24,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 17.7778,
+    "match_type_label": null
+  },
+  {
+    "description": "750 15KV HV TERMINATION",
+    "quantity": 168,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 18.5714,
+    "match_type_label": null
+  },
+  {
+    "description": "POLYTWINE",
+    "quantity": 3257,
+    "match_status": "NO_MATCH",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 0.0,
+    "match_type_label": null
+  },
+  {
+    "description": "CABLE PULLING HEAD",
+    "quantity": 761,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 58.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "P-1000 1 5/8 STRUT",
+    "quantity": 3542,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 82.6923,
+    "match_type_label": null
+  },
+  {
+    "description": "3/8 SPRING NUT",
+    "quantity": 1452,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "1/2 SPRING NUT",
+    "quantity": 672,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 83.3333,
+    "match_type_label": null
+  },
+  {
+    "description": "3/4 SPRING NUT",
+    "quantity": 40,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 84.0909,
+    "match_type_label": null
+  },
+  {
+    "description": "STRUT L- JOINER P-1036GR (B140ZN)",
+    "quantity": 12,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 57.6923,
+    "match_type_label": null
+  },
+  {
+    "description": "STRUT T- JOINER P-1031GR (B133ZN)",
+    "quantity": 12,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 57.6923,
+    "match_type_label": null
+  },
+  {
+    "description": "STRUT X- JOINER P-1028GR (B132ZN)",
+    "quantity": 12,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 67.6923,
+    "match_type_label": null
+  },
+  {
+    "description": "POST BASE P-2072A (B280SQZN)",
+    "quantity": 214,
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 47.5,
+    "match_type_label": null
+  }
+]
