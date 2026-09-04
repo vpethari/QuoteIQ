@@ -32,7 +32,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.0,
+    "final_confidence": 89.3,
     "match_type_label": null
   },
   {
@@ -41,7 +41,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -59,7 +59,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -95,7 +95,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.6,
+    "final_confidence": 89.58,
     "match_type_label": null
   },
   {
@@ -113,7 +113,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 85.2941,
     "match_type_label": null
   },
   {
@@ -140,7 +140,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.7,
+    "final_confidence": 86.6667,
     "match_type_label": null
   },
   {
@@ -221,7 +221,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 90.0,
+    "final_confidence": 89.3,
     "match_type_label": null
   },
   {
@@ -317,74 +317,74 @@
   {
     "description": "2\"x3\" BASE SPACER",
     "quantity": 2043,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "BV2030",
-    "matched_orderable_part_number": "1551",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "3\"x3\" BASE SPACER",
     "quantity": 442,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "BV3030",
-    "matched_orderable_part_number": "1611",
-    "final_confidence": 63.75,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
   },
   {
     "description": "4\"x3\" BASE SPACER",
     "quantity": 15273,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "BV4030",
-    "matched_orderable_part_number": "1901",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "5\"x3\" BASE SPACER",
     "quantity": 6660,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "BV5030",
-    "matched_orderable_part_number": "1921",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "2\"x3\" INTERMEDIATE SPACER",
     "quantity": 2043,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "IV2030",
-    "matched_orderable_part_number": "1541",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "3\"x3\" INTERMEDIATE SPACER",
     "quantity": 442,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "IV3030",
-    "matched_orderable_part_number": "1601",
-    "final_confidence": 63.75,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 75.0,
+    "match_type_label": null
   },
   {
     "description": "4\"x3\" INTERMEDIATE SPACER",
     "quantity": 321,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "IV4030",
-    "matched_orderable_part_number": "1891",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "5\"x3\" INTERMEDIATE SPACER",
     "quantity": 5562,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "IV5030",
-    "matched_orderable_part_number": "1911",
-    "final_confidence": 60.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 80.0,
+    "match_type_label": null
   },
   {
     "description": "PVC J-BOX 8x8x4",
@@ -452,10 +452,10 @@
   {
     "description": "3\" STL FLEX CONN",
     "quantity": 1,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -500,7 +500,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 78.0,
+    "final_confidence": 78.125,
     "match_type_label": null
   },
   {
@@ -509,7 +509,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.0,
+    "final_confidence": 89.3,
     "match_type_label": null
   },
   {
@@ -563,7 +563,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 72.67,
+    "final_confidence": 72.5,
     "match_type_label": null
   },
   {
@@ -572,7 +572,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 71.1,
+    "final_confidence": 72.5,
     "match_type_label": null
   },
   {
@@ -590,7 +590,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.0,
+    "final_confidence": 83.33,
     "match_type_label": null
   },
   {
@@ -599,7 +599,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 83.3,
     "match_type_label": null
   },
   {
@@ -635,7 +635,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 88.6,
+    "final_confidence": 88.0,
     "match_type_label": null
   },
   {
@@ -830,11 +830,11 @@
   {
     "description": "3\" PLASTIC BUSHING",
     "quantity": 44,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "PV3000H1038DC",
-    "matched_orderable_part_number": "PV3000H1038DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.0,
+    "match_type_label": null
   },
   {
     "description": "4\" PLASTIC BUSHING",
@@ -848,10 +848,10 @@
   {
     "description": "3/4\" GRC STRUT CLAMP",
     "quantity": 270,
-    "match_status": "REVIEW_REQUIRED",
+    "match_status": "NO_MATCH",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 69.0,
+    "final_confidence": 0.0,
     "match_type_label": null
   },
   {
@@ -902,10 +902,10 @@
   {
     "description": "1 1/2\" GRC CUT & THREAD",
     "quantity": 236,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 71.0,
     "match_type_label": null
   },
   {
@@ -968,7 +968,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 74.3,
+    "final_confidence": 74.0,
     "match_type_label": null
   },
   {
@@ -1175,17 +1175,17 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 84.0,
+    "final_confidence": 60.0,
     "match_type_label": null
   },
   {
     "description": "STRUT L- JOINER P-1036GR (B140ZN)",
     "quantity": 12,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 58.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "P1036     GR",
+    "matched_orderable_part_number": "P1036     GR",
+    "final_confidence": 57.6923,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "STRUT T- JOINER P-1031GR (B133ZN)",
@@ -1202,7 +1202,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 68.0,
+    "final_confidence": 67.7,
     "match_type_label": null
   },
   {
@@ -1211,7 +1211,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 45.83,
+    "final_confidence": 47.5,
     "match_type_label": null
   }
 ]

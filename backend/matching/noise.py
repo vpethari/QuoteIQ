@@ -69,8 +69,47 @@ PROTECTED_PRODUCT_TERMS: frozenset[str] = frozenset(
 
 assert NOISE_WORDS.isdisjoint(PROTECTED_PRODUCT_TERMS)
 
-_TOKEN_SPAN = re.compile(r"[A-Za-z0-9]+(?:/[A-Za-z0-9]+)*(?:[\"″”'′])?")
+# Optional leading "." so a customer's ".75\"" (shorthand for "0.75\"",
+# i.e. 3/4") keeps its decimal point -- without it, the "." isn't part of
+# [A-Za-z0-9] so finditer just skips it and starts the token at "75",
+# silently turning 0.75" into 75" (a 100x size error) before the size ever
+# reaches unit parsing. Confirmed live: ".75\"x10' EMT" matched 3/4" EMT
+# accessories as "Dimension mismatch: requested 75\", catalog 3/4\"".
+_TOKEN_SPAN = re.compile(r"\.?[A-Za-z0-9]+(?:/[A-Za-z0-9]+)*(?:[\"″”'′])?")
 _VOLTAGE_FOLLOW = re.compile(r"(?i)^(V|VAC|VDC|KV|VOLT|VOLTS|VOLTAGE)\b")
+
+# A two-dimension size written with no space around the "x" ("3/4\"x10'")
+# glues straight into the token span above, since a bare letter directly
+# touching a digit is just one contiguous [A-Za-z0-9]+ run -- "x10'"
+# survives as a single opaque "X10" token instead of splitting back into
+# the "10 FT" that retrieval needs to find the actual 10'-long stick
+# instead of an unrelated accessory that happens to share other words.
+# Confirmed live: '.75"x10\' EMT' matched EMT straps instead of conduit.
+#
+# Deliberately scoped to *retrieval* only (this module, used by
+# strip_quantity_and_noise -> catalog/search_query.py) and NOT applied
+# inside description_normalize.tokenize_description(), which also drives
+# SCORING for every match in the system. An earlier version of this fix
+# lived there too and caused a real regression: once "2\"x3\" BASE SPACER"
+# started scoring "2" and "3" as two independent, order-blind tokens, it
+# tied 80/80 against its transposed "3x2" sibling SKU and lost its
+# previously-clean win, moving several Base/Intermediate Spacer lines from
+# a confident match into REVIEW_REQUIRED. Retrieval-only avoids that: it
+# only widens which candidates are *eligible*, it never changes how two
+# already-eligible candidates are *ranked* against each other.
+#
+# Only fires when a genuine unit mark ("\"", "'", ...) sits directly
+# before the "x" -- NOT for a bare digit ("12x12x10FT"), which is a
+# *different*, already-handled shorthand (WxHxD box/wireway dimensions,
+# see _BOX_DIM_RE in description_normalize.py) that depends on the whole
+# "AxBxC[UNIT]" string staying glued as one token. An earlier, unscoped
+# version of this regex (firing on any digit before "x") broke that case,
+# caught by the existing test suite.
+_GLUED_X_AFTER_MARK = re.compile(r'(["″”\'′])([xX])([0-9.])')
+
+
+def _space_out_glued_dimension_x(text: str) -> str:
+    return _GLUED_X_AFTER_MARK.sub(r"\1 \2 \3", text)
 
 # Group 1 is always the numeric quantity.
 QUANTITY_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -130,7 +169,7 @@ def strip_quantity_phrases(text: str) -> str:
 
 def remove_noise_words(text: str | None) -> str:
     """Drop whole RFQ tokens only. Never substring-replace inside product words."""
-    source = fold_whitespace(text)
+    source = _space_out_glued_dimension_x(fold_whitespace(text))
     if not source:
         return ""
     kept: list[str] = []

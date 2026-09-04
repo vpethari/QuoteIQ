@@ -19,7 +19,13 @@ from matching.productcode import (
     score_product_code_identifier,
 )
 from matching.description_normalize import catalog_unit_blob, tokenize_description
-from matching.units import compare_extracted_units, extract_amperages, extract_dimensions, extract_voltages
+from matching.units import (
+    compare_extracted_units,
+    extract_amperages,
+    extract_bare_number_pairs,
+    extract_dimensions,
+    extract_voltages,
+)
 from matching.confidence import build_confidence_breakdown
 from matching.request_cache import get_request_cache
 from matching.scoring_prep import PreparedText, prepare_scoring_text
@@ -286,6 +292,8 @@ def score_product_fields(
         extract_dimensions(catalog_blob),
         prepared_query.amps,
         extract_amperages(catalog_blob),
+        prepared_query.bare_pairs,
+        extract_bare_number_pairs(catalog_blob),
     )
     _acc(session, "score_units_ms", started)
     token_coverage = combined.token

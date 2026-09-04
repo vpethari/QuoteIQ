@@ -43,7 +43,7 @@ _DIMENSION_EXPR = re.compile(
     (?:
         (?P<mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
       | (?P<frac_num>\d+)\s*/\s*(?P<frac_den>\d+)
-      | (?P<decimal>\d+\.\d+)
+      | (?P<decimal>\d*\.\d+)
       | (?P<whole>\d+)
     )
     \s*
@@ -274,6 +274,86 @@ def _status(left: set[str], right: set[str]) -> str:
     return "conflict"
 
 
+def _dimension_status(q_dims: tuple[DimensionSpec, ...], c_dims: tuple[DimensionSpec, ...]) -> str:
+    """Plain set-intersection (see _status) is too lenient for a genuine
+    multi-dimension "AxB" product: {2,3} intersecting {3,3} would call that
+    a "match" on the strength of the shared "3" alone, and it's also blind
+    to order -- {2,3} and {3,2} are the same set, but "2x3 Base Spacer" and
+    "3x2 Base Spacer" are different catalog SKUs.
+
+    Only tightens the *multi*-dimension case (both sides have 2+ numbers);
+    a single dimension keeps the original intersection-based behavior
+    unchanged, since there's no order or multi-value ambiguity to guard
+    against there.
+    """
+    if not q_dims or not c_dims:
+        return "none"
+    if len(q_dims) >= 2 and len(c_dims) >= 2:
+        q_keys = [item.magnitude_key() for item in q_dims]
+        c_keys = [item.magnitude_key() for item in c_dims]
+        if sorted(q_keys) != sorted(c_keys) or q_keys != c_keys:
+            return "conflict"
+        return "match"
+    return _status({item.magnitude_key() for item in q_dims}, {item.magnitude_key() for item in c_dims})
+
+
+# "2 x 3" is unambiguous dimension-pair notation on its own -- some catalog
+# families never attach a unit to either number (this catalog's Base/
+# Intermediate Spacer: "SPACER BASE 2 x 3", no "\"" or "IN" anywhere), so
+# _DIMENSION_EXPR's required-unit suffix above can't see a dimension there
+# at all, and neither extract_dimensions() nor _dimension_status() above
+# ever gets two dimensions to compare -- confirmed live: even a cleanly
+# space-separated '2" x 3" SPACER' (no glued-text issue at all) ties
+# 80.0/80.0 against both the genuine 2x3 candidate and its transposed 3x2
+# sibling SKU, purely from order-blind token-overlap scoring elsewhere,
+# since this comparison never has any signal to cap the wrong one with.
+#
+# Kept as a separate, narrower extractor rather than loosening
+# _DIMENSION_EXPR's own unit requirement -- that regex also feeds the
+# apply_units auto-detect heuristic and ordinary single-dimension conflict
+# checks, neither designed around a bare, unit-less number pair, and
+# widening it there risks misreading unrelated digit-x-digit text. This
+# also deliberately does NOT touch tokenize_description/PreparedText.tokens
+# (the token/fuzzy text-overlap scoring) at all -- only this dedicated
+# comparison, so it can only ever narrow an already-tied field_scores
+# via score_cap, never change how any other candidate is ranked.
+_UNIT_MARK = "[\"″”'′]"
+_BARE_NUMBER_PAIR_RE = re.compile(
+    rf"(?<![A-Za-z0-9.])(\d+(?:\.\d+)?)\s*{_UNIT_MARK}?\s*[xX]\s*(\d+(?:\.\d+)?)\s*{_UNIT_MARK}?(?![A-Za-z0-9])"
+)
+
+
+def extract_bare_number_pairs(text: str | None) -> tuple[tuple[Fraction, Fraction], ...]:
+    source = fold_whitespace(text)
+    if not source:
+        return ()
+    pairs: list[tuple[Fraction, Fraction]] = []
+    for match in _BARE_NUMBER_PAIR_RE.finditer(source):
+        try:
+            pairs.append((Fraction(match.group(1)), Fraction(match.group(2))))
+        except (ValueError, ZeroDivisionError):
+            continue
+    return tuple(pairs)
+
+
+def _bare_pair_status(
+    q_pairs: tuple[tuple[Fraction, Fraction], ...], c_pairs: tuple[tuple[Fraction, Fraction], ...]
+) -> str:
+    """Same order/set discipline as _dimension_status, for a pair neither
+    side attached a unit to. Only the query's first pair is compared (the
+    size pair is the distinguishing feature; a second incidental "x" match
+    elsewhere in a long description is rare and not worth the ambiguity)."""
+    if not q_pairs or not c_pairs:
+        return "none"
+    query = q_pairs[0]
+    if query in c_pairs:
+        return "match"
+    query_sorted = tuple(sorted(query))
+    if any(query_sorted == tuple(sorted(candidate)) for candidate in c_pairs):
+        return "conflict"  # same two numbers, different order -- a different SKU
+    return "conflict"  # a genuinely different size pair
+
+
 def compare_extracted_units(
     q_volts: tuple[VoltageSpec, ...],
     q_dims: tuple[DimensionSpec, ...],
@@ -281,11 +361,11 @@ def compare_extracted_units(
     c_dims: tuple[DimensionSpec, ...],
     q_amps: tuple[AmpSpec, ...] = (),
     c_amps: tuple[AmpSpec, ...] = (),
+    q_pairs: tuple[tuple[Fraction, Fraction], ...] = (),
+    c_pairs: tuple[tuple[Fraction, Fraction], ...] = (),
 ) -> UnitComparison:
     q_vmag = {item.magnitude_key() for item in q_volts}
     c_vmag = {item.magnitude_key() for item in c_volts}
-    q_dmag = {item.magnitude_key() for item in q_dims}
-    c_dmag = {item.magnitude_key() for item in c_dims}
     q_amag = {item.magnitude_key() for item in q_amps}
     c_amag = {item.magnitude_key() for item in c_amps}
 
@@ -296,7 +376,9 @@ def compare_extracted_units(
         if q_pol and c_pol and q_pol.isdisjoint(c_pol):
             voltage_status = "conflict"
 
-    dimension_status = _status(q_dmag, c_dmag)
+    dimension_status = _dimension_status(q_dims, c_dims)
+    if dimension_status == "none":
+        dimension_status = _bare_pair_status(q_pairs, c_pairs)
     amperage_status = _status(q_amag, c_amag)
 
     lines: list[str] = []
@@ -351,6 +433,8 @@ def compare_units(query: str | None, catalog: str | None) -> UnitComparison:
         extract_dimensions(catalog),
         extract_amperages(query),
         extract_amperages(catalog),
+        extract_bare_number_pairs(query),
+        extract_bare_number_pairs(catalog),
     )
 
 

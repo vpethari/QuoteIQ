@@ -9,6 +9,7 @@ from matching.units import (
     apply_unit_normalization,
     compare_units,
     extract_amperages,
+    extract_bare_number_pairs,
     extract_dimensions,
     extract_voltages,
 )
@@ -238,6 +239,79 @@ def test_foot_symbol_and_word_are_recognized_as_a_distinct_unit() -> None:
     assert still_matches.dimension_status == "match"
 
 
+def test_leading_decimal_point_keeps_its_magnitude() -> None:
+    # Confirmed live: '.75" EMT' extracted no dimension at all -- the
+    # leading "." isn't part of [A-Za-z0-9], so noise.py's retrieval-side
+    # token-span regex silently dropped it and started the token at "75",
+    # and units.py's own decimal group required a digit before the dot too
+    # (\d+\.\d+), so even a correctly preserved ".75" still wouldn't parse.
+    # Both silently turned a customer's 0.75" (3/4") into 75" -- a 100x
+    # size error.
+    spec = extract_dimensions('.75" EMT')
+    assert len(spec) == 1
+    assert spec[0].inches == extract_dimensions('0.75" EMT')[0].inches
+
+
+def test_glued_x_between_size_and_length_is_retrievable() -> None:
+    # Confirmed live: '3/4"x10\' EMT' (no spaces around "x", a common way
+    # customers write a size-by-length) matched EMT straps instead of the
+    # genuine 10'-long conduit stick, because "x10'" glues into one opaque
+    # token and the 10' length is lost before retrieval ever sees it.
+    # Scoped to retrieval only (matching/noise.py) -- NOT applied inside
+    # tokenize_description, which also drives scoring for every match in
+    # the system (see the multi-dimension tests below for why that
+    # distinction matters).
+    from matching.noise import strip_quantity_and_noise
+
+    assert strip_quantity_and_noise('3/4"x10\' EMT') == strip_quantity_and_noise('3/4" x 10\' EMT')
+    assert strip_quantity_and_noise("2\"x3\" BASE SPACER") == strip_quantity_and_noise('2" x 3" BASE SPACER')
+
+
+def test_multi_dimension_comparison_requires_exact_order_and_full_set() -> None:
+    # Plain set-intersection is too lenient for a genuine multi-dimension
+    # "AxB" product: {2,3} intersecting {3,3} would call that a "match" on
+    # the strength of the shared "3" alone, and it's also blind to order --
+    # {2,3} and {3,2} are the same set, but "2x3 Base Spacer" and "3x2 Base
+    # Spacer" are different catalog SKUs. Confirmed live: this tie is
+    # *pre-existing* and independent of any glued-text issue -- even a
+    # cleanly spaced '2" x 3" SPACER' query ties 80.0/80.0 against both the
+    # genuine 2x3 candidate and its transposed 3x2 sibling once retrieval
+    # finds both, since nothing previously compared the pair's order.
+    same_order = compare_units('2" x 3" SPACER', '2" x 3" Base Spacer')
+    assert same_order.dimension_status == "match"
+
+    reordered = compare_units('2" x 3" SPACER', '3" x 2" Base Spacer')
+    assert reordered.dimension_status == "conflict"
+
+    different_numbers = compare_units('2" x 4" SPACER', '2" x 3" Base Spacer')
+    assert different_numbers.dimension_status == "conflict"
+
+    # A single dimension keeps the original, more lenient intersection
+    # behavior -- there's no order or multi-value ambiguity to guard there.
+    single = compare_units('3/4" EMT', '3/4" Electrical Metallic Tubing')
+    assert single.dimension_status == "match"
+
+
+def test_bare_number_pair_extracted_without_any_unit() -> None:
+    # "2 x 3" is unambiguous dimension-pair notation on its own -- some
+    # catalog families never attach a unit to either number (this
+    # catalog's Base/Intermediate Spacer: "SPACER BASE 2 x 3", no "\"" or
+    # "IN" anywhere), so extract_dimensions() (which requires a unit
+    # suffix) can never see a dimension there, and the order/set check
+    # above never has anything to compare. extract_bare_number_pairs()
+    # fills that gap without touching extract_dimensions()'s own unit
+    # requirement (which also feeds the apply_units auto-detect
+    # heuristic and would risk misreading unrelated text if loosened).
+    assert extract_bare_number_pairs("SPACER BASE 2 x 3 BV2030") == ((2, 3),)
+    assert extract_bare_number_pairs('2"x3" SPACER') == ((2, 3),)
+    assert extract_bare_number_pairs("no numbers here") == ()
+
+    same_order = compare_units("2x3 SPACER", "SPACER BASE 2 x 3 BV2030")
+    assert same_order.dimension_status == "match"
+    reordered = compare_units("2x3 SPACER", "SPACER BASE 3 x 2 BV3020")
+    assert reordered.dimension_status == "conflict"
+
+
 def test_compound_box_dimensions_split_into_comparable_tokens() -> None:
     assert tokenize_description("QUAZITE 36x24x18 OPEN BOTTOM") == [
         "QUAZITE", "36", "24", "18", "OPEN", "BOTTOM",
@@ -246,6 +320,19 @@ def test_compound_box_dimensions_split_into_comparable_tokens() -> None:
     assert tokenize_description("12x12x10FT N1 PAINTED SC WIREWAY") == [
         "12", "12", "10", "FT", "N1", "PAINTED", "SC", "WIREWAY",
     ]
+
+
+def test_glued_x_retrieval_fix_does_not_touch_bare_digit_box_dimensions() -> None:
+    # The retrieval-side glued-x fix only fires when a genuine unit mark
+    # ("\"", "'") sits directly before the "x" -- NOT for a bare digit
+    # ("12x12x10FT"), which is a *different*, already-handled shorthand
+    # (WxHxD box/wireway dimensions) that depends on staying glued as one
+    # token. An earlier, unscoped version of this regex (firing on any
+    # digit before "x") broke this case, caught by this exact test.
+    from matching.noise import strip_quantity_and_noise
+
+    cleaned = strip_quantity_and_noise("QUAZITE 36x24x18 OPEN BOTTOM")
+    assert "36X24X18" in cleaned.upper().replace(" ", "")
 
 
 def test_space_separated_mixed_number_matches_dash_separated() -> None:

@@ -320,7 +320,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -329,7 +329,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 63.75,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -338,7 +338,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -347,7 +347,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -356,7 +356,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -365,7 +365,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 63.75,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -374,7 +374,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -383,7 +383,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {

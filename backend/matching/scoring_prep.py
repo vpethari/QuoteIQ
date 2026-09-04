@@ -7,7 +7,7 @@ from time import perf_counter
 
 from matching.normalizer import normalize_text
 from matching.tokenizer import tokenize_description
-from matching.units import extract_amperages, extract_dimensions, extract_voltages
+from matching.units import extract_amperages, extract_bare_number_pairs, extract_dimensions, extract_voltages
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class PreparedText:
     volts: tuple
     dims: tuple
     amps: tuple
+    bare_pairs: tuple = ()
 
 
 _EMPTY = PreparedText(
@@ -33,6 +34,7 @@ _EMPTY = PreparedText(
     volts=(),
     dims=(),
     amps=(),
+    bare_pairs=(),
 )
 
 
@@ -62,6 +64,7 @@ def prepare_scoring_text(value: str | None, cache: dict[str, PreparedText] | Non
         volts=extract_voltages(text),
         dims=extract_dimensions(text),
         amps=extract_amperages(text),
+        bare_pairs=extract_bare_number_pairs(text),
     )
     if cache is not None:
         cache[text] = prepared
