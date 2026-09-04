@@ -337,6 +337,12 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("Part Description — Strong match")).toBeInTheDocument();
     expect(screen.getByText("Part Number — No match")).toBeInTheDocument();
     expect(screen.getByText("Catalog Description — No match")).toBeInTheDocument();
+
+    // "Possible Matches" (and the "Input: ..." line inside it) used to be
+    // gated on REVIEW_REQUIRED status -- a matched row with candidates
+    // must show it too, not just review rows.
+    expect(screen.getByText("Possible Matches")).toBeInTheDocument();
+    expect(screen.getByText(/Input: B1EB5-W BRP 120V WHIP END EXT CBL/)).toBeInTheDocument();
   });
 
   it("displays numeric Productcode without thousands separators", async () => {

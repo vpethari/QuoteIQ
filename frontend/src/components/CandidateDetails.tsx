@@ -118,7 +118,7 @@ export function CandidateDetails({
         <p className="nomatch-callout">No matching Atkore part found</p>
       ) : null}
 
-      {review && hasCandidates ? (
+      {hasCandidates ? (
         <>
           <h3>Possible Matches</h3>
           <p className="hint">
