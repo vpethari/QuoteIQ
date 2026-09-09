@@ -46,6 +46,14 @@ class MatchingConfig:
     ambiguous_confidence_cap: float = 86.0
     numeric_conflict_cap: float = 40.0
     partial_match_max_confidence: float = 78.0
+    # Floor applied when a query's dimensions match a candidate's own
+    # exactly, in full and in order (2+ dimensions -- see
+    # units._dimension_status), and there's already independent, compatible
+    # text support -- see matching.confidence.build_confidence_breakdown.
+    # Comfortably above high_confidence_min so a genuine exact-dimension
+    # match with no real competing candidate isn't stuck at REVIEW_REQUIRED
+    # just because confidence_weight_numeric alone only weighs it 10%.
+    exact_dimension_confidence_floor: float = 92.0
 
     def __post_init__(self) -> None:
         total = (

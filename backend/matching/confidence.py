@@ -160,6 +160,7 @@ def build_confidence_breakdown(
     ident_type: str,
     similarity: float,
     config: MatchingConfig,
+    exact_multi_dimension_match: bool = False,
 ) -> ConfidenceBreakdown:
     numeric_score, conflict, numeric_label = numeric_unit_component(unit_cmp)
     productcode_score = float(field_scores.get("productcode") or 0.0)
@@ -177,6 +178,22 @@ def build_confidence_breakdown(
     )
     if ident_type not in IDENTITY_MATCH_TYPES and not conflict:
         confidence = max(confidence, token_coverage)
+        # An exact, full-set/ordered multi-dimension match (see
+        # units._dimension_status -- "2x3" matching a candidate's own
+        # "2 x 3" requires every dimension, in the same order, not just a
+        # loose overlap) is a very specific, hard-to-fake signal, but
+        # confidence_weight_numeric only weighs it 10% of the blend above --
+        # confirmed live, "2\"x3\" BASE SPACER" scored the correct BV2030 at
+        # only 80% (capped by plain token_coverage, which doesn't credit the
+        # dimension match at all) despite there being no real competing
+        # candidate, keeping it at REVIEW_REQUIRED instead of a confident
+        # match. Gated on token_coverage already clearing the same
+        # "compatible" bar used elsewhere in this file, so this only ever
+        # boosts a candidate with genuine, independent text support -- never
+        # rescues an unrelated product that happens to share two numbers
+        # coincidentally.
+        if exact_multi_dimension_match and token_coverage >= config.description_compatible_min:
+            confidence = max(confidence, config.exact_dimension_confidence_floor)
     if conflict:
         cap = unit_cmp.score_cap if unit_cmp.score_cap is not None else config.numeric_conflict_cap
         confidence = min(confidence, cap, config.numeric_conflict_cap)

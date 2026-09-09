@@ -218,3 +218,39 @@ def test_description_scoring_never_weights_productcode() -> None:
             ident_type="none", numeric_score=50.0, config=config, name_score=name_score
         )
         assert "productcode" not in weights
+
+
+def _spacer_catalog() -> list[ProductRecord]:
+    return [
+        _pg_product(1, "BV2030", "BV2030", "SPACER BASE 2 x 3 BV2030 Polypropylene Black"),
+        _pg_product(2, "BV2015", "BV2015", "SPACER BASE 2 x 1-1/2 BV2015 Polypropylene Black"),
+        _pg_product(3, "BV2020", "BV2020", "SPACER BASE 2 x 2 BV2020 Polypropylene Black"),
+    ]
+
+
+def test_exact_multi_dimension_match_reaches_high_confidence() -> None:
+    # Confirmed live: '2"x3" BASE SPACER' scored the correct BV2030 at only
+    # 80% (capped by plain token_coverage, which gives no credit at all for
+    # the exact "2 x 3" dimension match) despite no real competing
+    # candidate -- BV2015/BV2020 are clearly different sizes and score far
+    # lower. Stuck at REVIEW_REQUIRED instead of a confident match purely
+    # because confidence_weight_numeric only weighs the dimension match 10%
+    # of the blend, which token_coverage then overrides anyway.
+    result = ProductMatcher(_spacer_catalog()).match_line(_line('2"x3" BASE SPACER'))
+    assert result.matched_part_number == "BV2030"
+    assert result.matching_percentage >= MatchingConfig().exact_dimension_confidence_floor
+    assert result.match_status == MatchStatus.HIGH_CONFIDENCE
+
+
+def test_exact_dimension_floor_does_not_rescue_a_weak_text_match() -> None:
+    # Safety guard: the floor only applies once token_coverage already
+    # clears description_compatible_min -- it must never single-handedly
+    # rescue a candidate whose numbers happen to line up (a coincidence)
+    # but whose text is otherwise unrelated to what was requested.
+    catalog = [
+        _pg_product(9, "UNREL30", "UNREL30", "PURPLE BANANA ENCLOSURE 2 x 3 UNRELATED WIDGET"),
+    ]
+    result = ProductMatcher(catalog).match_line(_line('2"x3" BASE SPACER'))
+    config = MatchingConfig()
+    assert result.matching_percentage < config.exact_dimension_confidence_floor
+    assert result.match_status != MatchStatus.HIGH_CONFIDENCE

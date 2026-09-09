@@ -298,6 +298,11 @@ def score_product_fields(
     _acc(session, "score_units_ms", started)
     token_coverage = combined.token
     similarity = max(field_scores.values(), default=0.0)
+    # See matching.confidence.build_confidence_breakdown's
+    # exact_multi_dimension_match parameter -- only a genuinely exact,
+    # full-set/ordered pairing (2+ dimensions) counts, not a single bare
+    # size or a loose overlap.
+    exact_multi_dimension_match = unit_cmp.dimension_status == "match" and len(prepared_query.dims) >= 2
 
     if ident_type in IDENTITY_MATCH_TYPES:
         field_scores["productcode"] = max(field_scores.get("productcode", 0.0), best_ident)
@@ -315,6 +320,7 @@ def score_product_fields(
                 ident_type=ident_type,
                 similarity=max(similarity, best_ident),
                 config=settings,
+                exact_multi_dimension_match=exact_multi_dimension_match,
             )
             overall = confidence.confidence
             merged = ScoreBreakdown(
@@ -357,6 +363,7 @@ def score_product_fields(
         ident_type="none",
         similarity=similarity,
         config=settings,
+        exact_multi_dimension_match=exact_multi_dimension_match,
     )
     overall = confidence.confidence
     merged = ScoreBreakdown(
