@@ -40,7 +40,7 @@ CATEGORY_DEFAULTS: dict[str, str] = {
 # the bare-category treatment the way a real product-type qualifier would,
 # but they also aren't *redundant* with the default phrase (unlike "GALV"
 # for "GRC") -- retrieval must still require them, not drop them.
-_COMPATIBLE_QUALIFIER_WORDS = frozenset({"STEEL"})
+_COMPATIBLE_QUALIFIER_WORDS = frozenset({"STL"})
 
 # Unit markers that tokenize_description() produces from a size expression
 # (e.g. "1\"" -> "1", "IN") -- these describe the *number* before them, not

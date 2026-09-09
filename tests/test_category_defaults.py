@@ -67,10 +67,15 @@ def test_cplg_is_a_synonym_for_coupling() -> None:
 
 
 def test_expand_bare_category_query_steel_flex_implies_conduit() -> None:
-    query = "STEEL FLEX"
-    tokens = tokenize_description(query)
-    expanded = expand_bare_category_query(query, tokens)
-    assert "CONDUIT" in expanded
+    # Regression guard: _COMPATIBLE_QUALIFIER_WORDS must key on "STL" (the
+    # canonical form tokenize_description() now produces for both "Steel"
+    # and "STL" -- see terminology.py), not the literal spelled-out word
+    # "STEEL" -- otherwise this expansion silently breaks the moment
+    # "STEEL" stops being its own distinct token.
+    for query in ("STEEL FLEX", "STL FLEX"):
+        tokens = tokenize_description(query)
+        expanded = expand_bare_category_query(query, tokens)
+        assert "CONDUIT" in expanded
 
 
 def test_reduce_bare_category_tokens_keeps_steel_as_required() -> None:

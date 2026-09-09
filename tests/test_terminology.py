@@ -62,3 +62,28 @@ def test_separator_is_a_synonym_for_divider_and_barrier() -> None:
     # found zero candidates without this synonym.
     assert set(token_variants("SEPARATOR")) == {"SEPARATOR", "DIVIDER", "BARRIER"}
     assert canonicalize_token("BARRIER") == "SEPARATOR"
+
+
+def test_stl_is_a_synonym_for_steel() -> None:
+    # Confirmed live: "3/4\" SPRING STL CONDUIT CLAMP W/ BOLT" excluded a
+    # genuine same-size candidate (HCS1KON, "3/4\" CARBON STEEL HANGER w
+    # NUTS & BOLTS") because the catalog spells this out as "Steel" and
+    # never abbreviates it "STL" in that spot. Unlike "SS" (ambiguous
+    # between "stainless steel" and "set screw"), "STL"/"STEEL" mean
+    # exactly one thing.
+    assert set(token_variants("STL")) == {"STL", "STEEL"}
+    assert canonicalize_token("STEEL") == "STL"
+
+
+def test_stl_canonicalization_still_triggers_the_set_screw_phrase_expansion() -> None:
+    # Regression guard: PHRASE_EXPANSIONS' frozenset({"STL", "SS"}) trigger
+    # keys on the literal "STL" token -- canonicalizing "STEEL" to "STL"
+    # must not break that, and should let a customer who spells out "STEEL
+    # SS SCREW" in full trigger the same "STEEL SET SCREW" expansion as the
+    # abbreviated "STL SS SCREW" form.
+    from matching.category_defaults import expand_known_phrases
+    from matching.description_normalize import tokenize_description
+
+    for query in ("STL SS SCREW", "STEEL SS SCREW"):
+        tokens = tokenize_description(query)
+        assert "STEEL SET SCREW" in expand_known_phrases(query, tokens)
