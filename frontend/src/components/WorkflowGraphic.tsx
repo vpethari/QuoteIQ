@@ -9,8 +9,8 @@ function SampleFormatTable() {
       </thead>
       <tbody>
         <tr>
-          <td>Cable Cleats</td>
-          <td>120</td>
+          <td>1" PVC Conduit</td>
+          <td>1000 ft</td>
         </tr>
       </tbody>
     </table>
