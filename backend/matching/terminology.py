@@ -66,18 +66,6 @@ TERMINOLOGY_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # real, if rarer, catalog spelling for the same idea elsewhere (e.g.
     # "FLOOR BOX DIVIDER KIT").
     ("SEPARATOR", ("SEPARATOR", "DIVIDER", "BARRIER")),
-    # Confirmed live: "3/4\" SPRING STL CONDUIT CLAMP W/ BOLT" excluded a
-    # genuine same-size match (HCS1KON, "3/4\" CARBON STEEL HANGER w NUTS &
-    # BOLTS Steel Zinc Plated") partly because the catalog spells this out
-    # as "Steel" and never abbreviates it "STL" in that spot. Unlike "SS"
-    # (ambiguous between "stainless steel" and "set screw" -- see
-    # PHRASE_EXPANSIONS below), "STL"/"STEEL" mean exactly one thing, no
-    # ambiguity to guard against. Canonical form stays "STL" (not "STEEL")
-    # since PHRASE_EXPANSIONS' frozenset({"STL", "SS"}) trigger already
-    # keys on the literal "STL" token -- keeping it canonical means a
-    # customer who spells out "STEEL SS SCREW" in full now triggers that
-    # expansion too, instead of only the abbreviated "STL SS" form.
-    ("STL", ("STL", "STEEL")),
 )
 
 # Display labels for match evidence (source token -> lowercase expanded word).
