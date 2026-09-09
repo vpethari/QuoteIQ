@@ -54,6 +54,21 @@ class MatchingConfig:
     # match with no real competing candidate isn't stuck at REVIEW_REQUIRED
     # just because confidence_weight_numeric alone only weighs it 10%.
     exact_dimension_confidence_floor: float = 92.0
+    # How many rows to actually pull from SQL before the Python-side
+    # dimension-match rerank (see matcher._rerank_by_dimension_match) trims
+    # back down to search_text_candidate_limit for scoring. SQL's own
+    # trigram/word-similarity ranking has no concept of "size" at all, so a
+    # query tying many same-family, differently-sized candidates (e.g. "4\"
+    # GRC STRUT CLAMP" tying 16+ stainless variants across every size, plus
+    # dozens of finish-code variants of the correct part) can push the one
+    # genuinely correct size past a small LIMIT before scoring ever sees it
+    # -- confirmed live, the correct P1121 EG finish variant was retrieved
+    # at position 30+ of a ~50-way tie, past the plain search_text_candidate_
+    # limit of 30. Wider than that limit, not equal to retrieval_candidate_
+    # limit (100): large enough to comfortably contain the genuine match
+    # even under a large tie, without pulling the entire catalog over the
+    # wire for every partial-match line.
+    search_text_rerank_pool_limit: int = 150
 
     def __post_init__(self) -> None:
         total = (

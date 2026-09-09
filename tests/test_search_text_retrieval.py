@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from sqlalchemy import create_engine, text
 
 from catalog.postgres_repository import PostgresCatalogRepository, product_from_postgres_row
-from matching.matcher import ProductMatcher
+from matching.matcher import ProductMatcher, _rerank_by_dimension_match
 from matching.models import MatchStatus, QuoteLine
 
 
@@ -390,7 +390,14 @@ def test_matcher_uses_catalog_search_instead_of_full_product_list() -> None:
     assert result.match_status in {MatchStatus.EXACT_MATCH, MatchStatus.HIGH_CONFIDENCE}
 
 
-def test_matcher_requests_thirty_search_text_candidates() -> None:
+def test_matcher_requests_a_larger_sql_pool_than_it_scores() -> None:
+    # The matcher asks SQL for a wider pool (search_text_rerank_pool_limit)
+    # than it actually scores (search_text_candidate_limit) -- SQL's own
+    # trigram ranking has no concept of "size", so _rerank_by_dimension_match
+    # needs enough of a pool to find a genuine same-size candidate that a
+    # same-family tie pushed past a plain 30-row cutoff (confirmed live: "4\"
+    # GRC STRUT CLAMP" tied 16+ stainless variants across every size before
+    # even reaching the dozens of finish-code variants of the correct part).
     product = product_from_postgres_row(
         productcode="B1EB5-W",
         name="B1EB5-W",
@@ -405,7 +412,7 @@ def test_matcher_requests_thirty_search_text_candidates() -> None:
     matcher = ProductMatcher([], catalog_search=search)
     matcher.match_line(_line("BRP 120 volts whip end extension cable"))
     search.search_text_candidates.assert_called()
-    assert search.search_text_candidates.call_args.kwargs["limit"] == 30
+    assert search.search_text_candidates.call_args.kwargs["limit"] == 150
 
 
 def test_identifier_retrieval_keeps_existing_limit() -> None:
@@ -447,3 +454,52 @@ def test_lookup_productcode_falls_back_to_compact_match_for_spaced_names() -> No
     repository = _sqlite_catalog()
     hits = repository.lookup_productcode("rr2bakr")
     assert [item.product_code for item in hits] == ["RR 2BA KR"]
+
+
+def _size_product(code: str, description: str) -> object:
+    product = product_from_postgres_row(productcode=code, name=code, description=description)
+    assert product is not None
+    return product
+
+
+def test_rerank_by_dimension_match_promotes_a_genuine_same_size_candidate() -> None:
+    # Confirmed live: "4\" GRC STRUT CLAMP" retrieved 16+ stainless "STRUT
+    # CLMP" variants across every size before the genuinely correct 4"
+    # candidate at all -- SQL's own trigram ranking has no notion of "size".
+    wrong_size = _size_product("WRONG34", '3/4" SS316 STRUT CLMP Stainless Steel')
+    right_size = _size_product("RIGHT4", '4" SS316 STRUT CLMP Stainless Steel')
+    ranked = _rerank_by_dimension_match('4" GRC STRUT CLAMP', [wrong_size, wrong_size, right_size], limit=2)
+    assert ranked[0].product_code == "RIGHT4"
+
+
+def test_rerank_by_dimension_match_is_stable_within_groups() -> None:
+    # A stable sort: the existing SQL ordering must survive fully intact
+    # *within* the "matches"/"doesn't match" groups -- this only ever moves
+    # the dividing line between them.
+    first = _size_product("A4", "4 IN CLAMP A")
+    second = _size_product("B4", "4 IN CLAMP B")
+    ranked = _rerank_by_dimension_match('4" CLAMP', [first, second], limit=2)
+    assert [item.product_code for item in ranked] == ["A4", "B4"]
+
+
+def test_rerank_by_dimension_match_only_promotes_a_confirmed_same_size() -> None:
+    # A candidate with no extractable size at all has nothing to positively
+    # confirm a match with, so it sorts behind a candidate that does --
+    # same as a genuinely different size would (see extract_dimensions()'s
+    # own unit-mark requirement, in the docstring above).
+    no_size = _size_product("NOSIZE", "GENERIC CLAMP NO DIMENSION GIVEN")
+    right_size = _size_product("RIGHT4", '4" CLAMP')
+    ranked = _rerank_by_dimension_match('4" CLAMP', [no_size, right_size], limit=2)
+    assert [item.product_code for item in ranked] == ["RIGHT4", "NOSIZE"]
+
+
+def test_rerank_by_dimension_match_truncates_to_limit() -> None:
+    products = [_size_product(f"P{i}", "4 IN CLAMP") for i in range(5)]
+    ranked = _rerank_by_dimension_match('4" CLAMP', products, limit=3)
+    assert len(ranked) == 3
+
+
+def test_rerank_by_dimension_match_passes_through_when_query_has_no_size() -> None:
+    products = [_size_product(f"P{i}", "4 IN CLAMP") for i in range(3)]
+    ranked = _rerank_by_dimension_match("GENERIC CLAMP", products, limit=2)
+    assert [item.product_code for item in ranked] == ["P0", "P1"]

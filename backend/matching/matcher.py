@@ -27,10 +27,12 @@ from matching.description_normalize import (
     ABBREV_REASON,
     abbreviation_evidence,
     catalog_description_blob,
+    catalog_unit_blob,
     description_retrieval_hit,
     expand_query_for_retrieval,
 )
 from matching.noise import prepare_product_search_text, strip_quantity_and_noise
+from matching.units import extract_dimensions
 from matching.request_cache import (
     candidate_cache_key,
     end_request_cache,
@@ -82,6 +84,50 @@ DESC_AMBIGUOUS = (
 PN_NOT_FOUND = (
     "Requested part number was not found in the Atkore catalog. Description candidates require review."
 )
+
+
+def _rerank_by_dimension_match(
+    query: str, products: list[ProductRecord], limit: int
+) -> list[ProductRecord]:
+    """Stable-sort retrieved candidates so ones whose own genuine size
+    matches the query's requested size sort ahead of same-retrieval-rank
+    candidates that don't, before truncating to `limit` -- the count that
+    actually gets scored. SQL's own trigram/word-similarity ranking has no
+    concept of "size" at all, so a query tying many same-family,
+    differently-sized candidates can push the one genuinely correct size
+    past a small LIMIT before scoring ever sees it (confirmed live: "4\"
+    GRC STRUT CLAMP" tied 16+ stainless "STRUT CLMP" variants across every
+    size, plus dozens of finish-code variants of the correct part, pushing
+    the correct 4" EG-finish part past position 30).
+
+    Uses extract_dimensions() -- the same precise, word-boundary-aware
+    extractor scoring's own numeric comparison already trusts -- rather
+    than retrieval's plain ILIKE substring check, which confirmed live gets
+    fooled by unrelated boilerplate like "#4 Polished Finish" (a finish
+    grade, not a size). extract_dimensions() only recognizes a number as a
+    size when it carries an explicit unit mark (a quote mark, or "IN"/"FT"
+    as its own word) -- confirmed live, this is also why the stainless
+    "STRUT CLMP" family sorts behind the genuinely correct part: its own
+    size is written as a bare, unmarked number, so it has nothing to
+    positively match with either and falls in with the group that simply
+    doesn't have a confirmed match, the same as a genuinely different size
+    would.
+
+    A stable sort (Python's sorted() guarantee) so the existing SQL
+    ordering is fully preserved *within* the "matches" and "doesn't match"
+    groups -- this only moves the dividing line between them, never
+    reorders candidates relative to each other otherwise.
+    """
+    query_sizes = {spec.inches for spec in extract_dimensions(query)}
+    if not query_sizes:
+        return products[:limit]
+
+    def _matches_requested_size(product: ProductRecord) -> bool:
+        candidate_sizes = {spec.inches for spec in extract_dimensions(catalog_unit_blob(product))}
+        return bool(candidate_sizes & query_sizes)
+
+    ranked = sorted(products, key=lambda product: not _matches_requested_size(product))
+    return ranked[:limit]
 
 
 def _catalog_connection_scope(catalog_search: object | None):
@@ -390,10 +436,12 @@ class ProductMatcher:
                         cache.candidates[key] = tuple(products)
                     return products
             text_limit = self.config.search_text_candidate_limit
+            pool_limit = max(text_limit, self.config.search_text_rerank_pool_limit)
             text_hits = self.catalog_search.search_text_candidates(
-                query, limit=text_limit, rank_query=rank_query
+                query, limit=pool_limit, rank_query=rank_query
             )
             if text_hits:
+                text_hits = _rerank_by_dimension_match(query, list(text_hits), text_limit)
                 products = list(text_hits)
                 if cache is not None:
                     cache.candidates[key] = tuple(products)
