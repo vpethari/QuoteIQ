@@ -81,16 +81,27 @@ def retrieval_search_string(query: str, *, label_mode: str = "full") -> str:
     return cleaned.lower().strip()
 
 
-def _is_distinctive(token: str) -> bool:
-    """A single stray digit (e.g. "1" left over from splitting "1-5/8") matches
-    almost every catalog row and adds no discriminating power, so it needs a
-    higher bar than a plain length check: digit-only tokens must be at least
-    2 characters (keeps real sizes like "36"/"144"), everything else just
-    needs to not be a 1-2 character fragment.
+def _is_distinctive(token: str, *, next_token: str | None = None) -> bool:
+    """A single stray digit (e.g. "1" left over from splitting "1 1/2\"" into
+    "1", "1/2") matches almost every catalog row and adds no discriminating
+    power on its own -- but only when it really is that kind of leftover, not
+    when it's the query's only, genuine whole-number size (e.g. "4\"" in "4\"
+    GRC STRUT CLAMP"). The two are told apart by what comes right after: a
+    mixed-fraction's leading whole part is always immediately followed by
+    the fraction itself ("1", then "1/2"); a real bare size never is.
+
+    Confirmed live: dropping "4" unconditionally made "4\" GRC STRUT CLAMP"
+    and "3\" GRC STRUT CLAMP" retrieve identically, and the genuinely correct
+    4" clamp (P1121-EG) was lost among 200+ other same-family candidates
+    tied at the same partial-match count, with no signal left to rank it
+    above them -- confirmed the single highest word_similarity of the whole
+    tied group, yet excluded from the LIMIT cutoff entirely.
     """
     bare = token.replace(".", "", 1)
     if bare.isdigit():
-        return len(bare) >= 2
+        if len(bare) >= 2:
+            return True
+        return not (next_token and "/" in next_token)
     return len(token) >= 3
 
 
@@ -132,7 +143,11 @@ def retrieval_search_token_groups(
     raw_tokens = tokenize_description(cleaned, apply_units=False)
     raw_tokens = _apply_label_mode(raw_tokens, label_mode)
     tokens = [_strip_leading_zero(token) for token in raw_tokens]
-    distinctive = [token for token in tokens if _is_distinctive(token)]
+    distinctive = [
+        token
+        for index, token in enumerate(tokens)
+        if _is_distinctive(token, next_token=tokens[index + 1] if index + 1 < len(tokens) else None)
+    ]
     if not distinctive:
         distinctive = [token for token in tokens if token]
     # A bare category word's own implied default wording (e.g. "conduit" for

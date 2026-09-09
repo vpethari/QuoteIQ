@@ -104,6 +104,32 @@ def test_retrieval_strips_leading_zero_from_whole_number_sizes() -> None:
     assert "1/2" in retrieval_search_string('1/2" PVC COUPLING').split()
 
 
+def test_retrieval_keeps_a_genuine_bare_whole_number_size_required() -> None:
+    # Confirmed live: "4\" GRC STRUT CLAMP" and "3\" GRC STRUT CLAMP" used to
+    # retrieve identically -- a single bare digit was always dropped as
+    # probable noise, on the assumption it was a mixed fraction's leftover
+    # whole part (e.g. "1" in "1 1/2\""). That's true when it's immediately
+    # followed by a fraction, but "4" here is the query's only, genuine
+    # size and dropping it lost all size information from retrieval.
+    from catalog.search_query import retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups('4" GRC STRUT CLAMP')
+    flat = {variant for group in groups for variant in group}
+    assert "4" in flat
+
+
+def test_retrieval_still_drops_mixed_fraction_leading_whole_part() -> None:
+    # Companion case: "1" in "1 1/2\"" (and "1-5/8") is immediately followed
+    # by the fraction that already carries the real size -- must stay
+    # dropped, not suddenly become a second, redundant required position.
+    from catalog.search_query import retrieval_search_token_groups
+
+    for query in ('1 1/2" GRC (GALV)', "1-5/8 CHANNEL"):
+        groups = retrieval_search_token_groups(query)
+        flat = {variant for group in groups for variant in group}
+        assert "1" not in flat
+
+
 def test_scoring_tokenization_still_converts_fraction_to_decimal() -> None:
     # The retrieval-side fix above must not regress scoring, which needs
     # both the query and the candidate's raw text unit-normalized the same
@@ -154,6 +180,35 @@ def test_search_text_sql_orders_by_word_similarity_with_similarity_tiebreak() ->
     word_sim_pos = sql.index("word_similarity(")
     plain_sim_pos = sql.index("similarity(", word_sim_pos + len("word_similarity("))
     assert word_sim_pos < plain_sim_pos
+
+
+def test_partial_search_text_sql_orders_by_word_similarity_with_similarity_tiebreak() -> None:
+    # Confirmed live: "4\" GRC STRUT CLAMP" tied 200+ generic pipe-clamp rows
+    # at the exact same match_count (this query never satisfies the strict
+    # all-tokens search, so it always falls to this partial tier) -- with no
+    # secondary ORDER BY at all, which of those 200+ ties survives the LIMIT
+    # cutoff is arbitrary (Postgres's own GROUP BY/hash order), not a
+    # reflection of which one actually reads closest. The genuinely correct
+    # 4" clamp had the single highest word_similarity of the whole tied
+    # group, yet was excluded entirely. Same tiebreak signal the strict-AND
+    # tier already uses (see test_search_text_sql_orders_by_word_similarity_
+    # with_similarity_tiebreak above).
+    engine = MagicMock()
+    engine.dialect.name = "postgresql"
+    repository = PostgresCatalogRepository(engine)
+    sql = repository.partial_search_text_sql([1, 1, 1], 2)
+    assert "match_count DESC" in sql
+    assert "word_similarity(:rank_normalized, MAX(search_text))" in sql
+    word_sim_pos = sql.index("word_similarity(")
+    plain_sim_pos = sql.index("similarity(", word_sim_pos + len("word_similarity("))
+    assert word_sim_pos < plain_sim_pos
+
+
+def test_partial_search_text_sql_falls_back_to_match_count_only_on_sqlite() -> None:
+    repository = _sqlite_catalog()
+    sql = repository.partial_search_text_sql([1, 1, 1], 2)
+    assert "ORDER BY match_count DESC " in sql
+    assert "word_similarity" not in sql
 
 
 def test_search_text_sql_ors_synonym_variants_within_a_token_position() -> None:

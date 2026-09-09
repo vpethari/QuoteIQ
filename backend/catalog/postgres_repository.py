@@ -279,7 +279,8 @@ class PostgresCatalogRepository:
         """Fallback retrieval SQL used only when the strict all-tokens search
         finds nothing: requires at least ``min_required`` of the token
         positions to match (each still OR'd across its own spellings), ranked
-        by how many positions matched.
+        by how many positions matched, then (on Postgres) by textual
+        relevance -- see the ORDER BY comment below.
 
         Built as one indexed single-predicate query per token position, UNIONed
         and grouped, rather than a single scan computing every position's hit
@@ -298,19 +299,38 @@ class PostgresCatalogRepository:
             "SELECT "
             f"{code_sql} AS productcode, {name_sql} AS name, "
             f"{desc_sql} AS description, {desc2_sql} AS description2, "
-            f"{orderable_sql} AS orderablepartnumber, "
+            f"{orderable_sql} AS orderablepartnumber, {search_expr} AS search_text, "
             f"{position} AS token_position "
             f"FROM {table_sql} WHERE "
             + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count))
             for position, count in enumerate(token_variant_counts)
         ]
+        order_sql = "match_count DESC"
+        if self._is_postgres():
+            # Without this, every candidate tied on match_count -- commonly
+            # 100+ rows for a query that shares only generic words with a
+            # large catalog family -- is ordered arbitrarily by Postgres's
+            # own GROUP BY/hash order, with no regard for which one is
+            # actually the closest textual match. Confirmed live: "4\" GRC
+            # STRUT CLAMP" tied 200+ pipe-clamp rows at the same
+            # match_count, and the genuinely correct 4" clamp (the single
+            # highest word_similarity of the whole tied group) never made
+            # it into the LIMIT cutoff. Same word_similarity-then-
+            # similarity tiebreak the strict-AND tier already uses (see
+            # search_text_sql) -- MAX() since search_text is identical
+            # across a row's UNION branches but isn't itself grouped on.
+            order_sql = (
+                "match_count DESC, "
+                "word_similarity(:rank_normalized, MAX(search_text)) DESC, "
+                "similarity(MAX(search_text), :rank_normalized) DESC"
+            )
         return (
             "SELECT productcode, name, description, description2, orderablepartnumber, "
             "COUNT(DISTINCT token_position) AS match_count "
             f"FROM ({' UNION ALL '.join(branches)}) AS hits "
             "GROUP BY productcode, name, description, description2, orderablepartnumber "
             "HAVING COUNT(DISTINCT token_position) >= :min_required "
-            "ORDER BY match_count DESC "
+            f"ORDER BY {order_sql} "
             "LIMIT :limit"
         )
 
@@ -390,7 +410,13 @@ class PostgresCatalogRepository:
             min_required = math.ceil(len(token_groups) * PARTIAL_MATCH_MIN_OVERLAP)
             if min_required < len(token_groups):
                 sql = text(self.partial_search_text_sql(variant_counts, min_required))
-                params = {"limit": cap, "normalized": normalized, "min_required": min_required, **token_params}
+                params = {
+                    "limit": cap,
+                    "normalized": normalized,
+                    "rank_normalized": rank_normalized,
+                    "min_required": min_required,
+                    **token_params,
+                }
                 rows = self._timed_fetch(sql, params, search="search_text_candidates_partial")
                 products = self._rows_to_products(rows)
                 if products:
