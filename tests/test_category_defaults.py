@@ -718,6 +718,22 @@ def test_unrequested_specialty_marker_none_for_genuine_pvc_sch40_conduit() -> No
     assert marker is None
 
 
+def test_unrequested_specialty_marker_none_for_genuine_steel_conduit_locknut() -> None:
+    # Every genuine steel conduit locknut in this catalog (all 13 rows of
+    # the plain "###KON" family) spells its own classification out as "RMC
+    # Threaded Conduit & Cable Fittings" -- so "THREADED" must be exempt for
+    # a bare "... LOCKNUT" query, the same shape of fix as "RIGID" for PVC.
+    # Confirmed live: without this, "2\" STEEL LOCKNUT" capped its own
+    # genuinely correct candidate (16KON) to the same description_conflict_max
+    # score as a 3/8" and a 1/2" locknut, erasing the size-based ranking
+    # that should have put the correct 2" locknut first.
+    marker = unrequested_specialty_marker(
+        '2" STEEL LOCKNUT',
+        '16KON 2" CONDUIT LOCKNUT Steel Zinc Plated Locknut RMC Threaded Conduit & Cable Fittings',
+    )
+    assert marker is None
+
+
 def test_variant_conflict_true_for_stainless_mismatch() -> None:
     assert variant_conflict("1/2 EMT ONE HOLE STRAP", "1/2 EMT STAINLESS STEEL ONE HOLE STRAP") is True
 

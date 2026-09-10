@@ -69,6 +69,22 @@ CATEGORY_DEFAULTS: dict[str, str] = {
     # See _COMPATIBLE_QUALIFIER_WORDS below for why "FIXTURE" doesn't
     # disqualify this the way "COUPLING" disqualifies bare "PVC".
     "WHIP": "METALLIC",
+    # "THREADED" isn't a scoring-expansion default so much as an entry that
+    # exists to exempt "THREADED" from unrequested_specialty_marker's
+    # _SPECIALTY_VARIANT_MARKERS list for this family -- the same shape of
+    # fix as "RIGID" for PVC above. Confirmed live: every genuine steel
+    # conduit locknut in this catalog (all 13 rows of the plain "###KON"
+    # family) spells its own generic classification out as "RMC Threaded
+    # Conduit & Cable Fittings", so it isn't a real "this candidate is a
+    # different, more specialized part" signal the way it is elsewhere --
+    # yet since bare "STEEL LOCKNUT" never asks for "threaded" itself,
+    # every locknut candidate (right size and wrong) was getting flagged
+    # identically and capped to the same description_conflict_max score,
+    # erasing the size-based ranking and letting whichever size happened to
+    # sort first in retrieval win instead of the genuinely correct one
+    # (e.g. "2\" STEEL LOCKNUT" tied its correct 2" locknut, 16KON, with a
+    # 3/8" and a 1/2" locknut at an identical 40%).
+    "LOCKNUT": "THREADED",
 }
 
 # Material words that describe *which variant* of a category the customer
