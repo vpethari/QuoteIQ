@@ -31,6 +31,21 @@ _active_connection: ContextVar[Connection | None] = ContextVar("_active_connecti
 PARTIAL_MATCH_MIN_OVERLAP = 0.6
 PARTIAL_MATCH_MIN_TOKENS = 3
 
+# Confirmed live: strict AND retrieval for "3/4\" EMT STL SS CPLG" found
+# exactly ONE row, ERSS75KON -- a specialty EMT-to-RIGID transition coupling
+# whose own catalog text happens to spell "STL" the same way the customer's
+# abbreviation does. Every genuinely correct plain EMT-to-EMT coupling in
+# this catalog (e.g. SK75RKON, "EMT Set Screw Coupling") spells "Steel" out
+# in full instead, so none of them satisfy the strict "stl" requirement --
+# but since strict AND still found that one coincidental hit, it returned
+# immediately and never even tried the partial-match tier below, which
+# would have found all of them. A single, incidental strict-AND hit isn't a
+# strong enough signal to skip checking whether partial matching would
+# surface a materially larger, better-fitting set -- so below this many
+# strict hits, partial-match results are merged in too rather than trusted
+# alone. A well-populated strict AND (the common case) is left untouched.
+STRICT_MATCH_MERGE_THRESHOLD = 3
+
 
 def _quote(identifier: str) -> str:
     if not _IDENT.fullmatch(identifier):
@@ -402,25 +417,45 @@ class PostgresCatalogRepository:
             **token_params,
         }
         rows = self._timed_fetch(sql, params, search="search_text_candidates")
-        products = self._rows_to_products(rows)
-        if products or not token_groups:
-            return products
+        strict_products = self._rows_to_products(rows)
+        if not token_groups:
+            return strict_products
 
-        if len(token_groups) >= PARTIAL_MATCH_MIN_TOKENS:
-            min_required = math.ceil(len(token_groups) * PARTIAL_MATCH_MIN_OVERLAP)
-            if min_required < len(token_groups):
-                sql = text(self.partial_search_text_sql(variant_counts, min_required))
-                params = {
-                    "limit": cap,
-                    "normalized": normalized,
-                    "rank_normalized": rank_normalized,
-                    "min_required": min_required,
-                    **token_params,
-                }
-                rows = self._timed_fetch(sql, params, search="search_text_candidates_partial")
-                products = self._rows_to_products(rows)
-                if products:
-                    return products
+        partial_worth_trying = len(token_groups) >= PARTIAL_MATCH_MIN_TOKENS
+        min_required = math.ceil(len(token_groups) * PARTIAL_MATCH_MIN_OVERLAP) if partial_worth_trying else 0
+        partial_worth_trying = partial_worth_trying and min_required < len(token_groups)
+
+        if strict_products and (
+            len(strict_products) >= STRICT_MATCH_MERGE_THRESHOLD or not partial_worth_trying
+        ):
+            return strict_products
+
+        if partial_worth_trying:
+            sql = text(self.partial_search_text_sql(variant_counts, min_required))
+            params = {
+                "limit": cap,
+                "normalized": normalized,
+                "rank_normalized": rank_normalized,
+                "min_required": min_required,
+                **token_params,
+            }
+            rows = self._timed_fetch(sql, params, search="search_text_candidates_partial")
+            partial_products = self._rows_to_products(rows)
+            if partial_products:
+                if not strict_products:
+                    return partial_products
+                # See STRICT_MATCH_MERGE_THRESHOLD -- a small strict-AND hit
+                # count is included, not replaced, so scoring still sees it
+                # (it may yet be the right answer), just no longer as the
+                # ONLY candidate considered.
+                seen = {product.product_code for product in strict_products}
+                merged = list(strict_products) + [
+                    product for product in partial_products if product.product_code not in seen
+                ]
+                return merged[:cap]
+
+        if strict_products:
+            return strict_products
 
         sql = text(self.search_text_sql([]))
         params = {"limit": cap, "normalized": f"%{normalized}%"}

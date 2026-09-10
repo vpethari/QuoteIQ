@@ -302,6 +302,57 @@ def test_search_text_candidates_matches_fraction_size_against_raw_catalog_text()
     assert "MSC5090KON" in codes
 
 
+def test_small_strict_hit_count_is_merged_with_partial_match() -> None:
+    # Regression test (see STRICT_MATCH_MERGE_THRESHOLD): confirmed live for
+    # "3/4\" EMT STL SS CPLG" -- strict AND found exactly one row, a
+    # specialty EMT-to-RIGID transition coupling whose text happens to
+    # abbreviate "Steel" as "STL" the same way the query does, while the
+    # genuinely correct plain EMT-to-EMT coupling spells "Steel" out in full
+    # and only satisfies partial matching. Before this fix, the single
+    # coincidental strict hit short-circuited retrieval and the genuine
+    # match was never even considered by scoring.
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                'CREATE TABLE productmaster ('
+                "id INTEGER, "
+                '"Productcode" TEXT, '
+                "name TEXT, "
+                "description TEXT, "
+                "description2 TEXT, "
+                "search_text TEXT, "
+                "orderablepartnumber TEXT)"
+            )
+        )
+        rows = [
+            (1, "ERSS75KON", "ERSS75KON", '3/4"STL SET SCREW TO RIGID SET SCREW COUPLING', "EMT"),
+            (2, "SK75RKON", "SK75RKON", '3/4"EMT SET SCREW COUPLING Steel Zinc Plated', "EMT Coupling"),
+        ]
+        for row_id, code, name, description, description2 in rows:
+            search_text = " ".join(part.lower() for part in (code, name, description, description2))
+            connection.execute(
+                text(
+                    'INSERT INTO productmaster '
+                    '(id, "Productcode", name, description, description2, search_text, orderablepartnumber) '
+                    "VALUES (:id, :code, :name, :description, :description2, :search_text, NULL)"
+                ),
+                {
+                    "id": row_id,
+                    "code": code,
+                    "name": name,
+                    "description": description,
+                    "description2": description2,
+                    "search_text": search_text,
+                },
+            )
+    repository = PostgresCatalogRepository(engine, retrieval_limit=100)
+    hits = repository.search_text_candidates('3/4" EMT STL SS CPLG', limit=100)
+    codes = {item.product_code for item in hits}
+    assert "ERSS75KON" in codes
+    assert "SK75RKON" in codes
+
+
 def test_connection_scope_reuses_one_connection_across_searches() -> None:
     """Each search pays a pool checkout (pool_pre_ping does a live round-trip
     to validate the connection); connection_scope() lets one line's several
@@ -335,9 +386,15 @@ def test_without_connection_scope_each_search_opens_its_own_connection() -> None
 
     repository.engine.connect = counting_connect  # type: ignore[method-assign]
 
+    # This fixture's strict-AND search for this query finds fewer than
+    # STRICT_MATCH_MERGE_THRESHOLD hits, so search_text_candidates issues a
+    # second, internal partial-match query to merge in (see
+    # STRICT_MATCH_MERGE_THRESHOLD) -- 2 physical queries for this one
+    # logical search, plus 1 for lookup_productcode, all outside
+    # connection_scope so each opens its own connection.
     repository.search_text_candidates("BRP 120 volts whip end extension cable", limit=100)
     repository.lookup_productcode("333479")
-    assert connect_calls == 2
+    assert connect_calls == 3
 
 
 def test_matcher_shares_one_connection_per_line() -> None:
