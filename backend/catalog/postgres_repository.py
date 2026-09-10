@@ -504,7 +504,14 @@ class PostgresCatalogRepository:
         token_groups = retrieval_search_token_groups(query)
         normalized = retrieval_search_string(query)
         sql_body = self.search_text_sql([len(group) for group in token_groups])
-        params: dict[str, object] = {"limit": cap, "normalized": normalized}
+        # search_text_sql()'s ORDER BY uses word_similarity/similarity
+        # against :rank_normalized whenever there are token groups (see
+        # search_text_candidates, which defaults it to `normalized` when no
+        # separate rank_query is given) -- this diagnostic helper was
+        # missing it entirely, so EXPLAIN ANALYZE always failed with "a
+        # value is required for bind parameter 'rank_normalized'" the
+        # moment any query actually had token groups.
+        params: dict[str, object] = {"limit": cap, "normalized": normalized, "rank_normalized": normalized}
         if token_groups:
             for position, group in enumerate(token_groups):
                 for variant_index, variant in enumerate(group):
