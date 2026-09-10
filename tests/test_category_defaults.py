@@ -28,7 +28,7 @@ def test_expand_bare_category_query_appends_default_for_bare_category() -> None:
     query = '1" PVC'
     tokens = tokenize_description(query)
     expanded = expand_bare_category_query(query, tokens)
-    assert "SCH40 BE CONDUIT GRAY" in expanded
+    assert "SCH40 BE CONDUIT GRAY RIGID" in expanded
 
 
 def test_expand_bare_category_query_leaves_more_specific_request_untouched() -> None:
@@ -699,6 +699,22 @@ def test_unrequested_specialty_marker_none_when_connector_requested() -> None:
 def test_unrequested_specialty_marker_none_when_implied_by_category() -> None:
     # "RIGID" is already implied by the query's own "GRC", so it isn't unrequested.
     marker = unrequested_specialty_marker("1 1/2 GRC 90 DEG ELBOW", "1 1/2 GALVANIZED RIGID CONDUIT 90 DEG ELBOW")
+    assert marker is None
+
+
+def test_unrequested_specialty_marker_none_for_genuine_pvc_sch40_conduit() -> None:
+    # Every genuine straight PVC Schedule 40 conduit stick in this catalog
+    # (all 33 rows of the base "40xxxxx" family, across every size) spells
+    # its own classification out as "PVC Schedule 40 Rigid Conduit" -- so
+    # "RIGID" must be exempt for a bare PVC query the same way it already is
+    # for GRC, or it wrongly reads as an unrequested specialty variant.
+    # Confirmed live: without this, "5\" PVC" capped its own genuinely
+    # correct candidate (4050010) to the same description_conflict_max score
+    # as a 1/2" and a 3/4" candidate, erasing the size-based ranking that
+    # should have put the correct 5" stick first.
+    marker = unrequested_specialty_marker(
+        '5" PVC', 'PVC SCH40 5 x 10 UL BE 4050010 PVC Gray PVC - Sch 40/80 Conduit PVC Schedule 40 Rigid Conduit'
+    )
     assert marker is None
 
 

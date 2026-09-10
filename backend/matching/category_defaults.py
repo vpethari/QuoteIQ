@@ -32,7 +32,23 @@ CATEGORY_DEFAULTS: dict[str, str] = {
     # the length default collapses all genuine same-family candidates to an
     # honest tie instead (correctly leaving the line for manual length
     # confirmation, since the bare query truly doesn't say).
-    "PVC": "SCH40 BE CONDUIT GRAY",
+    #
+    # "RIGID" is included for a second reason beyond the usual scoring
+    # nudge: every genuine straight SCH40 conduit stick in this catalog
+    # (all 33 rows of the base "40xxxxx" family, across every size) also
+    # spells its own generic classification out as "PVC Schedule 40 Rigid
+    # Conduit" -- and unrequested_specialty_marker's _SPECIALTY_VARIANT_MARKERS
+    # list below treats a bare "RIGID" the query never asked for as a sign
+    # of a different, more specialized part (that's the correct read for
+    # GRC, where EMT vs. rigid conduit is a genuine type distinction).
+    # Confirmed live: without "RIGID" here, that check flagged every single
+    # PVC SCH40 conduit candidate as a variant conflict -- including the
+    # genuinely correct size -- capping ALL of them to the same
+    # description_conflict_max score and erasing the size-based ranking
+    # entirely, so "5\" PVC" tied its correct 5" conduit stick (4050010)
+    # with a 1/2" and a 3/4" stick at an identical 40%, leaving whichever
+    # happened to sort first in retrieval to win instead of the right size.
+    "PVC": "SCH40 BE CONDUIT GRAY RIGID",
     "EMT": "CONDUIT 10 FT",
     "GRC": "GALVANIZED RIGID CONDUIT 10 FT",
     "LT": "LIQUID TIGHT",
