@@ -408,6 +408,25 @@ def test_reduce_tray_filler_tokens_only_applies_when_tray_is_present() -> None:
     assert reduce_tray_filler_tokens(tokens) == tokens
 
 
+def test_reduce_tray_filler_tokens_drops_basket() -> None:
+    # Confirmed live: "basket"/"wire basket"/"wire mesh" appear in zero rows
+    # anywhere in this catalog (checked every text column directly), yet
+    # Atkore's own published product page for EGL6-20SL-120S1 -- an
+    # EGL-family part number confirmed present in this catalog -- describes
+    # its accessories as securing "to wire basket without any hardware".
+    # "EGL" is this catalog's own name for what a customer calls a wire
+    # basket tray system; it just never spells "basket" out, same as it
+    # never spells out "ladder". "24\" BASKET TRAY 90 DEGREE ELBOW" and
+    # "24\" BASKET TRAY 'T' FITTING" found zero candidates before this, with
+    # "basket" as a hard, never-matchable retrieval requirement.
+    from matching.category_defaults import reduce_tray_filler_tokens
+
+    tokens = tokenize_description('24" BASKET TRAY 90 DEGREE ELBOW')
+    reduced = reduce_tray_filler_tokens(tokens)
+    assert "BASKET" not in reduced
+    assert "TRAY" in reduced
+
+
 def test_cable_tray_ladder_tray_line_now_retrieves_the_real_egl_family() -> None:
     # End-to-end retrieval check for the exact confirmed-live regression:
     # this used to return zero token groups worth matching against (cable,

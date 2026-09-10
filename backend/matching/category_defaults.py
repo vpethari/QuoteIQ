@@ -735,15 +735,29 @@ def restore_leading_label_words(query: str) -> str:
 # EGL straight-section text ("EGL TRAY 4\"H X 36\"W X 10'L STR") never says
 # "ladder", "wide", or "long" -- it spells dimensions as bare numbers with a
 # single-letter code, nothing else. A full catalog search confirms this
-# catalog sells exactly one bare "Tray" product line (EGL, steel ladder
-# tray) -- nothing else is filed under a standalone "Tray" name here -- so
-# "ladder" is always redundant once "tray" itself is present. "Wide"/"Long"
-# are dropped only when they directly follow a dimension number, so a
-# genuine product name where one of those words is load-bearing (e.g. "PVC
-# LONG LINE COUPLING", where "long" is the first word, not dimension-
-# adjacent) is unaffected. Scoped to only fire when "tray" is present at
-# all, so this never touches an unrelated query.
-_TRAY_REDUNDANT_WORDS = frozenset({"LADDER"})
+# catalog sells exactly one bare "Tray" product line (EGL) -- nothing else
+# is filed under a standalone "Tray" name here -- so "ladder" is always
+# redundant once "tray" itself is present. "Wide"/"Long" are dropped only
+# when they directly follow a dimension number, so a genuine product name
+# where one of those words is load-bearing (e.g. "PVC LONG LINE COUPLING",
+# where "long" is the first word, not dimension-adjacent) is unaffected.
+# Scoped to only fire when "tray" is present at all, so this never touches
+# an unrelated query.
+#
+# "BASKET" is the same shape of thing: confirmed live, "basket"/"wire
+# basket"/"wire mesh" appear in zero rows anywhere in this catalog (checked
+# every text column directly, not just search_text) -- yet Atkore's own
+# published product page for EGL6-20SL-120S1 (an EGL-family part number
+# confirmed present in this catalog) describes its accessories as securing
+# "to wire basket without any hardware". So "EGL" is this catalog's own
+# name for what a customer calls a wire basket tray system -- it just never
+# spells "basket" out in its own terse text, same as it never spells out
+# "ladder". Confirmed the family this unblocks genuinely has both a T
+# fitting (EGL-*-TBR, "EGL TRAY TEE BRIDGE") and a 90-degree elbow
+# (EGL#-RADIUS, "EGL TRAY 90 RADIUS") -- "24\" BASKET TRAY 'T' FITTING" and
+# "24\" BASKET TRAY 90 DEGREE ELBOW" found zero candidates before this,
+# with "basket" as a hard, never-matchable retrieval requirement.
+_TRAY_REDUNDANT_WORDS = frozenset({"LADDER", "BASKET"})
 _DIMENSION_ADJACENT_FILLER = frozenset({"WIDE", "LONG", "TALL", "DEEP", "HIGH"})
 
 
