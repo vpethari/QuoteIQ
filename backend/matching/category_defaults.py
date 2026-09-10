@@ -17,9 +17,18 @@ cases will silently misdirect matching for every query that hits it.
 """
 
 CATEGORY_DEFAULTS: dict[str, str] = {
-    "PVC": "SCH40 BE CONDUIT GRAY",
-    "EMT": "CONDUIT",
-    "GRC": "GALVANIZED RIGID CONDUIT",
+    # Confirmed live: this catalog's own stock-length split isn't uniform
+    # across conduit types -- EMT and GRC are overwhelmingly 10' (EMT: 191
+    # vs. 24 rows mentioning 20'; GRC: 108 vs. 0), but bare PVC (which
+    # already implies Schedule 40 -- see below) is actually *more* often
+    # stocked in 20' lengths than 10' (84 vs. 60 rows) -- the opposite
+    # assumption would silently misdirect matching for the majority of
+    # plain PVC conduit queries. PVC Schedule 80 has no clear majority
+    # either way (31 vs. 23) and is deliberately left with no length
+    # default at all.
+    "PVC": "SCH40 BE CONDUIT GRAY 20 FT",
+    "EMT": "CONDUIT 10 FT",
+    "GRC": "GALVANIZED RIGID CONDUIT 10 FT",
     "LT": "LIQUID TIGHT",
     # Bare "STRUT"/"CHANNEL" with no length or finish given -- the catalog's
     # strut channel line is overwhelmingly stocked in 10' lengths with a
@@ -31,6 +40,13 @@ CATEGORY_DEFAULTS: dict[str, str] = {
     # no connector/coupling qualifier means the conduit itself, not a
     # fitting for it.
     "FLEX": "CONDUIT",
+    # Confirmed live: of 88 "Fixture Whip" rows, 56 explicitly say
+    # "Metallic Fixture Whip", and the other 32 are also metallic
+    # construction -- they just phrase it as "...Interlocked Galvanized
+    # Steel Flexible Conduit..." instead of the literal word "metallic".
+    # See _COMPATIBLE_QUALIFIER_WORDS below for why "FIXTURE" doesn't
+    # disqualify this the way "COUPLING" disqualifies bare "PVC".
+    "WHIP": "METALLIC",
 }
 
 # Material words that describe *which variant* of a category the customer
@@ -40,7 +56,14 @@ CATEGORY_DEFAULTS: dict[str, str] = {
 # the bare-category treatment the way a real product-type qualifier would,
 # but they also aren't *redundant* with the default phrase (unlike "GALV"
 # for "GRC") -- retrieval must still require them, not drop them.
-_COMPATIBLE_QUALIFIER_WORDS = frozenset({"STEEL"})
+#
+# "FIXTURE" is the same shape of thing for bare "WHIP": "Fixture Whip"
+# names *which* whip, not a different product than "Whip", so it must not
+# disqualify the WHIP -> METALLIC default the way a genuine product-type
+# qualifier would -- but "fixture" itself is real, distinguishing content,
+# not redundant with "metallic", so it must stay a required retrieval word,
+# not get dropped the way "conduit" is dropped for bare "EMT".
+_COMPATIBLE_QUALIFIER_WORDS = frozenset({"STEEL", "FIXTURE"})
 
 # Unit markers that tokenize_description() produces from a size expression
 # (e.g. "1\"" -> "1", "IN") -- these describe the *number* before them, not
@@ -532,6 +555,12 @@ _ACRONYM_PHRASES: dict[re.Pattern[str], str] = {
     # the abbreviation scores weakly against description2's fully-spelled
     # "... Compression Coupling ..." text.
     re.compile(r"\bCOMP\s+CPLG\b", re.IGNORECASE): "COMPRESSION COUPLING",
+    # Customer's trade term; catalog's own word is a two-word phrase, so a
+    # single-token terminology.py synonym can't bridge them (retrieval/
+    # scoring token positions are one word each) -- confirmed live, this
+    # catalog never uses "waterfall" or "dropout" (one word) anywhere, only
+    # "Drop Out" (e.g. "EGL-12DO EGL TRAY DROP OUT 12\"W").
+    re.compile(r"\bWATERFALL\b", re.IGNORECASE): "DROP OUT",
 }
 
 

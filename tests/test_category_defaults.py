@@ -92,6 +92,75 @@ def test_expand_bare_category_query_grc_galv_is_still_bare() -> None:
     assert "RIGID CONDUIT" in expanded
 
 
+def test_bare_whip_defaults_to_metallic_fixture_whip() -> None:
+    # Confirmed live: of 88 "Fixture Whip" rows, 56 explicitly say
+    # "Metallic Fixture Whip", and the other 32 are also metallic
+    # construction, just phrased as "...Galvanized Steel Flexible
+    # Conduit..." instead of the literal word "metallic".
+    query = "FIXTURE WHIP"
+    tokens = tokenize_description(query)
+    assert "METALLIC" in expand_bare_category_query(query, tokens)
+
+
+def test_fixture_does_not_disqualify_the_whip_default_but_stays_required() -> None:
+    # "Fixture" names *which* whip, not a different product than "Whip" --
+    # it must not disqualify the METALLIC default the way "Coupling"
+    # disqualifies bare "PVC" -- but it's real, distinguishing content, so
+    # it must stay a required retrieval word, unlike "conduit" for bare
+    # "EMT" (which gets dropped as redundant).
+    tokens = tokenize_description("FIXTURE WHIP")
+    reduced = reduce_bare_category_tokens(tokens)
+    assert "FIXTURE" in reduced
+    assert "WHIP" in reduced
+
+
+def test_lighting_whip_does_not_get_the_metallic_default() -> None:
+    # "Lighting Whip" is a different, genuinely more specific product than
+    # bare "Whip" -- it must not get the Fixture Whip metallic default.
+    query = "LIGHTING WHIP"
+    tokens = tokenize_description(query)
+    assert expand_bare_category_query(query, tokens) == query
+
+
+def test_explicit_non_metallic_fixture_whip_is_not_overridden() -> None:
+    # A customer who explicitly says "non-metallic" must not have the
+    # metallic default forced onto them anyway.
+    query = "NON-METALLIC FIXTURE WHIP"
+    tokens = tokenize_description(query)
+    assert expand_bare_category_query(query, tokens) == query
+
+
+def test_bare_emt_and_grc_default_to_ten_foot_lengths() -> None:
+    # Confirmed live: EMT (191 vs. 24 rows) and GRC (108 vs. 0 rows) are
+    # both overwhelmingly stocked in 10' lengths.
+    for query, category_words in [('1" EMT', "CONDUIT"), ('3/4" GRC', "GALVANIZED RIGID CONDUIT")]:
+        tokens = tokenize_description(query)
+        expanded = expand_bare_category_query(query, tokens)
+        assert category_words in expanded
+        assert "10 FT" in expanded
+
+
+def test_bare_pvc_defaults_to_twenty_foot_length_not_ten() -> None:
+    # Confirmed live: bare PVC (which already implies Schedule 40) is
+    # actually *more* often stocked in 20' lengths than 10' in this
+    # catalog (84 vs. 60 rows) -- the opposite of EMT/GRC's own default.
+    query = '2" PVC'
+    tokens = tokenize_description(query)
+    expanded = expand_bare_category_query(query, tokens)
+    assert "20 FT" in expanded
+    assert "10 FT" not in expanded
+
+
+def test_pvc_schedule_80_gets_no_length_default() -> None:
+    # Confirmed live: PVC Schedule 80 has no clear majority stock length
+    # either way (31 vs. 23) -- deliberately left with no length default,
+    # and an explicit "SCH80" is a genuinely more specific request than
+    # bare PVC's own implied Schedule 40 anyway.
+    query = '2" PVC SCH80'
+    tokens = tokenize_description(query)
+    assert expand_bare_category_query(query, tokens) == query
+
+
 def test_reduce_bare_category_tokens_drops_galv_for_grc() -> None:
     tokens = tokenize_description('1" GRC GALV')
     reduced = reduce_bare_category_tokens(tokens)
@@ -406,6 +475,15 @@ def test_expand_acronym_phrases_does_not_touch_bare_ss() -> None:
     # Bare "SS" is ambiguous (often "stainless steel") -- only the specific
     # "SS CONN" pairing is a safe, confirmed replacement.
     assert expand_acronym_phrases("SS316 EMT CONN") == "SS316 EMT CONN"
+
+
+def test_expand_acronym_phrases_waterfall_to_drop_out() -> None:
+    # Confirmed live: this catalog never uses "waterfall" or "dropout" (one
+    # word) anywhere, only "Drop Out" (e.g. "EGL-12DO EGL TRAY DROP OUT
+    # 12\"W") -- a single-token terminology.py synonym can't bridge a
+    # one-word customer term to the catalog's own two-word phrase.
+    assert expand_acronym_phrases('4" Waterfall Fitting') == '4" DROP OUT Fitting'
+    assert expand_acronym_phrases("waterfall") == "DROP OUT"
 
 
 def test_normalize_raw_customer_text_composes_both_normalizations() -> None:
