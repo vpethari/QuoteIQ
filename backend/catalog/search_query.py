@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from matching.category_defaults import (
+    bare_category_required_word,
     decode_label_marker_token,
     interchangeable_qualifier_variants,
     is_leading_label_marker,
@@ -155,6 +156,16 @@ def retrieval_search_token_groups(
     # EMT conduit stick's own catalog text doesn't necessarily happen to
     # spell out that exact word (see reduce_bare_category_tokens).
     distinctive = reduce_bare_category_tokens(distinctive)
+    # The flip side of the drop above: a few categories' own default phrase
+    # names the ONE word that actually discriminates the genuine product
+    # from same-material-but-different-category rows sharing generic words
+    # like "PVC"/"Conduit" -- see
+    # matching.category_defaults.CATEGORY_DEFAULT_REQUIRED_WORDS for the
+    # confirmed, narrowly-scoped evidence (only appends a word for a
+    # category actually listed there; every other category is unaffected).
+    required_word = bare_category_required_word(distinctive)
+    if required_word and required_word.upper() not in {token.upper() for token in distinctive}:
+        distinctive.append(required_word)
     # Same treatment for cable-tray-specific filler words ("ladder", and
     # "wide"/"long" right after a dimension) -- see
     # matching.category_defaults.reduce_tray_filler_tokens.

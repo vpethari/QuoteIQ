@@ -17,16 +17,22 @@ cases will silently misdirect matching for every query that hits it.
 """
 
 CATEGORY_DEFAULTS: dict[str, str] = {
-    # Confirmed live: this catalog's own stock-length split isn't uniform
-    # across conduit types -- EMT and GRC are overwhelmingly 10' (EMT: 191
-    # vs. 24 rows mentioning 20'; GRC: 108 vs. 0), but bare PVC (which
-    # already implies Schedule 40 -- see below) is actually *more* often
-    # stocked in 20' lengths than 10' (84 vs. 60 rows) -- the opposite
-    # assumption would silently misdirect matching for the majority of
-    # plain PVC conduit queries. PVC Schedule 80 has no clear majority
-    # either way (31 vs. 23) and is deliberately left with no length
-    # default at all.
-    "PVC": "SCH40 BE CONDUIT GRAY 20 FT",
+    # No length default here, unlike EMT/GRC below -- confirmed live this is
+    # actively harmful for PVC specifically. This catalog's "PVC ... SCH40"
+    # wording isn't exclusive to genuine Schedule 40 electrical conduit --
+    # it's shared verbatim by an unrelated PVC pressure/water-plumbing-pipe
+    # line (e.g. "PVC PR SCH40 5 x 20 BE ... White Water, Plumbing, & Gas
+    # Pipe"), which happens to stock predominantly in 20' lengths. A "20 FT"
+    # scoring bonus tips the ranking to that wrong-family 20' row over the
+    # genuinely correct SCH40 conduit row even when the conduit row matches
+    # every other default word (SCH40/BE/CONDUIT/GRAY) -- confirmed for "5"
+    # PVC": with a 20 FT default, the wrong Water/Plumbing/Gas Pipe product
+    # (and, prior to requiring SCH40 at retrieval, an equally-20'-stocked
+    # unrelated Direct Burial Duct line) tied for the top score; removing
+    # the length default collapses all genuine same-family candidates to an
+    # honest tie instead (correctly leaving the line for manual length
+    # confirmation, since the bare query truly doesn't say).
+    "PVC": "SCH40 BE CONDUIT GRAY",
     "EMT": "CONDUIT 10 FT",
     "GRC": "GALVANIZED RIGID CONDUIT 10 FT",
     "LT": "LIQUID TIGHT",
@@ -157,6 +163,42 @@ def reduce_bare_category_tokens(tokens: list[str]) -> list[str]:
         return tokens
     extra_upper = {token.upper() for token in extra}
     return [token for token in tokens if token.upper() not in extra_upper]
+
+
+# For most categories, the rest of the default phrase (beyond the bare word
+# itself) stays a soft scoring/ranking nudge, never a hard retrieval
+# requirement -- that's deliberate (see reduce_bare_category_tokens's own
+# "conduit" example). But confirmed live: bare "5\" PVC" only ever requires
+# "PVC" (and the bare size) at retrieval, and this catalog's own text labels
+# utility duct, water/gas pipe, and various PVC fittings ALL as "PVC ...
+# Conduit" too (a shared category-classification phrase, not specific to
+# genuine electrical conduit) -- so "CONDUIT" from PVC's own default phrase
+# doesn't discriminate at retrieval OR scoring. With only "PVC" required,
+# the genuine 5" Schedule 40 conduit stick ranked position 183 of ~2,000
+# eligible rows on generic text similarity alone, never reaching the scored
+# candidate list at all. "SCH40" is the word that actually discriminates --
+# present on the genuine Schedule 40 conduit line, absent from Utility
+# Duct/Water-Plumbing-Gas Pipe/fitting lines.
+#
+# Deliberately opt-in and narrow, unlike the rest of a bare category's
+# default phrase: add an entry here only once a real case like this one
+# confirms the SPECIFIC word needs to be a hard retrieval requirement, not
+# a guess applied to every category.
+CATEGORY_DEFAULT_REQUIRED_WORDS: dict[str, str] = {
+    "PVC": "SCH40",
+}
+
+
+def bare_category_required_word(tokens: list[str]) -> str | None:
+    """The extra retrieval-required word implied by a bare category default,
+    if any (see CATEGORY_DEFAULT_REQUIRED_WORDS) -- None if the bare-
+    category treatment doesn't apply here at all, or this category has no
+    such word."""
+    match = _bare_category_redundant_extras(tokens)
+    if match is None:
+        return None
+    category, _extra = match
+    return CATEGORY_DEFAULT_REQUIRED_WORDS.get(category)
 
 
 # Same idea as CATEGORY_DEFAULTS, but for color: when a category is sold in

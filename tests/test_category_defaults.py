@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from matching.category_defaults import (
+    bare_category_required_word,
     candidate_color_conflicts,
     default_color_for_query,
     expand_acronym_phrases,
@@ -51,6 +52,32 @@ def test_reduce_bare_category_tokens_drops_implied_default_word() -> None:
 def test_reduce_bare_category_tokens_keeps_genuinely_specific_request() -> None:
     tokens = tokenize_description("PVC COUPLING")
     assert reduce_bare_category_tokens(tokens) == tokens
+
+
+def test_bare_category_required_word_forces_sch40_for_bare_pvc() -> None:
+    # Confirmed live: this catalog's own "PVC ... Conduit" wording is shared
+    # by unrelated PVC lines (Direct Burial Duct, pressure/water-plumbing
+    # pipe) that never say "SCH40" -- requiring it at retrieval, not just
+    # scoring, is what actually excludes them (e.g. "5\" PVC" was matching
+    # a Direct Burial Duct row, "1250020", instead of the genuine Schedule
+    # 40 conduit row, "4050010", until this word became required).
+    tokens = tokenize_description("PVC")
+    assert bare_category_required_word(tokens) == "SCH40"
+
+
+def test_bare_category_required_word_is_none_for_more_specific_request() -> None:
+    # "COUPLING" already disqualifies the bare-category treatment entirely
+    # (see test_reduce_bare_category_tokens_keeps_genuinely_specific_request),
+    # so no word should be forced in on top of it.
+    tokens = tokenize_description("PVC COUPLING")
+    assert bare_category_required_word(tokens) is None
+
+
+def test_bare_category_required_word_is_none_for_categories_without_one() -> None:
+    # Only categories actually listed in CATEGORY_DEFAULT_REQUIRED_WORDS get
+    # a forced word -- EMT has no such entry.
+    tokens = tokenize_description("EMT")
+    assert bare_category_required_word(tokens) is None
 
 
 def test_flexible_is_a_synonym_for_flex() -> None:
@@ -140,14 +167,19 @@ def test_bare_emt_and_grc_default_to_ten_foot_lengths() -> None:
         assert "10 FT" in expanded
 
 
-def test_bare_pvc_defaults_to_twenty_foot_length_not_ten() -> None:
-    # Confirmed live: bare PVC (which already implies Schedule 40) is
-    # actually *more* often stocked in 20' lengths than 10' in this
-    # catalog (84 vs. 60 rows) -- the opposite of EMT/GRC's own default.
+def test_bare_pvc_gets_no_length_default() -> None:
+    # Confirmed live: unlike EMT/GRC, PVC deliberately gets no length
+    # default at all. This catalog's "PVC ... SCH40" wording is shared
+    # verbatim by an unrelated PVC pressure/water-plumbing-pipe line that
+    # happens to stock predominantly in 20' lengths -- a "20 FT" scoring
+    # bonus tipped the ranking to that wrong-family row over the genuinely
+    # correct SCH40 conduit row (e.g. "5\" PVC" picked a 20' PVC pressure
+    # pipe, and before SCH40 was required at retrieval, a 20' Direct Burial
+    # Duct row, over the correct 10'-stocked SCH40 conduit).
     query = '2" PVC'
     tokens = tokenize_description(query)
     expanded = expand_bare_category_query(query, tokens)
-    assert "20 FT" in expanded
+    assert "20 FT" not in expanded
     assert "10 FT" not in expanded
 
 
@@ -175,6 +207,32 @@ def test_retrieval_token_groups_drop_implied_default_word() -> None:
     flat = {variant for group in groups for variant in group}
     assert "conduit" not in flat
     assert "emt" in flat
+
+
+def test_retrieval_token_groups_require_sch40_for_bare_pvc() -> None:
+    # See bare_category_required_word: "sch40" must become a genuinely
+    # required retrieval token for bare PVC, not just a scoring nudge --
+    # confirmed live, requiring it (not just scoring for it) is what
+    # excludes an unrelated PVC Direct Burial Duct/pressure-pipe row that
+    # never says "SCH40" at all.
+    from catalog.search_query import retrieval_search_token_groups
+
+    for query in ['5" PVC', '1" PVC', '2" PVC']:
+        groups = retrieval_search_token_groups(query)
+        flat = {variant for group in groups for variant in group}
+        assert "sch40" in flat
+
+    # An explicitly-stated schedule must not be overridden.
+    groups = retrieval_search_token_groups('2" PVC SCH80')
+    flat = {variant for group in groups for variant in group}
+    assert "sch80" in flat
+    assert "sch40" not in flat
+
+    # A more specific request (e.g. a fitting) disqualifies the bare-
+    # category treatment entirely, so nothing should be forced in.
+    groups = retrieval_search_token_groups('1" PVC COUPLING')
+    flat = {variant for group in groups for variant in group}
+    assert "sch40" not in flat
 
 
 def test_interchangeable_qualifier_variants_conduit_hanger_clamp() -> None:
