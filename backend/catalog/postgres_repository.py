@@ -31,20 +31,36 @@ _active_connection: ContextVar[Connection | None] = ContextVar("_active_connecti
 PARTIAL_MATCH_MIN_OVERLAP = 0.6
 PARTIAL_MATCH_MIN_TOKENS = 3
 
-# Confirmed live: strict AND retrieval for "3/4\" EMT STL SS CPLG" found
-# exactly ONE row, ERSS75KON -- a specialty EMT-to-RIGID transition coupling
-# whose own catalog text happens to spell "STL" the same way the customer's
-# abbreviation does. Every genuinely correct plain EMT-to-EMT coupling in
-# this catalog (e.g. SK75RKON, "EMT Set Screw Coupling") spells "Steel" out
-# in full instead, so none of them satisfy the strict "stl" requirement --
-# but since strict AND still found that one coincidental hit, it returned
-# immediately and never even tried the partial-match tier below, which
-# would have found all of them. A single, incidental strict-AND hit isn't a
-# strong enough signal to skip checking whether partial matching would
-# surface a materially larger, better-fitting set -- so below this many
-# strict hits, partial-match results are merged in too rather than trusted
-# alone. A well-populated strict AND (the common case) is left untouched.
-STRICT_MATCH_MERGE_THRESHOLD = 3
+# Confirmed live, in two separate cases, that a strict-AND hit *count* can't
+# reliably tell "this is a good, comprehensive result" apart from "this
+# happens to be a small (or not-so-small) coincidental family that's the
+# wrong answer":
+#
+# - "3/4\" EMT STL SS CPLG": strict AND found exactly ONE row, ERSS75KON --
+#   a specialty EMT-to-RIGID transition coupling whose own catalog text
+#   happens to spell "STL" the same way the customer's abbreviation does.
+#   The genuinely correct plain EMT-to-EMT coupling, SK75RKON ("EMT Set
+#   Screw Coupling"), spells "Steel" out in full instead and never
+#   satisfies the strict "stl" requirement.
+# - "1 1/2\" STL FLEX CONN": strict AND found FOUR rows this time (the
+#   "LT150STLKON" Liquidtight-Tubular-Steel connector family), because
+#   "STL" happens to appear as part of *their* own catalog product code,
+#   not because they're a materially better answer than the first case --
+#   the genuinely correct plain flex connector, MSC150KON ("Squeeze
+#   Connectors", Malleable Iron), again never satisfies "stl" literally.
+#   A count-based cutoff tuned to rescue the first case (found: 1) was
+#   already too low to also catch the second (found: 4).
+#
+# In both cases, strict AND finding *anything at all* stopped the search
+# from ever trying the partial-match tier below, which would have found
+# the genuinely correct family either time. Since no fixed hit count
+# reliably distinguishes "good" from "coincidental", partial-match results
+# are always merged in alongside strict AND's own (not used to replace
+# them -- the strict hits may yet be correct), rather than gated by count.
+# Scoring downstream (candidate_floor, variant_conflict, unit comparison,
+# etc.) is what actually separates the right answer from the wrong one in
+# either family; retrieval's only job is to make sure both are eligible to
+# be scored in the first place.
 
 
 def _quote(identifier: str) -> str:
@@ -425,11 +441,6 @@ class PostgresCatalogRepository:
         min_required = math.ceil(len(token_groups) * PARTIAL_MATCH_MIN_OVERLAP) if partial_worth_trying else 0
         partial_worth_trying = partial_worth_trying and min_required < len(token_groups)
 
-        if strict_products and (
-            len(strict_products) >= STRICT_MATCH_MERGE_THRESHOLD or not partial_worth_trying
-        ):
-            return strict_products
-
         if partial_worth_trying:
             sql = text(self.partial_search_text_sql(variant_counts, min_required))
             params = {
@@ -444,10 +455,11 @@ class PostgresCatalogRepository:
             if partial_products:
                 if not strict_products:
                     return partial_products
-                # See STRICT_MATCH_MERGE_THRESHOLD -- a small strict-AND hit
-                # count is included, not replaced, so scoring still sees it
-                # (it may yet be the right answer), just no longer as the
-                # ONLY candidate considered.
+                # Strict AND's own hits are included, not replaced -- they
+                # may yet be the right answer, just no longer the ONLY
+                # candidates scoring gets to consider (see the module-level
+                # comment above PARTIAL_MATCH_MIN_TOKENS for why this is
+                # never skipped based on strict AND's hit count).
                 seen = {product.product_code for product in strict_products}
                 merged = list(strict_products) + [
                     product for product in partial_products if product.product_code not in seen

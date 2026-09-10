@@ -302,15 +302,7 @@ def test_search_text_candidates_matches_fraction_size_against_raw_catalog_text()
     assert "MSC5090KON" in codes
 
 
-def test_small_strict_hit_count_is_merged_with_partial_match() -> None:
-    # Regression test (see STRICT_MATCH_MERGE_THRESHOLD): confirmed live for
-    # "3/4\" EMT STL SS CPLG" -- strict AND found exactly one row, a
-    # specialty EMT-to-RIGID transition coupling whose text happens to
-    # abbreviate "Steel" as "STL" the same way the query does, while the
-    # genuinely correct plain EMT-to-EMT coupling spells "Steel" out in full
-    # and only satisfies partial matching. Before this fix, the single
-    # coincidental strict hit short-circuited retrieval and the genuine
-    # match was never even considered by scoring.
+def _sqlite_from_rows(rows: list[tuple[int, str, str, str, str]]) -> PostgresCatalogRepository:
     engine = create_engine("sqlite:///:memory:")
     with engine.begin() as connection:
         connection.execute(
@@ -325,10 +317,6 @@ def test_small_strict_hit_count_is_merged_with_partial_match() -> None:
                 "orderablepartnumber TEXT)"
             )
         )
-        rows = [
-            (1, "ERSS75KON", "ERSS75KON", '3/4"STL SET SCREW TO RIGID SET SCREW COUPLING', "EMT"),
-            (2, "SK75RKON", "SK75RKON", '3/4"EMT SET SCREW COUPLING Steel Zinc Plated', "EMT Coupling"),
-        ]
         for row_id, code, name, description, description2 in rows:
             search_text = " ".join(part.lower() for part in (code, name, description, description2))
             connection.execute(
@@ -346,11 +334,52 @@ def test_small_strict_hit_count_is_merged_with_partial_match() -> None:
                     "search_text": search_text,
                 },
             )
-    repository = PostgresCatalogRepository(engine, retrieval_limit=100)
+    return PostgresCatalogRepository(engine, retrieval_limit=100)
+
+
+def test_strict_hit_is_merged_with_partial_match_single_coincidental_hit() -> None:
+    # Regression test: confirmed live for "3/4\" EMT STL SS CPLG" -- strict
+    # AND found exactly one row, a specialty EMT-to-RIGID transition
+    # coupling whose text happens to abbreviate "Steel" as "STL" the same
+    # way the query does, while the genuinely correct plain EMT-to-EMT
+    # coupling spells "Steel" out in full and only satisfies partial
+    # matching. Before this fix, the single coincidental strict hit
+    # short-circuited retrieval and the genuine match was never even
+    # considered by scoring.
+    repository = _sqlite_from_rows(
+        [
+            (1, "ERSS75KON", "ERSS75KON", '3/4"STL SET SCREW TO RIGID SET SCREW COUPLING', "EMT"),
+            (2, "SK75RKON", "SK75RKON", '3/4"EMT SET SCREW COUPLING Steel Zinc Plated', "EMT Coupling"),
+        ]
+    )
     hits = repository.search_text_candidates('3/4" EMT STL SS CPLG', limit=100)
     codes = {item.product_code for item in hits}
     assert "ERSS75KON" in codes
     assert "SK75RKON" in codes
+
+
+def test_strict_hit_is_merged_with_partial_match_several_coincidental_hits() -> None:
+    # Regression test: confirmed live for "1 1/2\" STL FLEX CONN" -- strict
+    # AND found FOUR rows this time (an unrelated Liquidtight-Tubular-Steel
+    # connector family whose own catalog product codes happen to embed
+    # "STL"), not just one -- a fixed hit-count threshold tuned to rescue
+    # the single-hit case above was still too low to also catch this one.
+    # The genuinely correct plain flex connector ("Squeeze Connectors",
+    # Malleable Iron) again never satisfies "stl" literally and needs the
+    # partial-match tier regardless of how many strict hits already exist.
+    repository = _sqlite_from_rows(
+        [
+            (1, "LT150STLKON", "LT150STLKON", '1-1/2" LIQUIDTIGHT TUBULAR STEEL', "Steel Connector"),
+            (2, "LT150STL-ICKON", "LT150STL-ICKON", '1-1/2" LQTIGHT TUBULAR STEEL INSULATED', "Steel Connector"),
+            (3, "LT50STLKON", "LT50STLKON", '1/2" LIQUIDTIGHT TUBULAR STEEL', "Steel Connector"),
+            (4, "LT50STL-ICKON", "LT50STL-ICKON", '1/2" LIQUIDTIGHT TUBULAR STEEL INSULATED', "Steel Connector"),
+            (5, "MSC150KON", "MSC150KON", '1-1/2" SQUEEZE CONNECTORS', "Malleable Iron Connector"),
+        ]
+    )
+    hits = repository.search_text_candidates('1 1/2" STL FLEX CONN', limit=100)
+    codes = {item.product_code for item in hits}
+    assert "LT150STLKON" in codes
+    assert "MSC150KON" in codes
 
 
 def test_connection_scope_reuses_one_connection_across_searches() -> None:
@@ -386,12 +415,12 @@ def test_without_connection_scope_each_search_opens_its_own_connection() -> None
 
     repository.engine.connect = counting_connect  # type: ignore[method-assign]
 
-    # This fixture's strict-AND search for this query finds fewer than
-    # STRICT_MATCH_MERGE_THRESHOLD hits, so search_text_candidates issues a
-    # second, internal partial-match query to merge in (see
-    # STRICT_MATCH_MERGE_THRESHOLD) -- 2 physical queries for this one
-    # logical search, plus 1 for lookup_productcode, all outside
-    # connection_scope so each opens its own connection.
+    # search_text_candidates always merges in a second, internal
+    # partial-match query alongside the strict-AND one (see the comment
+    # above PARTIAL_MATCH_MIN_TOKENS in postgres_repository.py) -- 2
+    # physical queries for this one logical search, plus 1 for
+    # lookup_productcode, all outside connection_scope so each opens its
+    # own connection.
     repository.search_text_candidates("BRP 120 volts whip end extension cable", limit=100)
     repository.lookup_productcode("333479")
     assert connect_calls == 3
