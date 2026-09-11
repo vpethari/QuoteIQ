@@ -718,20 +718,65 @@ def test_unrequested_specialty_marker_none_for_genuine_pvc_sch40_conduit() -> No
     assert marker is None
 
 
-def test_unrequested_specialty_marker_none_for_genuine_steel_conduit_locknut() -> None:
-    # Every genuine steel conduit locknut in this catalog (all 13 rows of
-    # the plain "###KON" family) spells its own classification out as "RMC
-    # Threaded Conduit & Cable Fittings" -- so "THREADED" must be exempt for
-    # a bare "... LOCKNUT" query, the same shape of fix as "RIGID" for PVC.
-    # Confirmed live: without this, "2\" STEEL LOCKNUT" capped its own
-    # genuinely correct candidate (16KON) to the same description_conflict_max
-    # score as a 3/8" and a 1/2" locknut, erasing the size-based ranking
-    # that should have put the correct 2" locknut first.
+def test_unrequested_specialty_marker_none_for_rmc_threaded_boilerplate() -> None:
+    # "RMC Threaded Conduit & Cable Fittings" is a ~3,948-row catalog
+    # taxonomy-path boilerplate spanning nearly every Rigid Metal Conduit
+    # fitting type -- locknuts, hubs, couplings, nipples, elbows -- not a
+    # row-specific claim, so it must never read as an unrequested "THREADED"
+    # variant regardless of what category word (if any) the query names.
+    # Confirmed live: without stripping this phrase first,
+    # "2\" STEEL LOCKNUT" capped its own genuinely correct candidate
+    # (16KON) to the same description_conflict_max score as a 3/8" and a
+    # 1/2" locknut, and "1\" GRC HUB" did the same to its correct steel hub
+    # (NHUB100-ICKON) against an unrelated PVC hub -- both erasing the
+    # size-based ranking that should have put the correct part first.
+    for query, candidate in [
+        (
+            '2" STEEL LOCKNUT',
+            '16KON 2" CONDUIT LOCKNUT Steel Zinc Plated Locknut RMC Threaded Conduit & Cable Fittings',
+        ),
+        (
+            '1" GRC HUB',
+            'NHUB100-ICKON 1"CONDUIT HUBS WITH INSULATED THROAT Malleable Iron Zinc Plated Zinc Hub '
+            'RMC Threaded Conduit & Cable Fittings Metallic Fittings Malleable Iron Hubs',
+        ),
+    ]:
+        assert unrequested_specialty_marker(query, candidate) is None
+
+
+def test_unrequested_specialty_marker_none_for_ecn_multi_type_grouping() -> None:
+    # This catalog files GRC/RMC elbows, couplings, and nipples under one
+    # shared taxonomy node and spells that grouping's own name out in every
+    # row's classification tail -- "Elbows, Couplings, and Nipples (ECN)"
+    # -- regardless of which of the three a given row actually is.
+    # Confirmed live: a genuine GRC coupling (904148) and a genuine GRC
+    # nipple (116724) both literally contain the word "Elbow" purely from
+    # this shared label, capping every coupling and nipple in the whole
+    # 1,635-row family to the same description_conflict_max for a
+    # "1 1/2\" GRC COUPLING" query, with nothing left to distinguish them
+    # from an actual elbow candidate.
     marker = unrequested_specialty_marker(
-        '2" STEEL LOCKNUT',
-        '16KON 2" CONDUIT LOCKNUT Steel Zinc Plated Locknut RMC Threaded Conduit & Cable Fittings',
+        '1 1/2" GRC COUPLING',
+        '904148 1 1/2"UL GALV CONDUIT COUPLING Steel Electrogalvanized Coupling RMC Threaded Conduit '
+        '& Cable Fittings Elbows, Couplings, and Nipples (ECN) Galvanized Steel Rigid Couplings',
     )
     assert marker is None
+
+
+def test_unrequested_specialty_marker_still_flags_genuine_imc_threaded_elbow() -> None:
+    # The RMC-boilerplate exemption above must NOT bleed into IMC: a
+    # parallel, genuinely meaningful "IMC Threaded Conduit & Cable
+    # Fittings" boilerplate (12 rows) is what actually distinguishes real
+    # Threaded IMC elbows (e.g. S70590ELWT) from a separate Non-Threaded
+    # IMC elbow family that exists side by side in this catalog -- a
+    # query that doesn't ask for "threaded" must still be steered away
+    # from the threaded-only part.
+    marker = unrequested_specialty_marker(
+        '1/2" IMC ELBOW 90',
+        'S70590ELWT 1/2 SS316 90 THD IMC ELB 90 Stainless Steel - 316L IMC Threaded Conduit & Cable '
+        'Fittings Stainless Steel Fittings Stainless Steel Threaded IMC Elbows - Type 316',
+    )
+    assert marker == "THREADED"
 
 
 def test_variant_conflict_true_for_stainless_mismatch() -> None:

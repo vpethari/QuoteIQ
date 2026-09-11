@@ -69,22 +69,6 @@ CATEGORY_DEFAULTS: dict[str, str] = {
     # See _COMPATIBLE_QUALIFIER_WORDS below for why "FIXTURE" doesn't
     # disqualify this the way "COUPLING" disqualifies bare "PVC".
     "WHIP": "METALLIC",
-    # "THREADED" isn't a scoring-expansion default so much as an entry that
-    # exists to exempt "THREADED" from unrequested_specialty_marker's
-    # _SPECIALTY_VARIANT_MARKERS list for this family -- the same shape of
-    # fix as "RIGID" for PVC above. Confirmed live: every genuine steel
-    # conduit locknut in this catalog (all 13 rows of the plain "###KON"
-    # family) spells its own generic classification out as "RMC Threaded
-    # Conduit & Cable Fittings", so it isn't a real "this candidate is a
-    # different, more specialized part" signal the way it is elsewhere --
-    # yet since bare "STEEL LOCKNUT" never asks for "threaded" itself,
-    # every locknut candidate (right size and wrong) was getting flagged
-    # identically and capped to the same description_conflict_max score,
-    # erasing the size-based ranking and letting whichever size happened to
-    # sort first in retrieval win instead of the genuinely correct one
-    # (e.g. "2\" STEEL LOCKNUT" tied its correct 2" locknut, 16KON, with a
-    # 3/8" and a 1/2" locknut at an identical 40%).
-    "LOCKNUT": "THREADED",
 }
 
 # Material words that describe *which variant* of a category the customer
@@ -376,6 +360,43 @@ def _word_present(text_upper: str, word: str) -> bool:
     return re.search(rf"\b{re.escape(word)}\b", text_upper) is not None
 
 
+# Catalog classification boilerplate that never actually discriminates
+# between candidates, stripped out of a candidate's text before
+# unrequested_specialty_marker ever scans it for a marker word -- otherwise
+# the marker check reads the CATALOG'S OWN internal taxonomy label as if it
+# were a genuine, row-specific claim about that one product.
+#
+# - "Elbows, Couplings, and Nipples (ECN)": this catalog files GRC/RMC
+#   elbows, couplings, and nipples under one shared internal taxonomy node,
+#   and spells that grouping's own name out in EVERY row's classification
+#   tail regardless of which of the three a given row actually is.
+#   Confirmed live: a genuine GRC coupling (904148, "1-1/2\" Coupling,
+#   Galvanized Rigid Conduit") and a genuine GRC nipple (116724) both
+#   literally contain the word "Elbow" purely from this shared label, so
+#   the marker check flagged both as an unrequested elbow variant for a
+#   "1 1/2\" GRC COUPLING" query -- capping their score, along with every
+#   other coupling and nipple in the whole 1,635-row family, to the same
+#   description_conflict_max, while nothing distinguished them from an
+#   actual elbow candidate. Confirmed via search this is the only
+#   "X, Y, and Z (ABBREV)" multi-type grouping in the catalog.
+# - "RMC Threaded Conduit & Cable Fittings": a much broader (~3,948-row)
+#   taxonomy-path boilerplate spanning nearly every Rigid Metal Conduit
+#   fitting type -- locknuts, hubs, couplings, nipples, elbows, conduit
+#   bodies, caps, expansion joints. "Threaded" there describes the RMC
+#   installation method category as a whole, not a claim about any one
+#   row -- confirmed live for locknuts (16KON) and conduit hubs
+#   (NHUB100-ICKON), both wrongly flagged the same way as the ECN case
+#   above. Deliberately scoped to the literal "RMC" phrasing only: a
+#   parallel, genuinely meaningful "IMC Threaded Conduit & Cable Fittings"
+#   boilerplate (12 rows) is what actually distinguishes real Threaded vs.
+#   Non-Threaded IMC elbow families (e.g. S70590ELWT vs. S50590EL00) and
+#   must NOT be stripped the same way.
+_NON_DISCRIMINATING_CLASSIFICATION_PHRASES: tuple[re.Pattern[str], ...] = (
+    re.compile(r"ELBOWS,?\s*COUPLINGS,?\s*AND\s*NIPPLES\s*\(ECN\)", re.IGNORECASE),
+    re.compile(r"\bRMC\s+THREADED\s+CONDUIT\s*&\s*CABLE\s+FITTINGS\b", re.IGNORECASE),
+)
+
+
 def unrequested_specialty_marker(query_raw: str, candidate_raw: str) -> str | None:
     """The first specialty-variant marker present in the candidate's text but
     absent from the query's, or None if there isn't one.
@@ -393,6 +414,8 @@ def unrequested_specialty_marker(query_raw: str, candidate_raw: str) -> str | No
 
     query_upper = query_raw.upper()
     candidate_upper = candidate_raw.upper()
+    for pattern in _NON_DISCRIMINATING_CLASSIFICATION_PHRASES:
+        candidate_upper = pattern.sub(" ", candidate_upper)
     # Canonicalized single-word check, in addition to the raw phrase check
     # below -- otherwise a query abbreviation with its own terminology
     # synonym (e.g. "CPLG" for "COUPLING") looks like it never asked for a
