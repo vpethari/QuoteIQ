@@ -50,7 +50,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -59,7 +59,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -68,35 +68,35 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
     "description": "1/2\" EMT 1-H STEEL STRAP",
     "quantity": 3,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 85.7143,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SE50-1KON",
+    "matched_orderable_part_number": "SE50-1KON",
+    "final_confidence": 90.7143,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" EMT 1-H STEEL STRAP",
     "quantity": 95,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 85.7143,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SE75-1KON",
+    "matched_orderable_part_number": "SE75-1KON",
+    "final_confidence": 90.7143,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" EMT 1-H STEEL STRAP",
     "quantity": 122,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 85.7143,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SE100-1KON",
+    "matched_orderable_part_number": "SE100-1KON",
+    "final_confidence": 90.7143,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" PVC",
@@ -113,7 +113,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -155,11 +155,11 @@
   {
     "description": "1 1/2\" PVC TERM ADAPTER",
     "quantity": 120,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "TA15",
+    "matched_orderable_part_number": "59619",
+    "final_confidence": 97.8571,
+    "match_type_label": "Automatic"
   },
   {
     "description": "2\" PVC TERM ADAPTER",
@@ -194,7 +194,7 @@
     "match_status": "HIGH_CONFIDENCE",
     "matched_part_number": "TA50",
     "matched_orderable_part_number": "59625",
-    "final_confidence": 92.8571,
+    "final_confidence": 97.8571,
     "match_type_label": "Automatic"
   },
   {
@@ -329,7 +329,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -365,7 +365,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -392,7 +392,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.9524,
+    "final_confidence": 85.6818,
     "match_type_label": null
   },
   {
@@ -401,7 +401,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.9524,
+    "final_confidence": 85.9524,
     "match_type_label": null
   },
   {
@@ -410,7 +410,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.9524,
+    "final_confidence": 85.9524,
     "match_type_label": null
   },
   {
@@ -419,7 +419,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.2083,
+    "final_confidence": 85.2083,
     "match_type_label": null
   },
   {
@@ -428,7 +428,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.9524,
+    "final_confidence": 85.2083,
     "match_type_label": null
   },
   {
@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -446,7 +446,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -455,7 +455,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -464,7 +464,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.25,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -473,7 +473,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.25,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -482,7 +482,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.25,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -491,7 +491,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 79.5455,
+    "final_confidence": 84.5455,
     "match_type_label": null
   },
   {
@@ -500,7 +500,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 82.1429,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -518,7 +518,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 59.6591,
+    "final_confidence": 64.6591,
     "match_type_label": null
   },
   {
@@ -536,7 +536,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 78.8462,
+    "final_confidence": 83.4483,
     "match_type_label": null
   },
   {
@@ -563,7 +563,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.9444,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -572,7 +572,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.9444,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -590,7 +590,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -599,7 +599,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -608,7 +608,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -617,7 +617,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -662,7 +662,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 55.5556,
+    "final_confidence": 60.5556,
     "match_type_label": null
   },
   {
@@ -689,7 +689,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 72.5,
+    "final_confidence": 77.5,
     "match_type_label": null
   },
   {
@@ -698,7 +698,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 47.0238,
+    "final_confidence": 52.0238,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 73.8636,
+    "final_confidence": 78.8636,
     "match_type_label": null
   },
   {
@@ -716,7 +716,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 78.8636,
     "match_type_label": null
   },
   {
@@ -725,7 +725,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -734,7 +734,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -743,7 +743,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -752,7 +752,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -761,7 +761,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 82.1429,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -770,7 +770,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -779,7 +779,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 81.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -794,47 +794,47 @@
   {
     "description": "1/2\" PLASTIC BUSHING",
     "quantity": 42,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "PV0500H1031DC",
-    "matched_orderable_part_number": "PV0500H1031DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "3/4\" PLASTIC BUSHING",
     "quantity": 208,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "PV0700H1032DC",
-    "matched_orderable_part_number": "PV0700H1032DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "1\" PLASTIC BUSHING",
     "quantity": 77,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "PV1000H1033DC",
-    "matched_orderable_part_number": "PV1000H1033DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "1 1/2\" PLASTIC BUSHING",
     "quantity": 50,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "PV1500H1035DC",
-    "matched_orderable_part_number": "PV1500H1035DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "3\" PLASTIC BUSHING",
     "quantity": 44,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "PV3000H1038DC",
-    "matched_orderable_part_number": "PV3000H1038DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "4\" PLASTIC BUSHING",
@@ -851,7 +851,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -860,7 +860,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -869,7 +869,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 50.0,
+    "final_confidence": 55.0,
     "match_type_label": null
   },
   {
@@ -887,7 +887,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 71.1111,
+    "final_confidence": 76.1111,
     "match_type_label": null
   },
   {
@@ -896,7 +896,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -914,7 +914,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -950,7 +950,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 76.6667,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -959,7 +959,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 35.2503,
+    "final_confidence": 40.2503,
     "match_type_label": null
   },
   {
@@ -968,7 +968,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 76.6667,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -986,7 +986,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 45.0,
     "match_type_label": null
   },
   {
@@ -1022,7 +1022,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 54.375,
+    "final_confidence": 56.25,
     "match_type_label": null
   },
   {
@@ -1085,7 +1085,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 26.9231,
+    "final_confidence": 31.9231,
     "match_type_label": null
   },
   {
@@ -1112,7 +1112,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 23.3333,
+    "final_confidence": 28.3333,
     "match_type_label": null
   },
   {
@@ -1121,7 +1121,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 18.5714,
+    "final_confidence": 23.5714,
     "match_type_label": null
   },
   {
@@ -1148,7 +1148,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.5556,
+    "final_confidence": 85.5556,
     "match_type_label": null
   },
   {
@@ -1157,7 +1157,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -1166,7 +1166,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.3333,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -1175,7 +1175,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 84.0909,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -1184,7 +1184,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 57.1429,
+    "final_confidence": 62.1429,
     "match_type_label": null
   },
   {
@@ -1193,7 +1193,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 57.1429,
+    "final_confidence": 62.1429,
     "match_type_label": null
   },
   {
@@ -1202,7 +1202,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 67.1429,
+    "final_confidence": 72.1429,
     "match_type_label": null
   },
   {
@@ -1211,7 +1211,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 62.0192,
+    "final_confidence": 67.0192,
     "match_type_label": null
   }
 ]
