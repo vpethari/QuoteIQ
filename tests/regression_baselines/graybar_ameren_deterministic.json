@@ -317,11 +317,11 @@
   {
     "description": "2\"x3\" BASE SPACER",
     "quantity": 2043,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "45-0123",
-    "matched_orderable_part_number": "45-0123",
-    "final_confidence": 92.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "3\"x3\" BASE SPACER",
@@ -329,17 +329,17 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 71.25,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
     "description": "4\"x3\" BASE SPACER",
     "quantity": 15273,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "45-0105",
-    "matched_orderable_part_number": "45-0105",
-    "final_confidence": 92.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "5\"x3\" BASE SPACER",
@@ -353,11 +353,11 @@
   {
     "description": "2\"x3\" INTERMEDIATE SPACER",
     "quantity": 2043,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "45-0111",
-    "matched_orderable_part_number": "45-0111",
-    "final_confidence": 92.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "3\"x3\" INTERMEDIATE SPACER",
@@ -365,26 +365,26 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 60.9375,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
     "description": "4\"x3\" INTERMEDIATE SPACER",
     "quantity": 321,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "45-0112",
-    "matched_orderable_part_number": "45-0112",
-    "final_confidence": 92.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "5\"x3\" INTERMEDIATE SPACER",
     "quantity": 5562,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "45-0134",
-    "matched_orderable_part_number": "45-0134",
-    "final_confidence": 92.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "PVC J-BOX 8x8x4",
@@ -392,7 +392,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.4348,
+    "final_confidence": 85.6818,
     "match_type_label": null
   },
   {
@@ -401,7 +401,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.6818,
+    "final_confidence": 85.9524,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 78.8636,
+    "final_confidence": 81.3889,
     "match_type_label": null
   },
   {
@@ -716,7 +716,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 78.8636,
+    "final_confidence": 81.3889,
     "match_type_label": null
   },
   {
@@ -851,7 +851,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 76.1111,
     "match_type_label": null
   },
   {
@@ -860,7 +860,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 76.1111,
     "match_type_label": null
   },
   {
@@ -1148,7 +1148,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 37.8801,
     "match_type_label": null
   },
   {
