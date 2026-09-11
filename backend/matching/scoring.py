@@ -195,10 +195,13 @@ def score_pair(
 TEXT_FIELD_WEIGHTS = {
     # productcode is excluded: it's internal-only, and in this schema it's
     # always the same value as name (see product_from_postgres_row), so
-    # including it here would just double-count the name signal.
-    "name": 1 / 3,
-    "description": 5 / 12,
-    "description2": 0.25,
+    # including it here would just double-count the name signal. "name"
+    # itself is excluded per explicit user direction (2026-09-11) -- it
+    # still gets scored individually (see catalog_text_fields/field_scores
+    # below) and can still win via best_final's max() over all fields, this
+    # blended average just no longer leans on it.
+    "description": 0.40,
+    "description2": 0.60,
 }
 
 IDENTITY_WEIGHT = 0.70
