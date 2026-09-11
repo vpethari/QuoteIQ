@@ -37,23 +37,40 @@ _VOLTAGE_EXPR = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
+_NUMERIC_FORM = r"""
+    (?:
+        (?P<{p}mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<{p}mixed_num>\d+)\s*/\s*(?P<{p}mixed_den>\d+)
+      | (?P<{p}frac_num>\d+)\s*/\s*(?P<{p}frac_den>\d+)
+      | (?P<{p}decimal>\d*\.\d+)
+      | (?P<{p}whole>\d+)
+    )
+"""
+
 _DIMENSION_EXPR = re.compile(
     r"""
     (?<![A-Z0-9])
     (?:
-        (?:
-            (?P<mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
-          | (?P<frac_num>\d+)\s*/\s*(?P<frac_den>\d+)
-          | (?P<decimal>\d*\.\d+)
-          | (?P<whole>\d+)
-        )
-        \s*
-        (?:
-            INCHES|INCH|INS|\bIN\b
-          | ["\u2033\u201d]
-          | FEET|FOOT|FT(?![A-Z])
-          | ['\u2032]
-        )
+        # Word-based units ("IN"/"FT"/etc.) keep a trailing boundary check
+        # -- needed so e.g. "4 IN" glued directly onto a following word
+        # ("4INSTALL") isn't misread as a size.
+        """
+    + _NUMERIC_FORM.format(p="w_")
+    + r"""
+        \s*(?:INCHES|INCH|INS|\bIN\b|FEET|FOOT|FT)(?![A-Z0-9])
+      |
+        # A quote-mark unit can never be part of a longer word, so it must
+        # NOT have that same trailing check -- confirmed live, this
+        # catalog commonly glues a following letter directly onto the
+        # closing quote with no space at all (e.g. "1-1/2\"x 90\u00b0
+        # Elbow", ~5,500 description2 rows). Requiring no-letter-follows
+        # here made this whole branch fail for every one of them, silently
+        # falling through to the bare-fraction branch below and
+        # mis-extracting just the trailing "1/2" as the size instead of
+        # the true 1-1/2".
+        """
+    + _NUMERIC_FORM.format(p="q_")
+    + r"""
+        \s*(?:["\u2033\u201d]|['\u2032])
       |
         # A bare simple fraction with no unit marker at all -- confirmed
         # live, "3/8 SPRING NUT" (no inch mark) left extract_dimensions()
@@ -89,9 +106,8 @@ _DIMENSION_EXPR = re.compile(
         # e.g. "1 1/2\" GRC COUPLING") and losing bare-fraction extraction
         # for catalog rows whose own code ends in a digit (confirmed,
         # common), the former is accepted as the lesser, narrower risk.
-        (?P<bare_frac_num>\d+)\s*/\s*(?P<bare_frac_den>\d+)
+        (?P<bare_frac_num>\d+)\s*/\s*(?P<bare_frac_den>\d+)(?![A-Z0-9])
     )
-    (?![A-Z0-9])
     """,
     re.IGNORECASE | re.VERBOSE,
 )
@@ -240,16 +256,18 @@ def extract_dimensions(text: str | None) -> tuple[DimensionSpec, ...]:
     seen: set[tuple[Fraction, str]] = set()
     for match in _DIMENSION_EXPR.finditer(source):
         try:
-            if match.group("mixed_whole"):
-                inches = Fraction(int(match.group("mixed_whole"))) + Fraction(
-                    int(match.group("mixed_num")), int(match.group("mixed_den"))
+            if match.group("w_mixed_whole") or match.group("q_mixed_whole"):
+                prefix = "w_" if match.group("w_mixed_whole") else "q_"
+                inches = Fraction(int(match.group(f"{prefix}mixed_whole"))) + Fraction(
+                    int(match.group(f"{prefix}mixed_num")), int(match.group(f"{prefix}mixed_den"))
                 )
-            elif match.group("frac_num"):
-                inches = Fraction(int(match.group("frac_num")), int(match.group("frac_den")))
-            elif match.group("decimal"):
-                inches = Fraction(match.group("decimal"))
-            elif match.group("whole"):
-                inches = Fraction(int(match.group("whole")))
+            elif match.group("w_frac_num") or match.group("q_frac_num"):
+                prefix = "w_" if match.group("w_frac_num") else "q_"
+                inches = Fraction(int(match.group(f"{prefix}frac_num")), int(match.group(f"{prefix}frac_den")))
+            elif match.group("w_decimal") or match.group("q_decimal"):
+                inches = Fraction(match.group("w_decimal") or match.group("q_decimal"))
+            elif match.group("w_whole") or match.group("q_whole"):
+                inches = Fraction(int(match.group("w_whole") or match.group("q_whole")))
             else:
                 inches = Fraction(int(match.group("bare_frac_num")), int(match.group("bare_frac_den")))
         except ZeroDivisionError:

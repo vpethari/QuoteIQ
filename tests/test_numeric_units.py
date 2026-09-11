@@ -229,6 +229,30 @@ def test_bare_fraction_still_requires_unit_for_whole_numbers() -> None:
     assert extract_dimensions('4" GRC STRUT CLAMP') != ()
 
 
+def test_quote_marked_size_recognized_even_with_no_space_before_next_word() -> None:
+    # Confirmed live: ~5,500 description2 rows glue a following word
+    # directly onto the closing inch mark with no space at all (e.g.
+    # "1-1/2\"x 90° Elbow, Galvanized Rigid Conduit" -- 876773). The
+    # word-unit branch's own trailing boundary check (needed so "4 IN"
+    # glued onto "4INSTALL" isn't misread) was, before this fix, shared
+    # with the quote-mark branch too, rejecting the whole match for every
+    # one of these rows and silently falling through to the bare-fraction
+    # branch, which mis-extracted just the trailing "1/2" (0.5") instead
+    # of the true 1-1/2" (1.5") -- capping 876773's own description2
+    # similarity score and letting differently-sized sibling parts
+    # outrank the correct one for "1 1/2\" GRC 90 DEG ELBOW".
+    spec = extract_dimensions('1-1/2"x 90° Elbow, Galvanized Rigid Conduit')
+    assert spec == (DimensionSpec(inches=Fraction(3, 2), raw='1-1/2"', unit="IN"),)
+
+    # Same fix for a plain (non-mixed) quoted size and for feet.
+    assert extract_dimensions('3/4"L NIPPLE') == (DimensionSpec(inches=Fraction(3, 4), raw='3/4"', unit="IN"),)
+    assert extract_dimensions("4'x REEL") == (DimensionSpec(inches=Fraction(4, 1), raw="4'", unit="FT"),)
+
+    # The word-unit branch's own trailing check must still apply --
+    # "4INSTALL" must not be misread as a 4" size.
+    assert extract_dimensions("4INSTALL") == ()
+
+
 def test_decimal_kilovolt_values_parse_at_full_magnitude() -> None:
     spec = extract_voltages("34.5kV SEL 3-Phase")
     assert len(spec) == 1
