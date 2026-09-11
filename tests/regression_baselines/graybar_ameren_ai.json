@@ -23,7 +23,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.3,
+    "final_confidence": 89.0,
     "match_type_label": null
   },
   {
@@ -32,7 +32,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.0,
+    "final_confidence": 89.3,
     "match_type_label": null
   },
   {
@@ -50,7 +50,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -101,10 +101,10 @@
   {
     "description": "1\" PVC",
     "quantity": 4240,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -113,7 +113,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 92.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -122,16 +122,16 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 49.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
     "description": "3\" PVC",
     "quantity": 4419,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 86.1,
     "match_type_label": null
   },
   {
@@ -140,26 +140,26 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
     "description": "5\" PVC",
     "quantity": 66626,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" PVC TERM ADAPTER",
     "quantity": 120,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 88.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "TA15",
+    "matched_orderable_part_number": "59619",
+    "final_confidence": 92.8571,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "2\" PVC TERM ADAPTER",
@@ -173,11 +173,11 @@
   {
     "description": "3\" PVC TERM ADAPTER",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 88.9,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "TA30",
+    "matched_orderable_part_number": "59622",
+    "final_confidence": 92.8571,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "4\" PVC TERM ADAPTER",
@@ -443,19 +443,19 @@
   {
     "description": "1 1/2\" STL FLEX CONN",
     "quantity": 1,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
     "description": "3\" STL FLEX CONN",
     "quantity": 1,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -500,7 +500,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 82.0,
+    "final_confidence": 82.1,
     "match_type_label": null
   },
   {
@@ -509,7 +509,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 89.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -659,28 +659,28 @@
   {
     "description": "1\" GRC MYERS HUB",
     "quantity": 72,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" GRC COUPLING",
     "quantity": 12,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 87.5,
     "match_type_label": null
   },
   {
     "description": "4\" GRC COUPLING",
     "quantity": 108,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 87.5,
     "match_type_label": null
   },
   {
@@ -689,7 +689,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -698,7 +698,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 60.0,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 74.0,
     "match_type_label": null
   },
   {
@@ -716,107 +716,107 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 74.0,
     "match_type_label": null
   },
   {
     "description": "3/4\" STEEL LOCKNUT",
     "quantity": 360,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "12KON",
-    "matched_orderable_part_number": "12KON",
-    "final_confidence": 40.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.7,
+    "match_type_label": null
   },
   {
     "description": "1\" STEEL LOCKNUT",
     "quantity": 32,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "13KON",
-    "matched_orderable_part_number": "13KON",
-    "final_confidence": 40.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.25,
+    "match_type_label": null
   },
   {
     "description": "1 1/2\" STEEL LOCKNUT",
     "quantity": 184,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "15KON",
-    "matched_orderable_part_number": "15KON",
-    "final_confidence": 40.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 81.0,
+    "match_type_label": null
   },
   {
     "description": "2\" STEEL LOCKNUT",
     "quantity": 102,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 81.25,
     "match_type_label": null
   },
   {
     "description": "3\" STEEL LOCKNUT",
     "quantity": 44,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 81.0,
     "match_type_label": null
   },
   {
     "description": "4\" STEEL LOCKNUT",
     "quantity": 200,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 81.25,
     "match_type_label": null
   },
   {
     "description": "5\" STEEL LOCKNUT",
     "quantity": 24,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 82.0,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" SEALING LOCKNUT",
     "quantity": 2,
     "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "AL15KON",
-    "matched_orderable_part_number": "AL15KON",
-    "final_confidence": 40.0,
+    "matched_part_number": "SL15KON",
+    "matched_orderable_part_number": "SL15KON",
+    "final_confidence": 100.0,
     "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "1/2\" PLASTIC BUSHING",
     "quantity": 42,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV0500H1031DC",
+    "matched_orderable_part_number": "PV0500H1031DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "3/4\" PLASTIC BUSHING",
     "quantity": 208,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV0700H1032DC",
+    "matched_orderable_part_number": "PV0700H1032DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "1\" PLASTIC BUSHING",
     "quantity": 77,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.56,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV1000H1033DC",
+    "matched_orderable_part_number": "PV1000H1033DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "1 1/2\" PLASTIC BUSHING",
@@ -830,20 +830,20 @@
   {
     "description": "3\" PLASTIC BUSHING",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.56,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV3000H1038DC",
+    "matched_orderable_part_number": "PV3000H1038DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "4\" PLASTIC BUSHING",
     "quantity": 72,
-    "match_status": "NO_MATCH",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV4000H1040DC",
+    "matched_orderable_part_number": "PV4000H1040DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "3/4\" GRC STRUT CLAMP",
@@ -887,34 +887,34 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 71.0,
     "match_type_label": null
   },
   {
     "description": "3/4\" GRC CUT & THREAD",
     "quantity": 360,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" GRC CUT & THREAD",
     "quantity": 236,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "117173",
-    "matched_orderable_part_number": "117173",
-    "final_confidence": 40.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.0,
+    "match_type_label": null
   },
   {
     "description": "4\" GRC CUT & THREAD",
     "quantity": 144,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -950,7 +950,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 76.6667,
+    "final_confidence": 77.0,
     "match_type_label": null
   },
   {
@@ -977,7 +977,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -1031,7 +1031,7 @@
     "match_status": "NO_MATCH",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 54.0,
+    "final_confidence": 0.0,
     "match_type_label": null
   },
   {
@@ -1166,7 +1166,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.0,
+    "final_confidence": 83.3,
     "match_type_label": null
   },
   {
@@ -1193,7 +1193,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 57.14,
     "match_type_label": null
   },
   {
@@ -1202,7 +1202,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 67.14,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {

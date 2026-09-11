@@ -50,7 +50,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -104,7 +104,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 49.0196,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -113,7 +113,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -122,7 +122,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 49.0196,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -131,7 +131,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 49.0196,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -140,7 +140,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 49.0196,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -446,7 +446,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -455,7 +455,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 16.8416,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -662,7 +662,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 55.5556,
     "match_type_label": null
   },
   {
@@ -671,7 +671,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -680,7 +680,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -689,7 +689,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 72.5,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 73.8636,
     "match_type_label": null
   },
   {
@@ -716,7 +716,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -725,7 +725,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -734,7 +734,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -743,7 +743,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -752,7 +752,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -761,7 +761,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 82.1429,
     "match_type_label": null
   },
   {
@@ -770,7 +770,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
@@ -779,71 +779,71 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 81.6667,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" SEALING LOCKNUT",
     "quantity": 2,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
-    "match_type_label": null
+    "match_status": "EXACT_MATCH",
+    "matched_part_number": "SL15KON",
+    "matched_orderable_part_number": "SL15KON",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic \u2014 Description Match"
   },
   {
     "description": "1/2\" PLASTIC BUSHING",
     "quantity": 42,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.2632,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV0500H1031DC",
+    "matched_orderable_part_number": "PV0500H1031DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" PLASTIC BUSHING",
     "quantity": 208,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.2632,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV0700H1032DC",
+    "matched_orderable_part_number": "PV0700H1032DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" PLASTIC BUSHING",
     "quantity": 77,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.5556,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV1000H1033DC",
+    "matched_orderable_part_number": "PV1000H1033DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1 1/2\" PLASTIC BUSHING",
     "quantity": 50,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV1500H1035DC",
+    "matched_orderable_part_number": "PV1500H1035DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3\" PLASTIC BUSHING",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 80.5556,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV3000H1038DC",
+    "matched_orderable_part_number": "PV3000H1038DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "4\" PLASTIC BUSHING",
     "quantity": 72,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV4000H1040DC",
+    "matched_orderable_part_number": "PV4000H1040DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" GRC STRUT CLAMP",
@@ -887,7 +887,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 71.1111,
     "match_type_label": null
   },
   {
@@ -896,7 +896,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -905,7 +905,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -914,7 +914,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
