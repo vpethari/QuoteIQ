@@ -41,17 +41,55 @@ _DIMENSION_EXPR = re.compile(
     r"""
     (?<![A-Z0-9])
     (?:
-        (?P<mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
-      | (?P<frac_num>\d+)\s*/\s*(?P<frac_den>\d+)
-      | (?P<decimal>\d*\.\d+)
-      | (?P<whole>\d+)
-    )
-    \s*
-    (?:
-        INCHES|INCH|INS|\bIN\b
-      | ["\u2033\u201d]
-      | FEET|FOOT|FT(?![A-Z])
-      | ['\u2032]
+        (?:
+            (?P<mixed_whole>\d+)(?:\s*-\s*|\s+)(?P<mixed_num>\d+)\s*/\s*(?P<mixed_den>\d+)
+          | (?P<frac_num>\d+)\s*/\s*(?P<frac_den>\d+)
+          | (?P<decimal>\d*\.\d+)
+          | (?P<whole>\d+)
+        )
+        \s*
+        (?:
+            INCHES|INCH|INS|\bIN\b
+          | ["\u2033\u201d]
+          | FEET|FOOT|FT(?![A-Z])
+          | ['\u2032]
+        )
+      |
+        # A bare simple fraction with no unit marker at all -- confirmed
+        # live, "3/8 SPRING NUT" (no inch mark) left extract_dimensions()
+        # completely blind to the query's own stated size, since every
+        # branch above requires an explicit unit suffix. Every genuine
+        # candidate's own size ("3/8\"-16" etc.) does carry a mark, so the
+        # numeric/dimension comparison, rerank, and confidence floor never
+        # engaged at all -- letting boilerplate text similarity alone
+        # decide, which favored a wrong thread size (3/4"-10) over both the
+        # exact literal match and the true 3/8" part. A bare fraction
+        # overwhelmingly means a size in inches in this domain, unlike a
+        # bare *whole* number (still deliberately excluded here -- see
+        # _is_distinctive in catalog/search_query.py for the same judgment
+        # call: a bare integer is too often a quantity, hole count, or
+        # gauge to assume it's a size).
+        #
+        # Deliberately NOT extended to the mixed-whole form (e.g. a bare
+        # "1 1/2"): confirmed live, that shape's leading whole-number part
+        # is genuinely ambiguous with an unrelated adjacent number when
+        # there's no unit to anchor it -- "A-100 A-100 3/8 SPRING NUT"
+        # (the part code "A-100" concatenated with the genuine, separate
+        # "3/8" size) was misread as one mixed number, "100 3/8\"", by an
+        # earlier version of this fix that did include that form. A second
+        # attempt made the mixed-whole form matched-but-discarded instead
+        # (to stop bare_frac_num from independently reading just its
+        # trailing fraction) -- but that discarded genuine catalog sizes
+        # too, since a product's own name/code commonly ends in a bare
+        # number immediately before its real size elsewhere in the same
+        # blob, the exact same shape as a genuine mixed number. Between an
+        # unmarked mixed-fraction *query* being misread as just its
+        # trailing fraction (no confirmed real occurrence so far -- every
+        # mixed-fraction query seen this session already carries a quote,
+        # e.g. "1 1/2\" GRC COUPLING") and losing bare-fraction extraction
+        # for catalog rows whose own code ends in a digit (confirmed,
+        # common), the former is accepted as the lesser, narrower risk.
+        (?P<bare_frac_num>\d+)\s*/\s*(?P<bare_frac_den>\d+)
     )
     (?![A-Z0-9])
     """,
@@ -210,8 +248,10 @@ def extract_dimensions(text: str | None) -> tuple[DimensionSpec, ...]:
                 inches = Fraction(int(match.group("frac_num")), int(match.group("frac_den")))
             elif match.group("decimal"):
                 inches = Fraction(match.group("decimal"))
-            else:
+            elif match.group("whole"):
                 inches = Fraction(int(match.group("whole")))
+            else:
+                inches = Fraction(int(match.group("bare_frac_num")), int(match.group("bare_frac_den")))
         except ZeroDivisionError:
             # AWG "aught" sizes like 2/0, 4/0 look like fractions but aren't.
             continue

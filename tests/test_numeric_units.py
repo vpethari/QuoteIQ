@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from fractions import Fraction
+
 from catalog.postgres_repository import product_from_postgres_row
 from matching.description_normalize import canonical_description, tokenize_description
 from matching.matcher import ProductMatcher
 from matching.models import MatchStatus, ProductRecord, QuoteLine
 from matching.productcode import productcode_as_text, score_product_code_identifier
 from matching.units import (
+    DimensionSpec,
     apply_unit_normalization,
     compare_units,
     extract_amperages,
@@ -179,6 +182,51 @@ def test_awg_aught_sizes_do_not_crash_dimension_extraction() -> None:
     assert extract_dimensions('2/0"') == ()
     assert extract_dimensions("4/0 IN CONDUIT") == ()
     assert extract_dimensions("#2/0 MECH LUG") == ()
+
+
+def test_awg_aught_sizes_still_ignored_with_no_unit_at_all() -> None:
+    # Confirmed live: a bare bare AWG size ("2/0"/"4/0", no unit marker)
+    # must not be misread as a "2/0 inch" or "4/0 inch" dimension by the
+    # bare-fraction recognition below -- the zero-denominator guard these
+    # already relied on with an explicit unit must still catch them here.
+    assert extract_dimensions("2/0") == ()
+    assert extract_dimensions("4/0 CONDUIT") == ()
+    assert extract_dimensions("#2/0 MECH LUG") == ()
+
+
+def test_bare_fraction_with_no_unit_marker_is_recognized_as_inches() -> None:
+    # Confirmed live: "3/8 SPRING NUT" (no inch mark at all) left
+    # extract_dimensions() completely blind to the query's own stated
+    # size -- every branch used to require an explicit unit suffix, so the
+    # numeric/dimension comparison, rerank, and confidence floor never
+    # engaged, letting boilerplate text similarity alone decide (which
+    # favored a wrong thread size, 3/4"-10, over the correct 3/8" part).
+    spec = extract_dimensions("3/8 SPRING NUT")
+    assert len(spec) == 1
+    assert spec[0].inches == Fraction(3, 8)
+    assert spec[0].unit == "IN"
+
+
+def test_bare_fraction_does_not_absorb_an_unrelated_adjacent_number() -> None:
+    # Confirmed live: "A-100 A-100 3/8 SPRING NUT" (a catalog row's own
+    # name, "A-100", concatenated with its genuine "3/8" size elsewhere in
+    # the same blob) must extract just the real size, 3/8" -- an earlier
+    # version of this fix also recognized a *bare mixed fraction* (a bare
+    # whole number followed by a fraction, e.g. an unmarked "1 1/2"), which
+    # misread "100" (part of the unrelated code) plus the following "3/8"
+    # as one fake mixed number, "100 3/8\"" (Fraction(803, 8)).
+    spec = extract_dimensions("A-100 A-100 3/8 SPRING NUT")
+    assert spec == (DimensionSpec(inches=Fraction(3, 8), raw="3/8", unit="IN"),)
+
+
+def test_bare_fraction_still_requires_unit_for_whole_numbers() -> None:
+    # A bare whole number (e.g. a leftover mixed-fraction fragment, a hole
+    # count, a wire gauge) is still too ambiguous to assume it's a size --
+    # only extended to simple fractions, which overwhelmingly mean a size
+    # in this domain. See catalog/search_query.py's _is_distinctive for
+    # the same judgment call made for retrieval.
+    assert extract_dimensions("4 GRC STRUT CLAMP") == ()
+    assert extract_dimensions('4" GRC STRUT CLAMP') != ()
 
 
 def test_decimal_kilovolt_values_parse_at_full_magnitude() -> None:
