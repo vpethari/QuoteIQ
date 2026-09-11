@@ -69,6 +69,27 @@ def _quote(identifier: str) -> str:
     return f'"{identifier}"'
 
 
+# pg_trgm's GIN index is built from 3-character trigrams, so an ILIKE
+# pattern shorter than that (most commonly a bare size like "2") can't use
+# it at all -- confirmed live via EXPLAIN ANALYZE: the "2" branch of
+# partial_search_text_sql for "2\" STEEL LOCKNUT" fell back to a Parallel
+# Seq Scan over the whole ~109k-row table (matching "20", "12", "192", any
+# text containing that digit anywhere), while the "steel"/"locknut"
+# branches used the index and returned in milliseconds. That one branch
+# alone took ~2.2s of a ~2.4s total query -- and this query now runs on
+# every retrieval, not just as a rare fallback, since STRICT_MATCH_MERGE
+# always tries partial matching too (see the comment above
+# PARTIAL_MATCH_MIN_TOKENS).
+MIN_TRIGRAM_INDEXABLE_LENGTH = 3
+
+
+def _position_is_indexable(variants: tuple[str, ...]) -> bool:
+    """A token position's OR'd variants can only use the trigram index if
+    EVERY spelling is long enough -- one short variant in the OR forces a
+    sequential scan for the whole predicate regardless of the others."""
+    return all(len(variant) >= MIN_TRIGRAM_INDEXABLE_LENGTH for variant in variants)
+
+
 def _parse_preferredflag(raw: object) -> bool:
     """productmaster.preferredflag is free text ("Preferred"/"Not Preferred"),
     not a boolean column -- match on the one value that means yes, so any
@@ -321,18 +342,27 @@ class PostgresCatalogRepository:
             "LIMIT :limit"
         )
 
-    def partial_search_text_sql(self, token_variant_counts: list[int], min_required: int) -> str:
-        """Fallback retrieval SQL used only when the strict all-tokens search
-        finds nothing: requires at least ``min_required`` of the token
-        positions to match (each still OR'd across its own spellings), ranked
-        by how many positions matched, then (on Postgres) by textual
-        relevance -- see the ORDER BY comment below.
+    def _partial_match_order_sql(self) -> str:
+        if not self._is_postgres():
+            return "match_count DESC"
+        # Without this, every candidate tied on match_count -- commonly
+        # 100+ rows for a query that shares only generic words with a
+        # large catalog family -- is ordered arbitrarily by Postgres's
+        # own GROUP BY/hash order, with no regard for which one is
+        # actually the closest textual match. Confirmed live: "4\" GRC
+        # STRUT CLAMP" tied 200+ pipe-clamp rows at the same
+        # match_count, and the genuinely correct 4" clamp (the single
+        # highest word_similarity of the whole tied group) never made
+        # it into the LIMIT cutoff. Same word_similarity-then-
+        # similarity tiebreak the strict-AND tier already uses (see
+        # search_text_sql).
+        return (
+            "match_count DESC, "
+            "word_similarity(:rank_normalized, search_text) DESC, "
+            "similarity(search_text, :rank_normalized) DESC"
+        )
 
-        Built as one indexed single-predicate query per token position, UNIONed
-        and grouped, rather than a single scan computing every position's hit
-        for every row -- the latter can't use the search_text trigram index and
-        is a full table scan per call.
-        """
+    def _partial_match_branch_sql(self, position: int, count: int) -> str:
         like_op = "ILIKE" if self._is_postgres() else "LIKE"
         search_expr = self._search_text_expr()
         code_sql = self._productcode_sql()
@@ -342,7 +372,7 @@ class PostgresCatalogRepository:
         orderable_sql = _quote(self.orderablepartnumber_column)
         preferred_sql = _quote(self.preferredflag_column)
         table_sql = _quote(self.table)
-        branches = [
+        return (
             "SELECT "
             f"{code_sql} AS productcode, {name_sql} AS name, "
             f"{desc_sql} AS description, {desc2_sql} AS description2, "
@@ -351,35 +381,92 @@ class PostgresCatalogRepository:
             f"{position} AS token_position "
             f"FROM {table_sql} WHERE "
             + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count))
-            for position, count in enumerate(token_variant_counts)
+        )
+
+    def partial_search_text_sql(self, token_groups: list[tuple[str, ...]], min_required: int) -> str:
+        """Fallback retrieval SQL used only when the strict all-tokens search
+        finds nothing (or, per STRICT_MATCH_MERGE's own reasoning, always
+        tried alongside it): requires at least ``min_required`` of the token
+        positions to match (each still OR'd across its own spellings), ranked
+        by how many positions matched, then (on Postgres) by textual
+        relevance -- see _partial_match_order_sql.
+
+        Built as one indexed single-predicate query per *trigram-indexable*
+        token position (see MIN_TRIGRAM_INDEXABLE_LENGTH), UNIONed and
+        grouped, rather than a single scan computing every position's hit
+        for every row -- the latter can't use the search_text trigram index
+        and is a full table scan per call. A position with a short variant
+        (most commonly a bare size, e.g. "2") can't use the index at all --
+        confirmed live via EXPLAIN ANALYZE, that one branch alone cost ~2.2s
+        of a ~2.4s query, a Parallel Seq Scan over the whole table matching
+        "2" anywhere ("20", "12", "192", ...). Such a position is instead
+        checked with a plain CASE/OR predicate against the row's own
+        already-identified search_text, evaluated only for the small set of
+        rows the indexable positions already narrowed down to -- same
+        match_count semantics (still one OR'd position, still contributes
+        at most 1 to the count), far cheaper to evaluate.
+
+        Falls back to the original all-positions-in-one-UNION shape when
+        NO position is trigram-indexable at all (every token happens to be
+        short) -- a rare case with no indexable positions to narrow the
+        candidate set down with first, so there's nothing to check the
+        short ones against cheaply.
+        """
+        indexable = [
+            (position, group) for position, group in enumerate(token_groups) if _position_is_indexable(group)
         ]
-        order_sql = "match_count DESC"
-        if self._is_postgres():
-            # Without this, every candidate tied on match_count -- commonly
-            # 100+ rows for a query that shares only generic words with a
-            # large catalog family -- is ordered arbitrarily by Postgres's
-            # own GROUP BY/hash order, with no regard for which one is
-            # actually the closest textual match. Confirmed live: "4\" GRC
-            # STRUT CLAMP" tied 200+ pipe-clamp rows at the same
-            # match_count, and the genuinely correct 4" clamp (the single
-            # highest word_similarity of the whole tied group) never made
-            # it into the LIMIT cutoff. Same word_similarity-then-
-            # similarity tiebreak the strict-AND tier already uses (see
-            # search_text_sql) -- MAX() since search_text is identical
-            # across a row's UNION branches but isn't itself grouped on.
-            order_sql = (
-                "match_count DESC, "
-                "word_similarity(:rank_normalized, MAX(search_text)) DESC, "
-                "similarity(MAX(search_text), :rank_normalized) DESC"
+        nonindexable = [
+            (position, group) for position, group in enumerate(token_groups) if not _position_is_indexable(group)
+        ]
+        order_sql = self._partial_match_order_sql()
+
+        if not indexable:
+            branches = [
+                self._partial_match_branch_sql(position, len(group)) for position, group in enumerate(token_groups)
+            ]
+            legacy_order_sql = order_sql.replace("search_text", "MAX(search_text)")
+            return (
+                "SELECT productcode, name, description, description2, orderablepartnumber, "
+                "COUNT(DISTINCT token_position) AS match_count, MAX(preferredflag) AS preferredflag "
+                f"FROM ({' UNION ALL '.join(branches)}) AS hits "
+                "GROUP BY productcode, name, description, description2, orderablepartnumber "
+                "HAVING COUNT(DISTINCT token_position) >= :min_required "
+                f"ORDER BY {legacy_order_sql} "
+                "LIMIT :limit"
             )
-        # preferredflag is MAX()'d rather than grouped on, same reasoning as
-        # search_text above -- it's identical across a row's UNION branches.
+
+        branches = [self._partial_match_branch_sql(position, len(group)) for position, group in indexable]
+        like_op = "ILIKE" if self._is_postgres() else "LIKE"
+        # Each non-indexable position still contributes at most 1 to
+        # match_count, checked against the row's own already-deduplicated
+        # text from the `grouped` CTE below -- same semantics as an
+        # indexable position's own OR'd-variants branch, just never
+        # requiring its own full-table scan.
+        nonindexable_terms = [
+            "(CASE WHEN "
+            + " OR ".join(f"search_text {like_op} :tok{position}_{variant}" for variant in range(len(group)))
+            + " THEN 1 ELSE 0 END)"
+            for position, group in nonindexable
+        ]
+        match_count_sql = " + ".join(["indexable_match_count", *nonindexable_terms])
         return (
+            "WITH indexable_hits AS ("
+            f"{' UNION ALL '.join(branches)}"
+            "), grouped AS ("
             "SELECT productcode, name, description, description2, orderablepartnumber, "
-            "COUNT(DISTINCT token_position) AS match_count, MAX(preferredflag) AS preferredflag "
-            f"FROM ({' UNION ALL '.join(branches)}) AS hits "
-            "GROUP BY productcode, name, description, description2, orderablepartnumber "
-            "HAVING COUNT(DISTINCT token_position) >= :min_required "
+            "COUNT(DISTINCT token_position) AS indexable_match_count, "
+            "MAX(search_text) AS search_text, MAX(preferredflag) AS preferredflag "
+            "FROM indexable_hits "
+            "GROUP BY productcode, name, description, description2, orderablepartnumber"
+            "), scored AS ("
+            "SELECT productcode, name, description, description2, orderablepartnumber, "
+            "preferredflag, search_text, "
+            f"{match_count_sql} AS match_count "
+            "FROM grouped"
+            ") "
+            "SELECT productcode, name, description, description2, orderablepartnumber, preferredflag "
+            "FROM scored "
+            "WHERE match_count >= :min_required "
             f"ORDER BY {order_sql} "
             "LIMIT :limit"
         )
@@ -461,7 +548,7 @@ class PostgresCatalogRepository:
         partial_worth_trying = partial_worth_trying and min_required < len(token_groups)
 
         if partial_worth_trying:
-            sql = text(self.partial_search_text_sql(variant_counts, min_required))
+            sql = text(self.partial_search_text_sql(token_groups, min_required))
             params = {
                 "limit": cap,
                 "normalized": normalized,

@@ -197,9 +197,9 @@ def test_partial_search_text_sql_orders_by_word_similarity_with_similarity_tiebr
     engine = MagicMock()
     engine.dialect.name = "postgresql"
     repository = PostgresCatalogRepository(engine)
-    sql = repository.partial_search_text_sql([1, 1, 1], 2)
+    sql = repository.partial_search_text_sql([("abc",), ("def",), ("ghi",)], 2)
     assert "match_count DESC" in sql
-    assert "word_similarity(:rank_normalized, MAX(search_text))" in sql
+    assert "word_similarity(:rank_normalized, search_text)" in sql
     word_sim_pos = sql.index("word_similarity(")
     plain_sim_pos = sql.index("similarity(", word_sim_pos + len("word_similarity("))
     assert word_sim_pos < plain_sim_pos
@@ -207,7 +207,7 @@ def test_partial_search_text_sql_orders_by_word_similarity_with_similarity_tiebr
 
 def test_partial_search_text_sql_falls_back_to_match_count_only_on_sqlite() -> None:
     repository = _sqlite_catalog()
-    sql = repository.partial_search_text_sql([1, 1, 1], 2)
+    sql = repository.partial_search_text_sql([("abc",), ("def",), ("ghi",)], 2)
     assert "ORDER BY match_count DESC " in sql
     assert "word_similarity" not in sql
 
@@ -384,6 +384,29 @@ def test_strict_hit_is_merged_with_partial_match_several_coincidental_hits() -> 
     codes = {item.product_code for item in hits}
     assert "LT150STLKON" in codes
     assert "MSC150KON" in codes
+
+
+def test_partial_match_with_bare_digit_position_finds_rows_missing_it() -> None:
+    # Regression test for the trigram-indexable/non-indexable split in
+    # partial_search_text_sql (see MIN_TRIGRAM_INDEXABLE_LENGTH): a bare
+    # digit position ("2") can't use the trigram index, so it's checked
+    # separately from the indexable "steel"/"locknut" positions -- but must
+    # still behave as just one more OR'd position contributing at most 1 to
+    # match_count, not a hard requirement. min_required for 3 positions at
+    # 0.6 overlap is 2, so a row satisfying any 2 of the 3 (in any
+    # combination) must still be found.
+    repository = _sqlite_from_rows(
+        [
+            (1, "ALL3", "ALL3", "2 STEEL LOCKNUT", "matches all three positions"),
+            (2, "NO_DIGIT", "NO_DIGIT", "STEEL LOCKNUT", "matches only the two indexable positions"),
+            (3, "ONLY_DIGIT", "ONLY_DIGIT", "2", "matches only the non-indexable position"),
+        ]
+    )
+    hits = repository.search_text_candidates("2 STEEL LOCKNUT", limit=100)
+    codes = {item.product_code for item in hits}
+    assert "ALL3" in codes
+    assert "NO_DIGIT" in codes
+    assert "ONLY_DIGIT" not in codes
 
 
 def test_connection_scope_reuses_one_connection_across_searches() -> None:
