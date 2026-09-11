@@ -69,6 +69,21 @@ class MatchingConfig:
     # even under a large tie, without pulling the entire catalog over the
     # wire for every partial-match line.
     search_text_rerank_pool_limit: int = 150
+    # productmaster.preferredflag ("Preferred"/"Not Preferred") marks the
+    # specific catalog row Atkore wants surfaced first among otherwise
+    # comparable alternatives (e.g. a preferred finish/vendor variant of the
+    # same part). Applied as a flat additive bonus to a candidate's final
+    # score (clamped to 100) -- after the variant_conflict cap, so a
+    # candidate already flagged as the wrong product family can't be
+    # rescued by this, but before the candidate_floor cut and the final
+    # sort, so it can move a preferred candidate ahead of a non-preferred
+    # one that scored somewhat higher on text/size match alone, not just
+    # break exact ties. Deliberately modest relative to the score gaps
+    # this catalog actually produces (e.g. the ~40-point gap a genuine
+    # variant-conflict cap leaves, or the 8-15 point gaps between
+    # differently-sized candidates) so it can't promote a preferred item
+    # that's a clearly worse match over a clearly better non-preferred one.
+    preferred_score_bonus: float = 5.0
 
     def __post_init__(self) -> None:
         total = (
@@ -102,6 +117,7 @@ class ProductRecord:
     description2: str | None = None
     catalog_row_id: str | None = None
     orderable_part_number: str | None = None
+    preferred: bool = False
 
     @property
     def product_code(self) -> str:
@@ -145,6 +161,7 @@ class MatchCandidate:
     description2: str | None = None
     rank: int | None = None
     orderable_part_number: str | None = None
+    preferred: bool = False
 
 
 @dataclass

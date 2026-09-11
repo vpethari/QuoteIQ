@@ -520,6 +520,16 @@ class ProductMatcher:
                 breakdown = dataclasses.replace(
                     breakdown, final=min(breakdown.final, self.config.description_conflict_max)
                 )
+            # See MatchingConfig.preferred_score_bonus -- applied after the
+            # variant-conflict cap above (so a wrong-family candidate can't
+            # be rescued by this) but before the candidate_floor cut and the
+            # final sort, so a preferred candidate can move ahead of a
+            # non-preferred one that scored somewhat higher, not just win
+            # exact ties.
+            if product.preferred:
+                breakdown = dataclasses.replace(
+                    breakdown, final=clamp_score(breakdown.final + self.config.preferred_score_bonus)
+                )
             if breakdown.final < self.config.candidate_floor and not identifier_hit:
                 continue
             identifier_evidence = self._attach_abbrev_evidence(
@@ -553,6 +563,7 @@ class ProductMatcher:
                 name=product.name,
                 description2=product.description2,
                 orderable_part_number=product.orderable_part_number,
+                preferred=product.preferred,
             )
             scored.append(candidate)
             if session is not None and loop_started is not None:
@@ -614,6 +625,7 @@ class ProductMatcher:
             name=product.name,
             description2=product.description2,
             orderable_part_number=product.orderable_part_number,
+            preferred=product.preferred,
         )
 
     def _match_description_only(

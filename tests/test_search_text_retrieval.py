@@ -25,7 +25,8 @@ def _sqlite_catalog() -> PostgresCatalogRepository:
                 "description TEXT, "
                 "description2 TEXT, "
                 "search_text TEXT, "
-                "orderablepartnumber TEXT)"
+                "orderablepartnumber TEXT, "
+                "preferredflag TEXT)"
             )
         )
         rows = [
@@ -231,7 +232,8 @@ def test_search_text_candidates_matches_spelled_out_cable_against_raw_catalog_te
                 "description TEXT, "
                 "description2 TEXT, "
                 "search_text TEXT, "
-                "orderablepartnumber TEXT)"
+                "orderablepartnumber TEXT, "
+                "preferredflag TEXT)"
             )
         )
         # Catalog text spells "CABLE" out in full; the query token canonicalizes
@@ -276,7 +278,8 @@ def test_search_text_candidates_matches_fraction_size_against_raw_catalog_text()
                 "description TEXT, "
                 "description2 TEXT, "
                 "search_text TEXT, "
-                "orderablepartnumber TEXT)"
+                "orderablepartnumber TEXT, "
+                "preferredflag TEXT)"
             )
         )
         row = (2180287, "MSC5090KON", "MSC5090KON", 'MSC5090KON 1/2" SQUEEZE CONNECTORS - 90 DEGREE', None)
@@ -314,7 +317,8 @@ def _sqlite_from_rows(rows: list[tuple[int, str, str, str, str]]) -> PostgresCat
                 "description TEXT, "
                 "description2 TEXT, "
                 "search_text TEXT, "
-                "orderablepartnumber TEXT)"
+                "orderablepartnumber TEXT, "
+                "preferredflag TEXT)"
             )
         )
         for row_id, code, name, description, description2 in rows:

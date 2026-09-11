@@ -69,6 +69,14 @@ def _quote(identifier: str) -> str:
     return f'"{identifier}"'
 
 
+def _parse_preferredflag(raw: object) -> bool:
+    """productmaster.preferredflag is free text ("Preferred"/"Not Preferred"),
+    not a boolean column -- match on the one value that means yes, so any
+    other spelling (including a NULL/blank row) safely defaults to False
+    rather than silently marking everything preferred."""
+    return str(raw).strip().casefold() == "preferred" if raw is not None else False
+
+
 def product_from_postgres_row(
     *,
     productcode: object,
@@ -78,6 +86,7 @@ def product_from_postgres_row(
     row_id: object = None,
     record_type: object = None,
     orderablepartnumber: object = None,
+    preferredflag: object = None,
 ) -> ProductRecord | None:
     """productmaster.name is the real, external orderable identifier (what
     customers/external agents quote and order by); Productcode is an
@@ -108,6 +117,7 @@ def product_from_postgres_row(
         description2=str(description2).strip() if description2 else None,
         catalog_row_id=internal_id,
         orderable_part_number=orderable_text,
+        preferred=_parse_preferredflag(preferredflag),
     )
 
 
@@ -128,6 +138,7 @@ class PostgresCatalogRepository:
         search_text_column: str = "search_text",
         identifier_search_column: str = "identifier_search",
         orderablepartnumber_column: str = "orderablepartnumber",
+        preferredflag_column: str = "preferredflag",
         retrieval_limit: int = 100,
     ) -> None:
         self.engine = engine
@@ -141,6 +152,7 @@ class PostgresCatalogRepository:
         self.search_text_column = search_text_column
         self.identifier_search_column = identifier_search_column
         self.orderablepartnumber_column = orderablepartnumber_column
+        self.preferredflag_column = preferredflag_column
         self.retrieval_limit = retrieval_limit
         self._cached_column_names: set[str] | None = None
 
@@ -155,19 +167,21 @@ class PostgresCatalogRepository:
         return _quote(self.search_text_column)
 
     def _select_catalog_sql(self) -> str:
-        """orderablepartnumber is required, same as search_text (both added
-        by the same migration) -- not schema-inspected per query, since this
-        runs on the hot per-line retrieval path."""
+        """orderablepartnumber and preferredflag are required, same as
+        search_text (added by migration 20260911_0006) -- not schema-
+        inspected per query, since this runs on the hot per-line retrieval
+        path (see test_search_text_sql_does_not_inspect_schema)."""
         table_sql = _quote(self.table)
         code_sql = self._productcode_sql()
         name_sql = _quote(self.name_column)
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
         orderable_sql = _quote(self.orderablepartnumber_column)
+        preferred_sql = _quote(self.preferredflag_column)
         return (
             f"SELECT {code_sql} AS productcode, {name_sql} AS name, "
             f"{desc_sql} AS description, {desc2_sql} AS description2, "
-            f"{orderable_sql} AS orderablepartnumber "
+            f"{orderable_sql} AS orderablepartnumber, {preferred_sql} AS preferredflag "
             f"FROM {table_sql}"
         )
 
@@ -253,6 +267,7 @@ class PostgresCatalogRepository:
                 row_id=row.get("row_id"),
                 record_type=row.get("record_type"),
                 orderablepartnumber=row.get("orderablepartnumber"),
+                preferredflag=row.get("preferredflag"),
             )
             if product is not None:
                 records.append(product)
@@ -325,12 +340,14 @@ class PostgresCatalogRepository:
         desc_sql = _quote(self.description_column)
         desc2_sql = _quote(self.description2_column)
         orderable_sql = _quote(self.orderablepartnumber_column)
+        preferred_sql = _quote(self.preferredflag_column)
         table_sql = _quote(self.table)
         branches = [
             "SELECT "
             f"{code_sql} AS productcode, {name_sql} AS name, "
             f"{desc_sql} AS description, {desc2_sql} AS description2, "
             f"{orderable_sql} AS orderablepartnumber, {search_expr} AS search_text, "
+            f"{preferred_sql} AS preferredflag, "
             f"{position} AS token_position "
             f"FROM {table_sql} WHERE "
             + " OR ".join(f"{search_expr} {like_op} :tok{position}_{variant}" for variant in range(count))
@@ -355,9 +372,11 @@ class PostgresCatalogRepository:
                 "word_similarity(:rank_normalized, MAX(search_text)) DESC, "
                 "similarity(MAX(search_text), :rank_normalized) DESC"
             )
+        # preferredflag is MAX()'d rather than grouped on, same reasoning as
+        # search_text above -- it's identical across a row's UNION branches.
         return (
             "SELECT productcode, name, description, description2, orderablepartnumber, "
-            "COUNT(DISTINCT token_position) AS match_count "
+            "COUNT(DISTINCT token_position) AS match_count, MAX(preferredflag) AS preferredflag "
             f"FROM ({' UNION ALL '.join(branches)}) AS hits "
             "GROUP BY productcode, name, description, description2, orderablepartnumber "
             "HAVING COUNT(DISTINCT token_position) >= :min_required "
@@ -609,6 +628,7 @@ class PostgresCatalogRepository:
                 row_id=row.get("row_id"),
                 record_type=row.get("record_type"),
                 orderablepartnumber=row.get("orderablepartnumber"),
+                preferredflag=row.get("preferredflag"),
             )
             if product is not None:
                 records.append(product)
@@ -722,6 +742,8 @@ class PostgresCatalogRepository:
             select_parts.append(f"{_quote(self.record_type_column)} AS record_type")
         if self.orderablepartnumber_column in columns:
             select_parts.append(f"{_quote(self.orderablepartnumber_column)} AS orderablepartnumber")
+        if self.preferredflag_column in columns:
+            select_parts.append(f"{_quote(self.preferredflag_column)} AS preferredflag")
         # Gate on name (the real identifier), not Productcode (internal-only) --
         # a row needs a usable name to be matchable at all now.
         where_parts = [
