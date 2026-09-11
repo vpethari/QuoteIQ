@@ -219,6 +219,22 @@ def test_bare_fraction_does_not_absorb_an_unrelated_adjacent_number() -> None:
     assert spec == (DimensionSpec(inches=Fraction(3, 8), raw="3/8", unit="IN"),)
 
 
+def test_bare_fraction_rejects_implausible_denominators() -> None:
+    # Confirmed live: "PVC - Sch 40/80 Conduit" (a Schedule 40/80 rating,
+    # in ~2,900 catalog rows) was misread as a bare "40/80" = 1/2" size,
+    # spuriously conflicting with every PVC candidate's own dimension
+    # against any query size that wasn't exactly 1/2" -- e.g. capping
+    # BV2030 ("SPACER BASE 2 x 3", Preferred) to the same 45% as a
+    # completely wrong-sized sibling for "2\"x3\" BASE SPACER", instead of
+    # its genuine, correct 97%. Of ~24,400 genuine quote-marked fraction
+    # sizes in this catalog, 99.99% use a denominator of 2, 4, 8, 16, 32,
+    # or 64 -- a schedule number/ratio/rating essentially never does.
+    assert extract_dimensions("PVC - Sch 40/80 Conduit") == ()
+    assert extract_dimensions("9/10 RATIO") == ()
+    # A plausible denominator must still work.
+    assert extract_dimensions("7/16 BOLT") == (DimensionSpec(inches=Fraction(7, 16), raw="7/16", unit="IN"),)
+
+
 def test_bare_fraction_still_requires_unit_for_whole_numbers() -> None:
     # A bare whole number (e.g. a leftover mixed-fraction fragment, a hole
     # count, a wire gauge) is still too ambiguous to assume it's a size --

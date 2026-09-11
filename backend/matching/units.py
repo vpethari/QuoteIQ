@@ -106,11 +106,28 @@ _DIMENSION_EXPR = re.compile(
         # e.g. "1 1/2\" GRC COUPLING") and losing bare-fraction extraction
         # for catalog rows whose own code ends in a digit (confirmed,
         # common), the former is accepted as the lesser, narrower risk.
+        #
+        # See _PLAUSIBLE_FRACTION_DENOMINATORS below for a second guard
+        # applied after this matches: confirmed live, "PVC - Sch 40/80"
+        # (a Schedule 40/80 rating, in ~2,900 catalog rows) was misread as
+        # a bare "40/80" = 1/2" size, spuriously conflicting with every
+        # PVC candidate's own dimension against any query size that wasn't
+        # exactly 1/2" -- capping their score and letting an unrelated,
+        # differently-sized candidate outrank them.
         (?P<bare_frac_num>\d+)\s*/\s*(?P<bare_frac_den>\d+)(?![A-Z0-9])
     )
     """,
     re.IGNORECASE | re.VERBOSE,
 )
+
+# A denominator a genuine imperial fraction size actually uses in this
+# catalog -- confirmed live: of ~24,400 quote-marked fraction sizes
+# ("N/D\""), 99.99% use one of these six; the two stray outliers (7, 5)
+# are noise. Real-world spec ratios/ratings that happen to look like a
+# fraction (schedule numbers, gear ratios, PSI ratings, etc.) essentially
+# never land on one of these -- e.g. "Sch 40/80" fails this (denominator
+# 80) and is correctly rejected as a size.
+_PLAUSIBLE_FRACTION_DENOMINATORS = frozenset({2, 4, 8, 16, 32, 64})
 
 _FOOT_UNIT_RE = re.compile(r"FEET|FOOT|FT|['\u2032]", re.IGNORECASE)
 
@@ -269,7 +286,13 @@ def extract_dimensions(text: str | None) -> tuple[DimensionSpec, ...]:
             elif match.group("w_whole") or match.group("q_whole"):
                 inches = Fraction(int(match.group("w_whole") or match.group("q_whole")))
             else:
-                inches = Fraction(int(match.group("bare_frac_num")), int(match.group("bare_frac_den")))
+                bare_den = int(match.group("bare_frac_den"))
+                if bare_den not in _PLAUSIBLE_FRACTION_DENOMINATORS:
+                    # See _PLAUSIBLE_FRACTION_DENOMINATORS -- a schedule
+                    # number, ratio, or rating that merely looks like a
+                    # fraction (e.g. "Sch 40/80"), not a genuine size.
+                    continue
+                inches = Fraction(int(match.group("bare_frac_num")), bare_den)
         except ZeroDivisionError:
             # AWG "aught" sizes like 2/0, 4/0 look like fractions but aren't.
             continue
