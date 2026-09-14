@@ -226,8 +226,12 @@ def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row
 
 
 def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
+    # requested_description and matched_description are deliberately
+    # different here -- the CPQ export's Description column must be the
+    # customer's own requested text, not the matched Atkore product's
+    # description.
     matched = FinalMatchResult(
-        requested_description="10/3 MCT",
+        requested_description="10/3 MCT CABLE",
         quantity=12,
         matched_part_number="2EB40-B-SC",
         matched_description="10/3 MCT",
@@ -269,12 +273,12 @@ def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
         candidate_count=0,
     )
     rows = cpq_rows_from_results([matched, review, no_match])
-    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT"}]
+    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT CABLE"}]
 
 
 def test_render_cpq_csv_bytes_header_and_content() -> None:
     matched = FinalMatchResult(
-        requested_description="10/3 MCT",
+        requested_description="10/3 MCT CABLE",
         quantity=12,
         matched_part_number="2EB40-B-SC",
         matched_description="10/3 MCT",
@@ -287,7 +291,7 @@ def test_render_cpq_csv_bytes_header_and_content() -> None:
     payload = render_cpq_csv_bytes([matched])
     rows = _parse_csv(payload)
     assert list(rows[0].keys()) == list(CPQ_CSV_COLUMNS)
-    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT"}]
+    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT CABLE"}]
 
 
 def test_csv_escaping_commas_quotes_unicode() -> None:

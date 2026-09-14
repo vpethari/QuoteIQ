@@ -40,7 +40,12 @@ def write_csv_file(path: str | Path, rows: Sequence[dict[str, str]]) -> None:
 
 
 def cpq_rows_from_results(results: Sequence[object]) -> list[dict[str, str]]:
-    """Part Number + Quantity + Description, for matched rows -- ready to hand to CPQ."""
+    """Part Number + Quantity + Description, for matched rows -- ready to hand to CPQ.
+
+    Description is the customer's own requested text, not the matched
+    Atkore product's description -- CPQ needs to see what was actually
+    asked for.
+    """
     rows: list[dict[str, str]] = []
     for row in rows_from_results(results):
         if row.get("Match Status", "").upper() not in STATUSES_WITH_PART_NUMBER:
@@ -52,7 +57,7 @@ def cpq_rows_from_results(results: Sequence[object]) -> list[dict[str, str]]:
             {
                 "Part Number": part_number,
                 "Quantity": row.get("Quantity", ""),
-                "Description": row.get("Matched Atkore Description", ""),
+                "Description": row.get("Requested Description", ""),
             }
         )
     return rows
