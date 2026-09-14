@@ -226,14 +226,15 @@ def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row
 
 
 def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
-    # requested_description and matched_description are deliberately
-    # different here -- the CPQ export's Description column must be the
-    # customer's own requested text, not the matched Atkore product's
-    # description.
+    # matched_part_number ("name", what matching is keyed on) and
+    # matched_orderable_part_number are deliberately different here -- the
+    # CPQ export's Part Number column must be the orderable number, since
+    # that's what's actually meant to be ordered by.
     matched = FinalMatchResult(
         requested_description="10/3 MCT CABLE",
         quantity=12,
         matched_part_number="2EB40-B-SC",
+        matched_orderable_part_number="ORD-2EB40-B-SC",
         matched_description="10/3 MCT",
         deterministic_score=100,
         final_confidence=95,
@@ -273,10 +274,12 @@ def test_cpq_rows_only_include_matched_rows_with_productcode_and_qty() -> None:
         candidate_count=0,
     )
     rows = cpq_rows_from_results([matched, review, no_match])
-    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT CABLE"}]
+    assert rows == [{"Part Number": "ORD-2EB40-B-SC", "Quantity": "12"}]
 
 
-def test_render_cpq_csv_bytes_header_and_content() -> None:
+def test_cpq_rows_fall_back_to_name_part_number_with_no_orderable_code() -> None:
+    # A row with no separate orderable code recorded must still export the
+    # name-based part number, not an empty Part Number column.
     matched = FinalMatchResult(
         requested_description="10/3 MCT CABLE",
         quantity=12,
@@ -288,10 +291,27 @@ def test_render_cpq_csv_bytes_header_and_content() -> None:
         reasoning_summary="Exact normalized description match; unique catalog product.",
         candidate_count=1,
     )
+    rows = cpq_rows_from_results([matched])
+    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12"}]
+
+
+def test_render_cpq_csv_bytes_header_and_content() -> None:
+    matched = FinalMatchResult(
+        requested_description="10/3 MCT CABLE",
+        quantity=12,
+        matched_part_number="2EB40-B-SC",
+        matched_orderable_part_number="ORD-2EB40-B-SC",
+        matched_description="10/3 MCT",
+        deterministic_score=100,
+        final_confidence=95,
+        match_status="CONFIDENT_MATCH",
+        reasoning_summary="Exact normalized description match; unique catalog product.",
+        candidate_count=1,
+    )
     payload = render_cpq_csv_bytes([matched])
     rows = _parse_csv(payload)
     assert list(rows[0].keys()) == list(CPQ_CSV_COLUMNS)
-    assert rows == [{"Part Number": "2EB40-B-SC", "Quantity": "12", "Description": "10/3 MCT CABLE"}]
+    assert rows == [{"Part Number": "ORD-2EB40-B-SC", "Quantity": "12"}]
 
 
 def test_csv_escaping_commas_quotes_unicode() -> None:
@@ -616,7 +636,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert cpq_export.status_code == 200
         assert "QuoteIQ_CPQ_Ready.csv" in cpq_export.headers["content-disposition"]
         cpq_rows = _parse_csv(cpq_export.content)
-        assert cpq_rows == [{"Part Number": "2EB40-B-SC", "Quantity": "1", "Description": "10/3 MCT"}]
+        assert cpq_rows == [{"Part Number": "2EB40-B-SC", "Quantity": "1"}]
 
         settings = get_settings()
         original_max = settings.quote_upload_max_bytes
@@ -648,7 +668,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert "text/csv" in cpq_response.headers["content-type"]
         assert "QuoteIQ_CPQ_Ready.csv" in cpq_response.headers["content-disposition"]
         cpq_rows = _parse_csv(cpq_response.content)
-        assert cpq_rows == [] or list(cpq_rows[0].keys()) == ["Part Number", "Quantity", "Description"]
+        assert cpq_rows == [] or list(cpq_rows[0].keys()) == ["Part Number", "Quantity"]
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()

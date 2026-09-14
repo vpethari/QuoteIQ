@@ -40,24 +40,27 @@ def write_csv_file(path: str | Path, rows: Sequence[dict[str, str]]) -> None:
 
 
 def cpq_rows_from_results(results: Sequence[object]) -> list[dict[str, str]]:
-    """Part Number + Quantity + Description, for matched rows -- ready to hand to CPQ.
+    """Part Number + Quantity, for matched rows -- ready to hand to CPQ.
 
-    Description is the customer's own requested text, not the matched
-    Atkore product's description -- CPQ needs to see what was actually
-    asked for.
+    Part Number is the *orderable* part number, not the "name" identifier
+    matching is keyed on -- productmaster.orderablepartnumber sometimes
+    differs from name (confirmed live: ~11% of rows), and it's the number
+    that's actually meant to be shown/ordered by. Falls back to the
+    matched name-based part number when a row has no separate orderable
+    code recorded.
     """
     rows: list[dict[str, str]] = []
-    for row in rows_from_results(results):
-        if row.get("Match Status", "").upper() not in STATUSES_WITH_PART_NUMBER:
+    for item in results:
+        view = normalize_result(item)
+        if view.match_status.upper() not in STATUSES_WITH_PART_NUMBER:
             continue
-        part_number = row.get("Matched Atkore Part Number", "")
+        part_number = view.matched_orderable_part_number or view.matched_part_number or ""
         if not part_number:
             continue
         rows.append(
             {
                 "Part Number": part_number,
-                "Quantity": row.get("Quantity", ""),
-                "Description": row.get("Requested Description", ""),
+                "Quantity": "" if view.quantity is None else str(view.quantity),
             }
         )
     return rows
