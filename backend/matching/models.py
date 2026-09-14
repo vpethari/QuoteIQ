@@ -27,7 +27,16 @@ class MatchingConfig:
     weight_attribute: float = 0.15
     high_confidence_min: float = 90.0
     min_match_threshold: float = 5.0
-    min_score_gap: float = 8.0
+    # Lowered from 8.0 to 5.0 per explicit user direction (2026-09-14):
+    # confirmed live, "1\" PVC COUPLING" (CP10, 100%, a literal exact
+    # description match) was stuck at REVIEW_REQUIRED because a genuinely
+    # different sibling product (40REC10, a Repair/Sleeve Coupling sharing
+    # nearly all the same catalog boilerplate text) scored only 7.5 points
+    # behind it -- 0.5 short of the old 8.0 gap. See the regression
+    # baseline verification in the commit that changed this for how many
+    # other lines this threshold shift affects and whether each is a
+    # genuine improvement.
+    min_score_gap: float = 5.0
     score_tie_epsilon: float = 0.5
     max_candidates: int = 10
     review_candidate_limit: int = 6
