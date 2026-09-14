@@ -20,29 +20,29 @@
   {
     "description": "1/2\" EMT STL SS CONN",
     "quantity": 3,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SC50RKON",
+    "matched_orderable_part_number": "SC50RKON",
+    "final_confidence": 94.2857,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" EMT STL SS CONN",
     "quantity": 181,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SC75RKON",
+    "matched_orderable_part_number": "SC75RKON",
+    "final_confidence": 94.2857,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" EMT STL SS CONN",
     "quantity": 122,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "SC100RKON",
+    "matched_orderable_part_number": "SC100RKON",
+    "final_confidence": 94.2857,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" EMT STL SS CPLG",
@@ -200,11 +200,11 @@
   {
     "description": "1\" PVC COUPLING",
     "quantity": 100,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "CP10",
+    "matched_orderable_part_number": "59603",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1 1/2\" PVC COUPLING",
@@ -227,20 +227,20 @@
   {
     "description": "3\" PVC COUPLING",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "CP30",
+    "matched_orderable_part_number": "59608",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "4\" PVC COUPLING",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "CP40",
+    "matched_orderable_part_number": "59610",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "5\" PVC COUPLING",
@@ -308,20 +308,20 @@
   {
     "description": "5\" PVC END BELL",
     "quantity": 1122,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "MEB50",
+    "matched_orderable_part_number": "59683",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "2\"x3\" BASE SPACER",
     "quantity": 2043,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "BV2030",
+    "matched_orderable_part_number": "1551",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3\"x3\" BASE SPACER",
@@ -335,29 +335,29 @@
   {
     "description": "4\"x3\" BASE SPACER",
     "quantity": 15273,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "BV4030",
+    "matched_orderable_part_number": "1901",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "5\"x3\" BASE SPACER",
     "quantity": 6660,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "BV5030",
+    "matched_orderable_part_number": "1921",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "2\"x3\" INTERMEDIATE SPACER",
     "quantity": 2043,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "IV2030",
+    "matched_orderable_part_number": "1541",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3\"x3\" INTERMEDIATE SPACER",
@@ -371,20 +371,20 @@
   {
     "description": "4\"x3\" INTERMEDIATE SPACER",
     "quantity": 321,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "IV4030",
+    "matched_orderable_part_number": "1891",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "5\"x3\" INTERMEDIATE SPACER",
     "quantity": 5562,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "IV5030",
+    "matched_orderable_part_number": "1911",
+    "final_confidence": 97.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "PVC J-BOX 8x8x4",
@@ -506,11 +506,11 @@
   {
     "description": "1/2\" 90 DEG FLEX CONN",
     "quantity": 19,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "MSC5090KON",
+    "matched_orderable_part_number": "MSC5090KON",
+    "final_confidence": 94.2857,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1/2\" LT FLEX",
@@ -623,20 +623,20 @@
   {
     "description": "3/4\" GRC (GALV)",
     "quantity": 10671,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "278887",
+    "matched_orderable_part_number": "278887",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" GRC (GALV)",
     "quantity": 456,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "278895",
+    "matched_orderable_part_number": "278895",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1 1/2\" GRC (GALV)",
@@ -668,20 +668,20 @@
   {
     "description": "1 1/2\" GRC COUPLING",
     "quantity": 12,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "904148",
+    "matched_orderable_part_number": "904148",
+    "final_confidence": 92.5,
+    "match_type_label": "Automatic"
   },
   {
     "description": "4\" GRC COUPLING",
     "quantity": 108,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "904153",
+    "matched_orderable_part_number": "904153",
+    "final_confidence": 92.5,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" GRC ERICKSON CPLG",
@@ -794,47 +794,47 @@
   {
     "description": "1/2\" PLASTIC BUSHING",
     "quantity": 42,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV0500H1031DC",
+    "matched_orderable_part_number": "PV0500H1031DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3/4\" PLASTIC BUSHING",
     "quantity": 208,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV0700H1032DC",
+    "matched_orderable_part_number": "PV0700H1032DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1\" PLASTIC BUSHING",
     "quantity": 77,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV1000H1033DC",
+    "matched_orderable_part_number": "PV1000H1033DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "1 1/2\" PLASTIC BUSHING",
     "quantity": 50,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV1500H1035DC",
+    "matched_orderable_part_number": "PV1500H1035DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "3\" PLASTIC BUSHING",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "PV3000H1038DC",
+    "matched_orderable_part_number": "PV3000H1038DC",
+    "final_confidence": 91.6667,
+    "match_type_label": "Automatic"
   },
   {
     "description": "4\" PLASTIC BUSHING",

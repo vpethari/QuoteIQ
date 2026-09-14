@@ -173,11 +173,11 @@
   {
     "description": "3\" PVC TERM ADAPTER",
     "quantity": 44,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "TA30",
-    "matched_orderable_part_number": "59622",
-    "final_confidence": 97.8571,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 88.0,
+    "match_type_label": null
   },
   {
     "description": "4\" PVC TERM ADAPTER",
@@ -221,7 +221,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 94.3,
+    "final_confidence": 94.0,
     "match_type_label": null
   },
   {
@@ -302,7 +302,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 95.0,
+    "final_confidence": 100.0,
     "match_type_label": null
   },
   {
@@ -401,7 +401,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.95,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 74.0,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -500,7 +500,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 87.1,
+    "final_confidence": 87.0,
     "match_type_label": null
   },
   {
@@ -536,7 +536,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 78.0,
+    "final_confidence": 83.0,
     "match_type_label": null
   },
   {
@@ -572,7 +572,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -617,7 +617,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 88.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -644,7 +644,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 92.0,
+    "final_confidence": 93.1818,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -752,7 +752,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 86.67,
     "match_type_label": null
   },
   {
@@ -761,7 +761,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 86.6667,
     "match_type_label": null
   },
   {
@@ -770,7 +770,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.67,
+    "final_confidence": 86.6667,
     "match_type_label": null
   },
   {
@@ -779,7 +779,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 87.0,
     "match_type_label": null
   },
   {
@@ -851,7 +851,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 76.0,
+    "final_confidence": 76.1,
     "match_type_label": null
   },
   {
@@ -860,7 +860,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 76.1,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -977,7 +977,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 40.0,
     "match_type_label": null
   },
   {
@@ -1148,7 +1148,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 40.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -1184,17 +1184,17 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 62.14,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
     "description": "STRUT T- JOINER P-1031GR (B133ZN)",
     "quantity": 12,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "P1031     GR",
-    "matched_orderable_part_number": "P1031     GR",
-    "final_confidence": 62.1429,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.0,
+    "match_type_label": null
   },
   {
     "description": "STRUT X- JOINER P-1028GR (B132ZN)",
