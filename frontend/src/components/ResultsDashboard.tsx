@@ -51,7 +51,7 @@ export function ResultsDashboard({
             className="btn-csv"
             disabled={loading || !canDownload}
             onClick={onDownloadCpq}
-            title="Download QuoteIQ_CPQ_Ready.csv (Part Number, Quantity for matched rows only)"
+            title="Download QuoteIQ_CPQ_Ready.csv (Part Number, Quantity, Description for matched rows only)"
           >
             <IconDownload size={16} />
             CPQ Ready Items
