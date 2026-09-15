@@ -61,6 +61,21 @@ PARTIAL_MATCH_MIN_TOKENS = 3
 # etc.) is what actually separates the right answer from the wrong one in
 # either family; retrieval's only job is to make sure both are eligible to
 # be scored in the first place.
+#
+# One, and only one, exception: when strict AND already fills the entire
+# requested pool (`cap`), the partial-match query is skipped. This is not
+# a hit-count heuristic like the ones proven unreliable above -- a
+# *saturated* pool is a different, structural signal: `merged[:cap]`
+# truncates to the same `cap` rows either way, so nothing partial-match
+# could find would ever survive that truncation to matter. Confirmed
+# live via performance profiling of the 135-line regression baseline:
+# every one of the slowest lines (all common, generic multi-word
+# queries -- "4\" PVC 90 DEG ELBOW", "3\" STEEL FLEX", etc.) already hit
+# the full retrieval pool on strict AND alone, making the follow-up
+# partial-match query (1-2+ seconds each on these) pure wasted work --
+# 62.8% of the baseline's total DB time. The two confirmed bug cases
+# above (found: 1, found: 4) are nowhere near saturating a pool of 100+,
+# so this exception doesn't reopen either of them.
 
 
 def _quote(identifier: str) -> str:
@@ -541,6 +556,19 @@ class PostgresCatalogRepository:
         rows = self._timed_fetch(sql, params, search="search_text_candidates")
         strict_products = self._rows_to_products(rows)
         if not token_groups:
+            return strict_products
+
+        # See the module-level comment above PARTIAL_MATCH_MIN_TOKENS for
+        # why this is the one exception to "always try partial matching
+        # too" -- a saturated strict-AND pool leaves no room for
+        # partial-match results to change the truncated outcome. Checked
+        # against the *raw row count* the SQL LIMIT actually hit, not
+        # len(strict_products) -- confirmed live, _rows_to_products can
+        # drop a handful of rows (e.g. non-"product" record types), so a
+        # query that genuinely saturated its LIMIT (150 raw rows) can
+        # still end up with a slightly smaller product count (147) that
+        # would wrongly miss this check.
+        if len(rows) >= cap:
             return strict_products
 
         partial_worth_trying = len(token_groups) >= PARTIAL_MATCH_MIN_TOKENS

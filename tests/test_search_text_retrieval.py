@@ -386,6 +386,50 @@ def test_strict_hit_is_merged_with_partial_match_several_coincidental_hits() -> 
     assert "MSC150KON" in codes
 
 
+def test_partial_match_skipped_when_strict_and_saturates_the_pool() -> None:
+    # Confirmed live via performance profiling of the 135-line regression
+    # baseline: the slowest lines were all common, generic multi-word
+    # queries (e.g. "4\" PVC 90 DEG ELBOW") where strict AND alone already
+    # filled the entire requested pool -- yet the always-also-try-partial-
+    # match behavior above still ran the (far more expensive) partial
+    # query, even though merged[:cap] truncates to the same result either
+    # way once strict AND is already full. That one skip cut DB time on
+    # these lines from ~2.3s to ~150-200ms. Uses a small `limit` here so a
+    # genuinely saturated strict-AND pool is easy to construct in a tiny
+    # fixture -- ROW3 (matching only 2 of 3 required positions) must NOT
+    # surface, since it would only be found via the (skipped) partial tier.
+    repository = _sqlite_from_rows(
+        [
+            (1, "ROW1", "ROW1", "STEEL WIDGET CONNECTOR", "match"),
+            (2, "ROW2", "ROW2", "STEEL WIDGET CONNECTOR TWO", "match"),
+            (3, "ROW3", "ROW3", "STEEL WIDGET", "partial only, missing CONNECTOR"),
+        ]
+    )
+    hits = repository.search_text_candidates("STEEL WIDGET CONNECTOR", limit=2)
+    codes = {item.product_code for item in hits}
+    assert codes == {"ROW1", "ROW2"}
+    assert "ROW3" not in codes
+
+
+def test_partial_match_still_runs_when_strict_and_does_not_saturate() -> None:
+    # The companion case: when strict AND does NOT fill the pool, the
+    # saturation skip above must not apply -- partial-match still needs to
+    # run, exactly as the two coincidental-hit regression tests above
+    # already prove for a *small* (not merely non-saturated) strict count.
+    # This uses a strict count comfortably below the limit but still more
+    # than one, to isolate the saturation check specifically.
+    repository = _sqlite_from_rows(
+        [
+            (1, "ROW1", "ROW1", "STEEL WIDGET CONNECTOR", "match"),
+            (2, "ROW2", "ROW2", "STEEL WIDGET CONNECTOR TWO", "match"),
+            (3, "ROW3", "ROW3", "STEEL WIDGET", "partial only, missing CONNECTOR"),
+        ]
+    )
+    hits = repository.search_text_candidates("STEEL WIDGET CONNECTOR", limit=100)
+    codes = {item.product_code for item in hits}
+    assert codes == {"ROW1", "ROW2", "ROW3"}
+
+
 def test_partial_match_with_bare_digit_position_finds_rows_missing_it() -> None:
     # Regression test for the trigram-indexable/non-indexable split in
     # partial_search_text_sql (see MIN_TRIGRAM_INDEXABLE_LENGTH): a bare
