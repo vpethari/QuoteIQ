@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     catalog_excel_path: str = str(PROJECT_ROOT / "data" / "Atkorepartsfile.xlsx")
     match_high_confidence_min: float = 90.0
     match_min_threshold: float = 5.0
-    match_min_score_gap: float = 8.0
+    match_min_score_gap: float = 5.0
     match_ambiguous_confidence_cap: float = 86.0
     match_numeric_conflict_cap: float = 40.0
     match_partial_max_confidence: float = 78.0
@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     ai_confident_threshold: float = 90.0
     ai_review_threshold: float = 50.0
     ai_max_candidates: int = 5
+    # Azure OpenAI deployment quota is 200 RPM (confirmed 2026-09-15). At
+    # concurrency 12, breakeven is a ~3.6s average round trip (12 req /
+    # 3.6s = 200/60) -- typical reasoning calls return faster than that, so
+    # sustained 12-way concurrency plausibly bursts to 240-700+ RPM and
+    # gets throttled, which shows up as `timeout_seconds`-long stalls
+    # rather than a clean 429 (confirmed live: two such stalls during a
+    # single 135-line baseline run). Live production traffic doesn't burst
+    # dozens of AI-reasoned lines at once the way the baseline script's
+    # full quote does, so this only needs to be lowered for baseline runs
+    # -- see build_graybar_ameren_baseline.py.
+    ai_max_concurrent_requests: int = 12
     azure_openai_endpoint: str = ""
     azure_openai_api_key: str = ""
     azure_openai_deployment: str = ""
