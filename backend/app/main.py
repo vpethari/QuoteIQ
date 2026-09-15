@@ -167,6 +167,7 @@ def get_ai_service(
             confident_threshold=settings.ai_confident_threshold,
             review_threshold=settings.ai_review_threshold,
             max_candidates=settings.ai_max_candidates,
+            max_concurrent_requests=settings.ai_max_concurrent_requests,
         ),
         audit_store=_audit_store,
     )

@@ -310,6 +310,20 @@ def main() -> None:
             confident_threshold=settings.ai_confident_threshold,
             review_threshold=settings.ai_review_threshold,
             max_candidates=settings.ai_max_candidates,
+            # Deliberately lower than settings.ai_max_concurrent_requests
+            # (the live-app default, 12) and NOT read from settings here --
+            # this script is the one caller that bursts dozens of lines
+            # through AI reasoning at once, which live traffic never does.
+            # The Azure OpenAI deployment quota is 200 RPM (confirmed
+            # 2026-09-15); at 12-way concurrency, any round trip faster
+            # than ~3.6s sustained exceeds that, which surfaced live as
+            # `timeout_seconds`-long stalls during this exact run. At 4-way,
+            # breakeven drops to ~1.2s/request -- still tight if responses
+            # run under a second, but the overshoot is far smaller (~1.2x
+            # quota worst case vs ~3.6x+ at 12-way), so throttling-induced
+            # stalls should become rare instead of routine. Re-check via
+            # --check if stalls still show up in the timing log.
+            max_concurrent_requests=4,
         ),
         audit_store=InMemoryAuditStore(),
     )
