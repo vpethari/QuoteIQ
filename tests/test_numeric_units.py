@@ -235,6 +235,23 @@ def test_bare_fraction_rejects_implausible_denominators() -> None:
     assert extract_dimensions("7/16 BOLT") == (DimensionSpec(inches=Fraction(7, 16), raw="7/16", unit="IN"),)
 
 
+def test_bare_fraction_rejects_denominators_that_reduce_to_a_whole_number() -> None:
+    # Confirmed live: "MC ALUM LUM 16/2-12/2 STR-BN/GY 250C" had "16/2" and
+    # "12/2" misread as literal 8" and 6" dimensions -- denominator 2 is
+    # individually plausible (it's the real denominator in "1/2"), but a
+    # genuine size is never written pre-reduced: a customer who means "8
+    # inches" writes "8", never the unreduced fraction "16/2". This is
+    # wire-gauge/conductor-count notation instead (16 AWG, 2 conductor),
+    # the same shape of problem as "10/3" (denominator 3, already rejected
+    # by the plausible-denominator check alone) -- here the denominator
+    # alone isn't enough, since 2 is otherwise completely legitimate.
+    assert extract_dimensions("MC ALUM LUM 16/2-12/2 STR-BN/GY 250C") == ()
+    assert extract_dimensions("16/2 CABLE") == ()
+    assert extract_dimensions("12/2 CABLE") == ()
+    # A plausible, non-reducing denominator must still work.
+    assert extract_dimensions("1/2 CONDUIT") == (DimensionSpec(inches=Fraction(1, 2), raw="1/2", unit="IN"),)
+
+
 def test_bare_fraction_still_requires_unit_for_whole_numbers() -> None:
     # A bare whole number (e.g. a leftover mixed-fraction fragment, a hole
     # count, a wire gauge) is still too ambiguous to assume it's a size --

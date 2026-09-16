@@ -305,6 +305,28 @@ def test_retrieval_token_groups_or_conduit_for_grc_hub() -> None:
     assert any(group == {"hub"} for group in flat_by_position)
 
 
+def test_retrieval_token_groups_swap_gauge_notation_separator() -> None:
+    # Confirmed live: this catalog is inconsistent about wire-gauge/
+    # conductor-count separators (~7,133 rows "10/3", ~1,676 "10-3"), so
+    # retrieval needs both spellings as OR'd variants at that token
+    # position. "16/2"/"12/2" are the harder case: denominator 2 is
+    # individually a plausible *fraction* denominator (it's the real
+    # denominator in "1/2"), but both reduce to a whole number (8, 6),
+    # which a genuine bare-fraction size is never written as -- so the
+    # swap must still fire here, unlike a real "1/2" token.
+    from catalog.search_query import retrieval_search_token_groups
+
+    groups = retrieval_search_token_groups("MC ALUM 16/2-12/2 CABLE")
+    flat_by_position = [set(group) for group in groups]
+    assert any({"16/2", "16-2"} <= group for group in flat_by_position)
+    assert any({"12/2", "12-2"} <= group for group in flat_by_position)
+
+    # A genuine "1/2\"" fraction size must NOT also search for "1-2".
+    groups = retrieval_search_token_groups("1/2 CONDUIT")
+    flat_by_position = [set(group) for group in groups]
+    assert not any("1-2" in group for group in flat_by_position)
+
+
 def test_normalize_raw_customer_text_marks_any_leading_category_label() -> None:
     # This RFQ format prefixes every line with "<Category>:" -- confirmed
     # live for several different categories, not just one: "Conduit: 2\"

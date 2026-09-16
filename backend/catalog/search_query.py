@@ -13,7 +13,7 @@ from matching.category_defaults import (
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
-from matching.units import PLAUSIBLE_FRACTION_DENOMINATORS
+from matching.units import is_plausible_fraction_dimension
 
 _LEADING_ZERO_RE = re.compile(r"^0+(\d)")
 _GAUGE_NOTATION_RE = re.compile(r"^(\d{1,2})([/-])(\d{1,2})$")
@@ -41,14 +41,18 @@ def _gauge_notation_variant(token: str) -> str | None:
     confirmed live, this catalog spells the same "10 AWG, 3 conductor"
     concept as both "10-3" and "10/3" depending on the row (~1,676 rows
     hyphenated, ~7,133 slashed; "MC PLUS STL 10/3..." only found the
-    hyphenated "10-3" row once this variant was added). Skipped when the
-    second number is a plausible fraction denominator (see
-    matching.units.PLAUSIBLE_FRACTION_DENOMINATORS) -- a real dimension
-    like "1/2" must never also search for "1-2"."""
+    hyphenated "10-3" row once this variant was added). Skipped only when
+    the token is itself a plausible bare fraction dimension (see
+    matching.units.is_plausible_fraction_dimension) -- a real dimension
+    like "1/2" must never also search for "1-2". Confirmed live this must
+    NOT simply check "is the denominator plausible": "16/2"/"12/2" (both
+    denominator 2, individually plausible) are wire-gauge notation too, not
+    a "16-over-2-inch" size -- is_plausible_fraction_dimension's
+    reduces-to-a-whole-number check is what correctly lets those through."""
     match = _GAUGE_NOTATION_RE.match(token)
     if not match:
         return None
-    if int(match.group(3)) in PLAUSIBLE_FRACTION_DENOMINATORS:
+    if is_plausible_fraction_dimension(int(match.group(1)), int(match.group(3))):
         return None
     swapped_sep = "-" if match.group(2) == "/" else "/"
     return f"{match.group(1)}{swapped_sep}{match.group(3)}"

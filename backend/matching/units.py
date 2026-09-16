@@ -129,6 +129,27 @@ _DIMENSION_EXPR = re.compile(
 # 80) and is correctly rejected as a size.
 PLAUSIBLE_FRACTION_DENOMINATORS = frozenset({2, 4, 8, 16, 32, 64})
 
+
+def is_plausible_fraction_dimension(numerator: int, denominator: int) -> bool:
+    """Whether numerator/denominator plausibly represents a genuine bare
+    fraction-of-an-inch size ("1/2", "3/8"), as opposed to something that
+    merely looks like one -- a schedule/rating number ("40/80") or
+    wire-gauge/conductor-count notation ("16/2", "10/3"). Two independent
+    tells rule those other things out: PLAUSIBLE_FRACTION_DENOMINATORS
+    above (a rating essentially never lands on one of the six real ones),
+    and -- confirmed live, "MC ALUM LUM 16/2-12/2 STR-BN/GY 250C" had
+    "16/2" and "12/2" misread as literal 8" and 6" dimensions, both
+    denominator 2 (plausible on its own) -- a genuine size is never
+    written pre-reduced: a customer who means "8 inches" writes "8", never
+    the unreduced fraction "16/2". Only checked for the *bare*, unmarked
+    form (see extract_dimensions) -- a quote- or word-unit-marked fraction
+    ("4/2\"") is unambiguous regardless of whether it happens to reduce."""
+    if denominator == 0:
+        return False
+    if numerator % denominator == 0:
+        return False
+    return denominator in PLAUSIBLE_FRACTION_DENOMINATORS
+
 _FOOT_UNIT_RE = re.compile(r"FEET|FOOT|FT|['\u2032]", re.IGNORECASE)
 
 
@@ -286,13 +307,15 @@ def extract_dimensions(text: str | None) -> tuple[DimensionSpec, ...]:
             elif match.group("w_whole") or match.group("q_whole"):
                 inches = Fraction(int(match.group("w_whole") or match.group("q_whole")))
             else:
+                bare_num = int(match.group("bare_frac_num"))
                 bare_den = int(match.group("bare_frac_den"))
-                if bare_den not in PLAUSIBLE_FRACTION_DENOMINATORS:
-                    # See PLAUSIBLE_FRACTION_DENOMINATORS -- a schedule
-                    # number, ratio, or rating that merely looks like a
-                    # fraction (e.g. "Sch 40/80"), not a genuine size.
+                if not is_plausible_fraction_dimension(bare_num, bare_den):
+                    # See is_plausible_fraction_dimension -- a schedule
+                    # number/rating (e.g. "Sch 40/80") or wire-gauge/
+                    # conductor-count notation (e.g. "16/2") that merely
+                    # looks like a fraction, not a genuine size.
                     continue
-                inches = Fraction(int(match.group("bare_frac_num")), bare_den)
+                inches = Fraction(bare_num, bare_den)
         except ZeroDivisionError:
             # AWG "aught" sizes like 2/0, 4/0 look like fractions but aren't.
             continue
