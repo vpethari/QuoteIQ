@@ -179,14 +179,14 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
         "Name",
         "Qty",
         "Notes",
-        "Matched Part Number",
-        "Orderable Part Number",
         "Status",
         "1st Top Product",
         "2nd Top Product",
         "3rd Top Product",
         "4th Top Product",
         "5th Top Product",
+        "Matched Part Number",
+        "Orderable Part Number",
     ]
     assert rows[0] == {
         "Name": "120V LIGHTING WHIP W/PAULEX",
@@ -229,14 +229,14 @@ def test_full_results_csv_falls_back_to_description_and_quantity_without_raw_row
     assert list(rows[0].keys()) == [
         "Requested Description",
         "Quantity",
-        "Matched Part Number",
-        "Orderable Part Number",
         "Status",
         "1st Top Product",
         "2nd Top Product",
         "3rd Top Product",
         "4th Top Product",
         "5th Top Product",
+        "Matched Part Number",
+        "Orderable Part Number",
     ]
     assert rows[0]["Requested Description"] == "10/3 MCT"
     assert rows[0]["Matched Part Number"] == "2EB40-B-SC"
@@ -570,14 +570,14 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert list(rows[0].keys()) == [
             "Name",
             "Qty",
-            "Matched Part Number",
-            "Orderable Part Number",
             "Status",
             "1st Top Product",
             "2nd Top Product",
             "3rd Top Product",
             "4th Top Product",
             "5th Top Product",
+            "Matched Part Number",
+            "Orderable Part Number",
         ]
         assert rows[0]["Name"] == "120V LIGHTING WHIP W/PAULEX"
         assert rows[0]["Qty"] == "5"
@@ -624,14 +624,14 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
         assert list(exported[0].keys()) == [
             "Requested Description",
             "Quantity",
-            "Matched Part Number",
-            "Orderable Part Number",
             "Status",
             "1st Top Product",
             "2nd Top Product",
             "3rd Top Product",
             "4th Top Product",
             "5th Top Product",
+            "Matched Part Number",
+            "Orderable Part Number",
         ]
         assert exported[0]["Matched Part Number"] == "2EB40-B-SC"
 

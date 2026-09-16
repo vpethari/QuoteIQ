@@ -114,21 +114,21 @@ def _full_results_row(view: ResultView) -> dict[str, str]:
             "Quantity": "" if view.quantity is None else str(view.quantity),
         }
     row = {str(key): ("" if value is None else str(value)) for key, value in raw_row.items()}
-    row["Matched Part Number"] = view.matched_part_number or ""
-    row["Orderable Part Number"] = view.matched_orderable_part_number or ""
     row["Status"] = view.match_status or ""
     row.update(_top_product_columns(view.candidates))
+    row["Matched Part Number"] = view.matched_part_number or ""
+    row["Orderable Part Number"] = view.matched_orderable_part_number or ""
     return row
 
 
 def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
     """"Full Results" -- the input file's own columns, verbatim and in their
-    original order, with Matched Part Number / Orderable Part Number (for
-    matched rows only), Status, and "1st Top Product".."5th Top Product"
-    (the top 5 review candidates' part numbers, one per column, in rank
-    order) appended. Falls back to Requested Description/Quantity when a
-    line has no original columns to mirror (a PDF quote, or a headerless
-    data dump)."""
+    original order, with Status, "1st Top Product".."5th Top Product" (the
+    top 5 review candidates' part numbers, one per column, in rank order),
+    and Matched Part Number / Orderable Part Number (moved to the end of
+    the file per explicit user request) appended, in that order. Falls
+    back to Requested Description/Quantity when a line has no original
+    columns to mirror (a PDF quote, or a headerless data dump)."""
     views = [normalize_result(item) for item in results]
     rows = [_full_results_row(view) for view in views]
     columns: list[str] = []
