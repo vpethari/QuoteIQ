@@ -83,18 +83,26 @@ def render_cpq_csv_bytes(results: Sequence[object]) -> bytes:
 
 
 TOP_ITEMS_LIMIT = 5
-TOP_ITEMS_SEPARATOR = "||"
 
 
-def _top_orderable_items(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMIT) -> list[str]:
-    """Orderable part numbers for the top `limit` review candidates, in their
-    existing (already best-first) order, skipping any without one."""
-    items: list[str] = []
-    for candidate in candidates[:limit]:
-        value = candidate.get("orderable_part_number")
-        if value:
-            items.append(str(value))
-    return items
+def _top_product_columns(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMIT) -> dict[str, str]:
+    """"Top Product 1".."Top Product {limit}" -- one column per review
+    candidate, in their existing (already best-first) rank order, each
+    candidate in its own fixed position rather than concatenated into one
+    column. Falls back to a candidate's own official_part_number when it
+    has no separate orderable code recorded, same reasoning as the CPQ CSV
+    export: the orderable number is what's actually meant to be shown, but
+    a slot shouldn't go blank just because that field happens to be unset
+    -- only genuinely having fewer than `limit` candidates leaves a slot
+    blank."""
+    columns: dict[str, str] = {}
+    for index in range(limit):
+        candidate = candidates[index] if index < len(candidates) else None
+        value = ""
+        if candidate is not None:
+            value = candidate.get("orderable_part_number") or candidate.get("official_part_number") or ""
+        columns[f"Top Product {index + 1}"] = str(value) if value else ""
+    return columns
 
 
 def _full_results_row(view: ResultView) -> dict[str, str]:
@@ -108,17 +116,17 @@ def _full_results_row(view: ResultView) -> dict[str, str]:
     row["Matched Part Number"] = view.matched_part_number or ""
     row["Orderable Part Number"] = view.matched_orderable_part_number or ""
     row["Status"] = view.match_status or ""
-    row["Top Items"] = TOP_ITEMS_SEPARATOR.join(_top_orderable_items(view.candidates))
+    row.update(_top_product_columns(view.candidates))
     return row
 
 
 def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
     """"Full Results" -- the input file's own columns, verbatim and in their
     original order, with Matched Part Number / Orderable Part Number (for
-    matched rows only), Status, and Top Items (the top 5 review candidates'
-    Orderablepartnumbers, "||"-joined) appended. Falls back to Requested
-    Description/Quantity when a line has no original columns to mirror
-    (a PDF quote, or a headerless data dump)."""
+    matched rows only), Status, and Top Product 1..5 (the top 5 review
+    candidates' part numbers, one per column, in rank order) appended.
+    Falls back to Requested Description/Quantity when a line has no
+    original columns to mirror (a PDF quote, or a headerless data dump)."""
     views = [normalize_result(item) for item in results]
     rows = [_full_results_row(view) for view in views]
     columns: list[str] = []
