@@ -13,9 +13,45 @@ from matching.category_defaults import (
 from matching.noise import strip_quantity_and_noise
 from matching.terminology import token_variants
 from matching.tokenizer import tokenize_description
-
+from matching.units import PLAUSIBLE_FRACTION_DENOMINATORS
 
 _LEADING_ZERO_RE = re.compile(r"^0+(\d)")
+_GAUGE_NOTATION_RE = re.compile(r"^(\d{1,2})([/-])(\d{1,2})$")
+
+# Retrieval-only "STL" <-> "STEEL" equivalence -- confirmed live, this
+# catalog spells "Steel" out in 13,134 rows and abbreviates it as "STL" in
+# only 40, so a customer's "STL" (e.g. "MC PLUS STL 10/3...") required the
+# literal abbreviation and never matched any of the 13,134 genuine
+# steel-armored rows, returning zero candidates. NOT a matching.terminology
+# TOKEN_VARIANTS entry: tokenize_description() applies that table's
+# canonicalization globally, and category_defaults.py already has two
+# *different* pre-existing behaviors that each depend on one specific raw
+# spelling surviving untouched -- PHRASE_EXPANSIONS keys a trigger on the
+# literal frozenset({"STL", "SS"}) ("STEEL SET SCREW"), while
+# expand_bare_category_query keys another trigger on literal "STEEL FLEX"
+# (-> implies conduit). Canonicalizing either spelling away would silently
+# break the other's lookup, so this stays scoped to retrieval's own token
+# expansion instead, exactly like the gauge-notation variant above.
+_STL_STEEL_VARIANTS: dict[str, str] = {"STL": "steel", "STEEL": "stl"}
+
+
+def _gauge_notation_variant(token: str) -> str | None:
+    """A wire-gauge/conductor-count token ("10/3", "12-2") written with the
+    "wrong" separator for a given catalog row never matches literally --
+    confirmed live, this catalog spells the same "10 AWG, 3 conductor"
+    concept as both "10-3" and "10/3" depending on the row (~1,676 rows
+    hyphenated, ~7,133 slashed; "MC PLUS STL 10/3..." only found the
+    hyphenated "10-3" row once this variant was added). Skipped when the
+    second number is a plausible fraction denominator (see
+    matching.units.PLAUSIBLE_FRACTION_DENOMINATORS) -- a real dimension
+    like "1/2" must never also search for "1-2"."""
+    match = _GAUGE_NOTATION_RE.match(token)
+    if not match:
+        return None
+    if int(match.group(3)) in PLAUSIBLE_FRACTION_DENOMINATORS:
+        return None
+    swapped_sep = "-" if match.group(2) == "/" else "/"
+    return f"{match.group(1)}{swapped_sep}{match.group(3)}"
 
 
 def _restore_label_tokens(tokens: list[str], *, head_noun_only: bool = False) -> list[str]:
@@ -205,5 +241,11 @@ def retrieval_search_token_groups(
         extra = qualifier_variants.get(token.upper())
         if extra:
             variants |= {word.lower() for word in extra}
+        gauge_variant = _gauge_notation_variant(token)
+        if gauge_variant:
+            variants.add(gauge_variant.lower())
+        stl_steel_variant = _STL_STEEL_VARIANTS.get(token.upper())
+        if stl_steel_variant:
+            variants.add(stl_steel_variant)
         groups.append(tuple(variants))
     return groups

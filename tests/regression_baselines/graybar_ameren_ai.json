@@ -173,11 +173,11 @@
   {
     "description": "3\" PVC TERM ADAPTER",
     "quantity": 44,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 88.0,
-    "match_type_label": null
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "TA30",
+    "matched_orderable_part_number": "59622",
+    "final_confidence": 97.8571,
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "4\" PVC TERM ADAPTER",
@@ -248,7 +248,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 94.0,
+    "final_confidence": 92.0,
     "match_type_label": null
   },
   {
@@ -302,7 +302,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 100.0,
+    "final_confidence": 90.0,
     "match_type_label": null
   },
   {
@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 74.0,
     "match_type_label": null
   },
   {
@@ -491,7 +491,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 85.3,
     "match_type_label": null
   },
   {
@@ -509,7 +509,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 94.0,
+    "final_confidence": 88.0,
     "match_type_label": null
   },
   {
@@ -536,7 +536,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.0,
+    "final_confidence": 78.0,
     "match_type_label": null
   },
   {
@@ -572,7 +572,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
+    "final_confidence": 86.9444,
     "match_type_label": null
   },
   {
@@ -644,7 +644,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 93.1818,
+    "final_confidence": 92.0,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 75.0,
+    "final_confidence": 76.0,
     "match_type_label": null
   },
   {
@@ -761,7 +761,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.6667,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -770,7 +770,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.6667,
+    "final_confidence": 86.67,
     "match_type_label": null
   },
   {
@@ -779,7 +779,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 87.0,
+    "final_confidence": 86.0,
     "match_type_label": null
   },
   {
@@ -875,10 +875,10 @@
   {
     "description": "1 1/2\" SPRING STL CONDUIT CLAMP W/ BOLT",
     "quantity": 84,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -896,7 +896,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -905,7 +905,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 70.0,
     "match_type_label": null
   },
   {
@@ -1148,7 +1148,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 40.0,
     "match_type_label": null
   },
   {
@@ -1184,7 +1184,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 62.14,
     "match_type_label": null
   },
   {

@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 74.0789,
     "match_type_label": null
   },
   {
@@ -869,16 +869,16 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 55.0,
+    "final_confidence": 59.1667,
     "match_type_label": null
   },
   {
     "description": "1 1/2\" SPRING STL CONDUIT CLAMP W/ BOLT",
     "quantity": 84,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 47.7632,
     "match_type_label": null
   },
   {
@@ -1073,10 +1073,10 @@
   {
     "description": "#8-2/0 15KV HV TERMINATION",
     "quantity": 18,
-    "match_status": "NO_MATCH",
+    "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 0.0,
+    "final_confidence": 11.7436,
     "match_type_label": null
   },
   {
