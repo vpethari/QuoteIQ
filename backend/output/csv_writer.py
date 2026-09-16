@@ -83,10 +83,11 @@ def render_cpq_csv_bytes(results: Sequence[object]) -> bytes:
 
 
 TOP_ITEMS_LIMIT = 5
+_ORDINALS = ("1st", "2nd", "3rd", "4th", "5th")
 
 
 def _top_product_columns(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMIT) -> dict[str, str]:
-    """"Top Product 1".."Top Product {limit}" -- one column per review
+    """"1st Top Product".."5th Top Product" -- one column per review
     candidate, in their existing (already best-first) rank order, each
     candidate in its own fixed position rather than concatenated into one
     column. Falls back to a candidate's own official_part_number when it
@@ -101,7 +102,7 @@ def _top_product_columns(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMI
         value = ""
         if candidate is not None:
             value = candidate.get("orderable_part_number") or candidate.get("official_part_number") or ""
-        columns[f"Top Product {index + 1}"] = str(value) if value else ""
+        columns[f"{_ORDINALS[index]} Top Product"] = str(value) if value else ""
     return columns
 
 
@@ -123,10 +124,11 @@ def _full_results_row(view: ResultView) -> dict[str, str]:
 def render_full_results_csv_bytes(results: Sequence[object]) -> bytes:
     """"Full Results" -- the input file's own columns, verbatim and in their
     original order, with Matched Part Number / Orderable Part Number (for
-    matched rows only), Status, and Top Product 1..5 (the top 5 review
-    candidates' part numbers, one per column, in rank order) appended.
-    Falls back to Requested Description/Quantity when a line has no
-    original columns to mirror (a PDF quote, or a headerless data dump)."""
+    matched rows only), Status, and "1st Top Product".."5th Top Product"
+    (the top 5 review candidates' part numbers, one per column, in rank
+    order) appended. Falls back to Requested Description/Quantity when a
+    line has no original columns to mirror (a PDF quote, or a headerless
+    data dump)."""
     views = [normalize_result(item) for item in results]
     rows = [_full_results_row(view) for view in views]
     columns: list[str] = []
