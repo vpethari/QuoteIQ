@@ -32,7 +32,7 @@
     "match_status": "CONFIDENT_MATCH",
     "matched_part_number": "SC75RKON",
     "matched_orderable_part_number": "SC75RKON",
-    "final_confidence": 94.0,
+    "final_confidence": 94.2857,
     "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
@@ -41,7 +41,7 @@
     "match_status": "CONFIDENT_MATCH",
     "matched_part_number": "SC100RKON",
     "matched_orderable_part_number": "SC100RKON",
-    "final_confidence": 94.0,
+    "final_confidence": 94.2857,
     "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
@@ -86,7 +86,7 @@
     "match_status": "CONFIDENT_MATCH",
     "matched_part_number": "SE75-1KON",
     "matched_orderable_part_number": "SE75-1KON",
-    "final_confidence": 90.7,
+    "final_confidence": 90.0,
     "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
@@ -113,7 +113,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 90.0,
+    "final_confidence": 93.0,
     "match_type_label": null
   },
   {
@@ -122,7 +122,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 91.0,
+    "final_confidence": 90.0,
     "match_type_label": null
   },
   {
@@ -140,7 +140,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 90.0,
+    "final_confidence": 91.1111,
     "match_type_label": null
   },
   {
@@ -209,11 +209,11 @@
   {
     "description": "1 1/2\" PVC COUPLING",
     "quantity": 120,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "CP15",
-    "matched_orderable_part_number": "59605",
-    "final_confidence": 100.0,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 92.0,
+    "match_type_label": null
   },
   {
     "description": "2\" PVC COUPLING",
@@ -239,7 +239,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 94.3,
+    "final_confidence": 94.0,
     "match_type_label": null
   },
   {
@@ -302,7 +302,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 90.0,
+    "final_confidence": 100.0,
     "match_type_label": null
   },
   {
@@ -392,7 +392,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.68,
+    "final_confidence": 85.0,
     "match_type_label": null
   },
   {
@@ -401,7 +401,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 85.95,
     "match_type_label": null
   },
   {
@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 74.0,
     "match_type_label": null
   },
   {
@@ -491,7 +491,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 85.0,
+    "final_confidence": 85.26,
     "match_type_label": null
   },
   {
@@ -509,7 +509,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 94.0,
+    "final_confidence": 94.2857,
     "match_type_label": null
   },
   {
@@ -536,7 +536,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 83.0,
+    "final_confidence": 78.0,
     "match_type_label": null
   },
   {
@@ -599,7 +599,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 87.5,
+    "final_confidence": 88.3333,
     "match_type_label": null
   },
   {
@@ -644,7 +644,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 93.1818,
+    "final_confidence": 93.0,
     "match_type_label": null
   },
   {
@@ -707,7 +707,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 80.0,
+    "final_confidence": 75.0,
     "match_type_label": null
   },
   {
@@ -761,7 +761,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 86.6667,
+    "final_confidence": 86.67,
     "match_type_label": null
   },
   {
@@ -794,11 +794,11 @@
   {
     "description": "1/2\" PLASTIC BUSHING",
     "quantity": 42,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
+    "match_status": "CONFIDENT_MATCH",
+    "matched_part_number": "PV0500H1031DC",
+    "matched_orderable_part_number": "PV0500H1031DC",
     "final_confidence": 91.6667,
-    "match_type_label": null
+    "match_type_label": "Automatic \u2014 AI Confirmed"
   },
   {
     "description": "3/4\" PLASTIC BUSHING",
@@ -821,11 +821,11 @@
   {
     "description": "1 1/2\" PLASTIC BUSHING",
     "quantity": 50,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "PV1500H1035DC",
-    "matched_orderable_part_number": "PV1500H1035DC",
-    "final_confidence": 91.6667,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.0,
+    "match_type_label": null
   },
   {
     "description": "3\" PLASTIC BUSHING",
@@ -977,7 +977,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 70.0,
+    "final_confidence": 40.0,
     "match_type_label": null
   },
   {
@@ -986,7 +986,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 45.0,
+    "final_confidence": 60.0,
     "match_type_label": null
   },
   {
@@ -1019,11 +1019,11 @@
   {
     "description": "#1 HYPRESS 2-HOLE LUG",
     "quantity": 18,
-    "match_status": "CONFIDENT_MATCH",
-    "matched_part_number": "CBJ-2H",
-    "matched_orderable_part_number": "CBJ-2H",
-    "final_confidence": 54.375,
-    "match_type_label": "Automatic \u2014 AI Confirmed"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 85.0,
+    "match_type_label": null
   },
   {
     "description": "4/0 HYPRESS 2-HOLE LUG",

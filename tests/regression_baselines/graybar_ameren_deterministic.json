@@ -641,11 +641,11 @@
   {
     "description": "1 1/2\" GRC (GALV)",
     "quantity": 2740,
-    "match_status": "REVIEW_REQUIRED",
-    "matched_part_number": null,
-    "matched_orderable_part_number": null,
-    "final_confidence": 86.0,
-    "match_type_label": null
+    "match_status": "HIGH_CONFIDENCE",
+    "matched_part_number": "278911",
+    "matched_orderable_part_number": "278911",
+    "final_confidence": 100.0,
+    "match_type_label": "Automatic"
   },
   {
     "description": "4\" GRC (GALV)",

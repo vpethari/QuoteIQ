@@ -133,26 +133,44 @@ _DIMENSION_EXPR = re.compile(
         # call: a bare integer is too often a quantity, hole count, or
         # gauge to assume it's a size).
         #
-        # Deliberately NOT extended to the mixed-whole form (e.g. a bare
-        # "1 1/2"): confirmed live, that shape's leading whole-number part
-        # is genuinely ambiguous with an unrelated adjacent number when
-        # there's no unit to anchor it -- "A-100 A-100 3/8 SPRING NUT"
-        # (the part code "A-100" concatenated with the genuine, separate
-        # "3/8" size) was misread as one mixed number, "100 3/8\"", by an
-        # earlier version of this fix that did include that form. A second
-        # attempt made the mixed-whole form matched-but-discarded instead
-        # (to stop bare_frac_num from independently reading just its
-        # trailing fraction) -- but that discarded genuine catalog sizes
-        # too, since a product's own name/code commonly ends in a bare
-        # number immediately before its real size elsewhere in the same
-        # blob, the exact same shape as a genuine mixed number. Between an
-        # unmarked mixed-fraction *query* being misread as just its
-        # trailing fraction (no confirmed real occurrence so far -- every
-        # mixed-fraction query seen this session already carries a quote,
-        # e.g. "1 1/2\" GRC COUPLING") and losing bare-fraction extraction
-        # for catalog rows whose own code ends in a digit (confirmed,
-        # common), the former is accepted as the lesser, narrower risk.
+        # Extended to the mixed-whole form too, but ONLY when the whole
+        # part and fraction are joined by a bare hyphen with no
+        # surrounding whitespace ("1-1/2", never "1 1/2" or "1 - 1/2") --
+        # confirmed live, ~1,573 catalog description fields (not query
+        # text) carry a genuine size in exactly this bare, unmarked shape
+        # (e.g. "1-1/2 RIGID D Steel Hot-Dip Galvanized... Rigid Conduit",
+        # description2 for the same row confirms the true size as
+        # "1-1/2\""), which used to score as if the whole part didn't
+        # exist at all -- degrading to just the trailing "1/2\"" (0.5")
+        # via the plain bare-fraction alternative below, since a bare
+        # mixed number was matched-but-discarded (see the two prior
+        # attempts noted below).
         #
+        # This is deliberately narrower than the earlier, since-reverted
+        # attempts at extending this form: "A-100 A-100 3/8 SPRING NUT"
+        # (the part code "A-100" concatenated with the genuine, separate
+        # "3/8" size, SPACE-separated: "100 3/8") was misread as one mixed
+        # number by an earlier version of this fix that accepted *any*
+        # whole-to-fraction separator (hyphen OR whitespace, matching the
+        # marked branches' own `_NUMERIC_FORM`). A second attempt made the
+        # mixed-whole form matched-but-discarded instead -- but that
+        # discarded genuine catalog sizes too, since a product's own code
+        # commonly ends in a bare number immediately before its real size
+        # elsewhere in the same blob, the exact same shape as a genuine
+        # mixed number. Requiring a literal, space-free hyphen -- this
+        # catalog's own convention for writing a mixed measurement, e.g.
+        # "1-1/2" -- resolves the ambiguity cleanly: "100 3/8" (space) is
+        # still rejected, "1-1/2" (hyphen) is accepted, and this is a
+        # narrower, additional restriction on top of the (?<![A-Z0-9])
+        # leading boundary and the digit cap below, not a relaxation of
+        # either.
+        #
+        # \d{1,2} (not \d+): same digit-cap reasoning as
+        # _NUMERIC_FORM_BOUNDED above -- genuine whole-number parts in
+        # this catalog never exceed 2 digits (confirmed max: 71).
+        (?P<bare_mixed_whole>\d{1,2})-(?P<bare_mixed_num>\d{1,2})/(?P<bare_mixed_den>\d{1,2})(?![A-Z0-9])
+      |
+        (?<![A-Z0-9])
         # See PLAUSIBLE_FRACTION_DENOMINATORS below for a second guard
         # applied after this matches: confirmed live, "PVC - Sch 40/80"
         # (a Schedule 40/80 rating, in ~2,900 catalog rows) was misread as
@@ -352,6 +370,14 @@ def extract_dimensions(text: str | None) -> tuple[DimensionSpec, ...]:
                 inches = Fraction(match.group("w_decimal") or match.group("q_decimal"))
             elif match.group("w_whole") or match.group("q_whole"):
                 inches = Fraction(int(match.group("w_whole") or match.group("q_whole")))
+            elif match.group("bare_mixed_whole"):
+                bare_mixed_num = int(match.group("bare_mixed_num"))
+                bare_mixed_den = int(match.group("bare_mixed_den"))
+                if not is_plausible_fraction_dimension(bare_mixed_num, bare_mixed_den):
+                    continue
+                inches = Fraction(int(match.group("bare_mixed_whole"))) + Fraction(
+                    bare_mixed_num, bare_mixed_den
+                )
             else:
                 bare_num = int(match.group("bare_frac_num"))
                 bare_den = int(match.group("bare_frac_den"))

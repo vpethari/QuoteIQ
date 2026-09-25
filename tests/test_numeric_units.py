@@ -322,6 +322,51 @@ def test_quote_marked_size_recognized_with_no_space_after_product_code() -> None
     )
 
 
+def test_bare_hyphen_mixed_fraction_recognized_with_no_unit_at_all() -> None:
+    # Confirmed live: ~1,573 catalog `description` fields (not query text)
+    # carry a genuine size as a completely bare, unmarked mixed fraction --
+    # no quote mark, no "IN"/"INCH" word at all -- e.g. "1-1/2 RIGID D
+    # Steel Hot-Dip Galvanized... Rigid Conduit" (description2 for the
+    # same row confirms the true size as "1-1/2\""). This degraded to just
+    # the trailing "1/2\"" (0.5") via the plain bare-fraction alternative,
+    # silently mistreating the row as a half-inch product in dimension-
+    # match scoring (confirmed live: this is why "278911", a genuine
+    # 1-1/2" GRC conduit, scored 45% instead of ~92% against "1 1/2\" GRC
+    # (GALV)" -- its own catalog text never earned credit for the "1.5\""
+    # size at all).
+    spec = extract_dimensions(
+        "1-1/2 RIGID D Steel Hot-Dip Galvanized Zinc Hot Dip Galvanized "
+        "Rigid Conduit Steel Conduit Galvanized Rigid Steel Conduit (GRC, RMC)"
+    )
+    assert spec == (DimensionSpec(inches=Fraction(3, 2), raw="1-1/2", unit="IN"),)
+
+    # Deliberately narrower than earlier, reverted attempts at this same
+    # extension: the separator must be a bare hyphen with NO surrounding
+    # whitespace. "A-100 A-100 3/8 SPRING NUT" (the part code "A-100"
+    # concatenated with the genuine, separate "3/8" size, SPACE-separated:
+    # "100 3/8") must still NOT be misread as one mixed number "100 3/8\""
+    # -- confirmed this exact regression in an earlier version of this fix
+    # that accepted any whole-to-fraction separator, not just a hyphen.
+    assert extract_dimensions("A-100 A-100 3/8 SPRING NUT") == (
+        DimensionSpec(inches=Fraction(3, 8), raw="3/8", unit="IN"),
+    )
+    # Also rejects a hyphen WITH surrounding whitespace, and plain
+    # whitespace with no hyphen at all -- only the exact "N-M/D" shape
+    # (this catalog's own convention) is accepted.
+    assert extract_dimensions("1 1/2 GALV NIPPLE") == (
+        DimensionSpec(inches=Fraction(1, 2), raw="1/2", unit="IN"),
+    )
+
+    # A genuine 2-digit whole-number part (the largest confirmed in this
+    # catalog, 71) must still work.
+    assert extract_dimensions("CODE 71-1/2 WIDGET") == (
+        DimensionSpec(inches=Fraction(143, 2), raw="71-1/2", unit="IN"),
+    )
+
+    # PLAUSIBLE_FRACTION_DENOMINATORS still applies to the fractional part.
+    assert extract_dimensions("Sch 40-1/80 Conduit") == ()
+
+
 def test_decimal_kilovolt_values_parse_at_full_magnitude() -> None:
     spec = extract_voltages("34.5kV SEL 3-Phase")
     assert len(spec) == 1
