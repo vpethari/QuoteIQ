@@ -263,21 +263,6 @@ def catalog_test():
     }
 
 
-@app.get("/api/customers")
-def list_customers():
-    """Distinct customer names (salesorderdetails.BillToName) for the manual
-    customer-selection control at quote-upload time -- see
-    MatchingConfig.customer_purchase_bonus."""
-    settings = get_settings()
-    if normalized_catalog_source(settings.catalog_source) != "postgresql":
-        return {"customers": []}
-    repository = postgres_catalog_repository(settings)
-    try:
-        return {"customers": repository.distinct_customer_names()}
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Customer list query failed: {exc}") from exc
-
-
 @app.get("/health")
 def health():
     settings = get_settings()

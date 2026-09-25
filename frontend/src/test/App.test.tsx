@@ -8,7 +8,6 @@ const processQuote = vi.fn();
 const downloadResultsCsv = vi.fn();
 const downloadCpqReadyCsv = vi.fn();
 const downloadBlob = vi.fn();
-const fetchCustomers = vi.fn().mockResolvedValue([]);
 
 const selectQuoteMatch = vi.fn();
 
@@ -24,7 +23,6 @@ vi.mock("../services/api", () => ({
   downloadResultsCsv: (...args: unknown[]) => downloadResultsCsv(...args),
   downloadCpqReadyCsv: (...args: unknown[]) => downloadCpqReadyCsv(...args),
   downloadBlob: (...args: unknown[]) => downloadBlob(...args),
-  fetchCustomers: (...args: unknown[]) => fetchCustomers(...args),
   selectQuoteMatch: (...args: unknown[]) => selectQuoteMatch(...args),
 }));
 
@@ -82,7 +80,6 @@ describe("QuoteIQ app", () => {
     downloadResultsCsv.mockReset();
     downloadCpqReadyCsv.mockReset();
     downloadBlob.mockReset();
-    fetchCustomers.mockReset().mockResolvedValue([]);
     selectQuoteMatch.mockReset();
   });
 

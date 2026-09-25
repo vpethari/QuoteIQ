@@ -882,16 +882,6 @@ class PostgresCatalogRepository:
                 for row in rows
             }
 
-    def distinct_customer_names(self, limit: int = 500) -> list[str]:
-        """Every distinct salesorderdetails.BillToName, trimmed and sorted --
-        backs the manual customer-selection control at upload time."""
-        query = text(
-            'SELECT DISTINCT TRIM("BillToName") AS name FROM salesorderdetails '
-            'WHERE TRIM("BillToName") <> \'\' ORDER BY 1 LIMIT :limit'
-        )
-        with self.engine.connect() as connection:
-            return [str(row["name"]) for row in connection.execute(query, {"limit": limit}).mappings()]
-
     def fetch_identifier_candidates(self, query: str, limit: int = 50) -> list[ProductRecord]:
         """Retrieve Productcode/name hits by compact token evidence, not exact equality."""
         from matching.productcode import code_tokens, compact_token, is_generic_code_token

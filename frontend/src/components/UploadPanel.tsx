@@ -9,7 +9,6 @@ interface Props {
   useAI: boolean;
   onUseAI: (value: boolean) => void;
   customerName: string;
-  customers: string[];
   onCustomerName: (value: string) => void;
   onProcess: () => void;
   onFile: (file: File | null, error?: string) => void;
@@ -22,7 +21,6 @@ export function UploadPanel({
   useAI,
   onUseAI,
   customerName,
-  customers,
   onCustomerName,
   onProcess,
   onFile,
@@ -54,12 +52,7 @@ export function UploadPanel({
       ) : null}
       <div className="upload-actions">
         <AiToggle enabled={useAI} disabled={loading} onChange={onUseAI} />
-        <CustomerSelect
-          value={customerName}
-          customers={customers}
-          disabled={loading}
-          onChange={onCustomerName}
-        />
+        <CustomerSelect value={customerName} disabled={loading} onChange={onCustomerName} />
         <button type="button" className="btn-orange process-btn" disabled={!file || loading} onClick={onProcess}>
           {loading ? "Processing Quote..." : "Process Quote →"}
         </button>

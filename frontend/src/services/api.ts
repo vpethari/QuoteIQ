@@ -108,25 +108,6 @@ export async function processQuote(
   }
 }
 
-// Backs the manual customer-selection control at upload time -- resolves to
-// [] on any failure (unreachable backend, no salesorderdetails data) rather
-// than throwing, since a missing customer list shouldn't block uploading and
-// processing a quote at all; purchase-history ranking is a bonus, not a
-// requirement.
-export async function fetchCustomers(): Promise<string[]> {
-  try {
-    const response = await fetch(apiUrl("/api/customers"));
-    if (!response.ok) {
-      return [];
-    }
-    const body: unknown = await response.json();
-    const names = body && typeof body === "object" ? (body as { customers?: unknown }).customers : null;
-    return Array.isArray(names) ? names.filter((name): name is string => typeof name === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 async function postResultsForCsv(path: string, results: QuoteMatchResult[]): Promise<Blob> {
   let response: Response;
   try {
