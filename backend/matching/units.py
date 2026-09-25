@@ -46,13 +46,35 @@ _NUMERIC_FORM = r"""
     )
 """
 
+# Same shape as _NUMERIC_FORM, but every \d+ is capped at 2 digits -- used
+# only where the leading boundary is relaxed to allow a letter immediately
+# before the match (see the quote-mark branch below). (?<!\d) alone isn't
+# enough there: it only blocks the match from *starting* mid-digit-run, but
+# \d+ is greedy, so a letter-preceded run of unbounded length (e.g. a
+# product code's own digits, "F40100901-1/2\"") would otherwise get
+# swallowed whole as the "mixed_whole" part -- confirmed live, this
+# produced a nonsense ~40-million-inch dimension. Real catalog dimensions
+# never exceed 2 digits (confirmed: the largest whole-number part among
+# every genuine quote-marked fraction size in this catalog is 71), so
+# capping at 2 digits keeps every real size while rejecting a long,
+# unrelated digit run.
+_NUMERIC_FORM_BOUNDED = r"""
+    (?:
+        (?P<{p}mixed_whole>\d{{1,2}})(?:\s*-\s*|\s+)(?P<{p}mixed_num>\d{{1,2}})\s*/\s*(?P<{p}mixed_den>\d{{1,2}})
+      | (?P<{p}frac_num>\d{{1,2}})\s*/\s*(?P<{p}frac_den>\d{{1,2}})
+      | (?P<{p}decimal>\d{{0,2}}\.\d{{1,2}})
+      | (?P<{p}whole>\d{{1,2}})
+    )
+"""
+
 _DIMENSION_EXPR = re.compile(
     r"""
-    (?<![A-Z0-9])
     (?:
-        # Word-based units ("IN"/"FT"/etc.) keep a trailing boundary check
-        # -- needed so e.g. "4 IN" glued directly onto a following word
-        # ("4INSTALL") isn't misread as a size.
+        # Word-based units ("IN"/"FT"/etc.) keep the strict leading AND
+        # trailing boundary checks -- needed so e.g. "4 IN" glued directly
+        # onto a following word ("4INSTALL"), or a product code's own
+        # digits glued onto the front, isn't misread as a size.
+        (?<![A-Z0-9])
         """
     + _NUMERIC_FORM.format(p="w_")
     + r"""
@@ -67,11 +89,35 @@ _DIMENSION_EXPR = re.compile(
         # falling through to the bare-fraction branch below and
         # mis-extracting just the trailing "1/2" as the size instead of
         # the true 1-1/2".
+        #
+        # The LEADING boundary is relaxed too, but only halfway: excludes
+        # an immediately preceding DIGIT, not also a letter -- confirmed
+        # live, this catalog commonly glues a product CODE ending in
+        # letters directly onto the front of a genuine dimension with no
+        # space (e.g. "LTQ15090KON1-1/2\" SCREW ON...", 167 catalog rows
+        # confirmed). The stricter [A-Z0-9] boundary blocked the mixed-
+        # number match from ever starting there, silently falling through
+        # to match just the trailing "1/2\"" as 0.5" instead of the true
+        # 1.5". Still excludes a preceding digit, unlike letters: a code
+        # ending in its OWN digits glued to what follows is the genuinely
+        # ambiguous case already documented below for the bare-fraction
+        # mixed-whole exclusion ("A-100 A-100 3/8" and similar) -- that
+        # risk is specific to digit-adjacency, not letter-adjacency.
+        #
+        # Uses the digit-capped _NUMERIC_FORM_BOUNDED, not the plain one
+        # the word-unit branch above uses: (?<!\d) alone only blocks the
+        # match from *starting* mid-digit-run, it doesn't stop the greedy
+        # \d+ from swallowing an entire letter-preceded digit run of any
+        # length once it does start -- confirmed live, without the cap,
+        # "F40100901-1/2\"" was misread as a single ~40-million-inch
+        # dimension (the whole "40100901" run absorbed as mixed_whole).
+        (?<!\d)
         """
-    + _NUMERIC_FORM.format(p="q_")
+    + _NUMERIC_FORM_BOUNDED.format(p="q_")
     + r"""
         \s*(?:["\u2033\u201d]|['\u2032])
       |
+        (?<![A-Z0-9])
         # A bare simple fraction with no unit marker at all -- confirmed
         # live, "3/8 SPRING NUT" (no inch mark) left extract_dimensions()
         # completely blind to the query's own stated size, since every

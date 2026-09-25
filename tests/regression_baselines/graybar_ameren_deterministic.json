@@ -437,7 +437,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 74.0789,
+    "final_confidence": 80.0,
     "match_type_label": null
   },
   {
@@ -623,11 +623,11 @@
   {
     "description": "3/4\" GRC (GALV)",
     "quantity": 10671,
-    "match_status": "HIGH_CONFIDENCE",
-    "matched_part_number": "278887",
-    "matched_orderable_part_number": "278887",
-    "final_confidence": 100.0,
-    "match_type_label": "Automatic"
+    "match_status": "REVIEW_REQUIRED",
+    "matched_part_number": null,
+    "matched_orderable_part_number": null,
+    "final_confidence": 86.0,
+    "match_type_label": null
   },
   {
     "description": "1\" GRC (GALV)",
@@ -1076,7 +1076,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 11.7436,
+    "final_confidence": 11.809,
     "match_type_label": null
   },
   {
@@ -1148,7 +1148,7 @@
     "match_status": "REVIEW_REQUIRED",
     "matched_part_number": null,
     "matched_orderable_part_number": null,
-    "final_confidence": 37.8801,
+    "final_confidence": 38.0811,
     "match_type_label": null
   },
   {

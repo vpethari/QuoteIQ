@@ -286,6 +286,42 @@ def test_quote_marked_size_recognized_even_with_no_space_before_next_word() -> N
     assert extract_dimensions("4INSTALL") == ()
 
 
+def test_quote_marked_size_recognized_with_no_space_after_product_code() -> None:
+    # Confirmed live: this catalog also glues a product CODE directly onto
+    # the FRONT of a genuine dimension with no space at all (e.g.
+    # "LTQ15090KON1-1/2\" SCREW ON LIQUID TIGHT - 90 DEGREE...", 167
+    # catalog rows confirmed) -- the mirror image of the trailing-glue case
+    # above. Before this fix, the shared leading boundary check (excluding
+    # any immediately preceding letter OR digit) blocked the mixed-number
+    # match from ever starting right after "KON", silently falling through
+    # to mis-extract just the trailing "1/2\"" (0.5") instead of the true
+    # 1-1/2" (1.5") -- misreading LTQ15090KON as a half-inch product.
+    spec = extract_dimensions('LTQ15090KON1-1/2" SCREW ON LIQUID TIGHT - 90 DEGREE')
+    assert spec == (DimensionSpec(inches=Fraction(3, 2), raw='1-1/2"', unit="IN"),)
+
+    # A genuine 2-digit whole-number part (the largest confirmed in this
+    # catalog, 71) must still work when letter-glued.
+    assert extract_dimensions('CODE71-1/2" WIDGET') == (
+        DimensionSpec(inches=Fraction(143, 2), raw='71-1/2"', unit="IN"),
+    )
+
+    # The leading boundary must still exclude an immediately preceding
+    # DIGIT (not just a letter) -- a product code ending in its own digits
+    # glued to what follows is the same genuinely ambiguous shape already
+    # excluded for the bare-fraction branch (see the "A-100 A-100 3/8"
+    # case above). (?<!\d) alone doesn't stop the greedy \d+ from
+    # absorbing an entire letter-preceded digit run of any length, though
+    # -- without also capping the digit count at 2 (the real catalog max),
+    # this used to misread the whole "40100901" run as one
+    # ~40-million-inch dimension. It now falls back to the pre-existing,
+    # already-guarded bare-fraction branch reading just the trailing
+    # "1/2" (0.5") instead -- not ideal, but nowhere near as wrong, and
+    # this exact contrived shape doesn't occur in the real catalog.
+    assert extract_dimensions('F40100901-1/2" SOMETHING') == (
+        DimensionSpec(inches=Fraction(1, 2), raw='1/2"', unit="IN"),
+    )
+
+
 def test_decimal_kilovolt_values_parse_at_full_magnitude() -> None:
     spec = extract_voltages("34.5kV SEL 3-Phase")
     assert len(spec) == 1
