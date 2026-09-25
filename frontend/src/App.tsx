@@ -76,7 +76,7 @@ export default function App() {
   }
 
   async function onProcess() {
-    if (!selectedFile || loading) {
+    if (!selectedFile || loading || !customerName.trim()) {
       return;
     }
     setLoading(true);

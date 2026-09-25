@@ -53,7 +53,12 @@ export function UploadPanel({
       <div className="upload-actions">
         <AiToggle enabled={useAI} disabled={loading} onChange={onUseAI} />
         <CustomerSelect value={customerName} disabled={loading} onChange={onCustomerName} />
-        <button type="button" className="btn-orange process-btn" disabled={!file || loading} onClick={onProcess}>
+        <button
+          type="button"
+          className="btn-orange process-btn"
+          disabled={!file || loading || !customerName.trim()}
+          onClick={onProcess}
+        >
           {loading ? "Processing Quote..." : "Process Quote →"}
         </button>
       </div>

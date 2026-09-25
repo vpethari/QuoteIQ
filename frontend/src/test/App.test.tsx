@@ -74,6 +74,11 @@ const sample: QuoteProcessResponse = {
   ],
 };
 
+async function fillCustomer(user: ReturnType<typeof userEvent.setup>, value = "TEST CUSTOMER") {
+  const field = screen.getByPlaceholderText(/Ship-To #, Bill-To #, or customer name/);
+  await user.type(field, value);
+}
+
 describe("QuoteIQ app", () => {
   beforeEach(() => {
     processQuote.mockReset();
@@ -117,6 +122,9 @@ describe("QuoteIQ app", () => {
     await user.upload(input, file);
     expect(screen.getByText("inputfile.xlsx")).toBeInTheDocument();
     expect(screen.getByText(/2\.0 KB/)).toBeInTheDocument();
+    // A file alone isn't enough -- the customer field is required too.
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
+    await fillCustomer(user);
     expect(screen.getByRole("button", { name: "Process Quote →" })).toBeEnabled();
   });
 
@@ -128,6 +136,8 @@ describe("QuoteIQ app", () => {
     Object.defineProperty(file, "size", { value: 4096 });
     await user.upload(input, file);
     expect(screen.getByText("sample-quote.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Process Quote →" })).toBeDisabled();
+    await fillCustomer(user);
     expect(screen.getByRole("button", { name: "Process Quote →" })).toBeEnabled();
   });
 
@@ -150,6 +160,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(screen.getByRole("button", { name: "Processing Quote..." })).toBeDisabled();
     expect(screen.getByText("Uploading...")).toBeInTheDocument();
@@ -253,6 +264,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(await screen.findByText("120V-DBL-HEAD-EXT-CABLE")).toBeInTheDocument();
     expect(screen.getByText("MATCH")).toBeInTheDocument();
@@ -328,6 +340,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(await screen.findByText("B1EB5-W-BRP-WHIP")).toBeInTheDocument();
     expect(screen.queryByText("333427")).not.toBeInTheDocument();
@@ -398,6 +411,7 @@ describe("QuoteIQ app", () => {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
       );
+      await fillCustomer(user);
       await user.click(screen.getByRole("button", { name: "Process Quote →" }));
       expect(await screen.findAllByText("333572")).not.toHaveLength(0);
       expect(screen.queryByText("333,572")).not.toBeInTheDocument();
@@ -431,6 +445,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(await screen.findByText("UNKNOWN WIDGET")).toBeInTheDocument();
     expect(screen.getByText("NO_MATCH")).toBeInTheDocument();
@@ -472,6 +487,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     await user.click(await screen.findByRole("row", { name: "Review Match" }));
     const selectButtons = screen.getAllByRole("button", { name: "Select" });
@@ -503,6 +519,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     expect(await screen.findByText(/No header row was found/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
@@ -521,6 +538,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     await screen.findByText("120V LIGHTING WHIP W/PAULEX");
     await user.click(screen.getByRole("button", { name: "CPQ Ready Items" }));
@@ -539,6 +557,7 @@ describe("QuoteIQ app", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
+    await fillCustomer(user);
     await user.click(screen.getByRole("button", { name: "Process Quote →" }));
     await screen.findByText("Quote Results");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
