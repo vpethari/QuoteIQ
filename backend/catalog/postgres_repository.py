@@ -841,46 +841,62 @@ class PostgresCatalogRepository:
         floored at 0 by the caller, not here -- this returns the raw sum.
 
         `customer_name` is a single free-form field accepting three
-        different identifier types, auto-detected by shape (per explicit
-        user direction):
-        - all-digits -> matched as an *exact* account number against
-          either "BillTo" or "ShipTo" (both bigint columns) -- a numeric
-          account id is unambiguous, so no fuzzy matching applies here.
-        - anything else -> matched as a case-insensitive *contains* search
-          against BillToName (upgraded from a prefix-only match -- every
-          BillToName is a fully-qualified branch string, e.g.
-          "GRAYBAR*ZJIL*JOLIET IL*GBUS", one of 234 distinct branches, and
-          a customer typing any substring of one -- not just its leading
-          text -- expects it to be found), aggregating across every branch
-          whose name contains it. LIKE metacharacters ("%", "_") are
-          escaped so they're matched literally, not interpreted as
-          wildcards.
+        different identifier types. A non-numeric value is matched as a
+        case-insensitive *contains* search against BillToName (every
+        BillToName is a fully-qualified branch string, e.g.
+        "GRAYBAR*ZJIL*JOLIET IL*GBUS", one of 234 distinct branches, so
+        substring, not just prefix, matching is needed), aggregating
+        across every branch whose name contains it -- LIKE metacharacters
+        ("%", "_") are escaped so they're matched literally.
+
+        A numeric value is tried as an *exact* account number, in a strict
+        cascade -- Ship-To, then Bill-To, then falling back to the name
+        search above -- per explicit user direction. This is NOT the same
+        as OR'ing Ship-To and Bill-To together: a given number could
+        legitimately be a Ship-To id for one customer and a coincidentally
+        equal Bill-To id for a completely unrelated one, and OR'ing them
+        would silently sum two different customers' purchase histories
+        together. The cascade stops at the first tier that returns any
+        rows at all, rather than trying every tier and merging.
         """
         codes = [str(code).strip() for code in orderable_part_numbers if code and str(code).strip()]
         identifier = (customer_name or "").strip()
         if not codes or not identifier:
             return {}
-        params: dict[str, object] = {"codes": codes}
         if identifier.isdigit():
-            where_clause = '("BillTo" = :account_id OR "ShipTo" = :account_id)'
-            params["account_id"] = int(identifier)
-        else:
-            like_op = "ILIKE" if self._is_postgres() else "LIKE"
-            escaped = identifier.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            where_clause = f'TRIM("BillToName") {like_op} :pattern ESCAPE \'\\\''
-            params["pattern"] = f"%{escaped}%"
+            account_id = int(identifier)
+            for column in ("ShipTo", "BillTo"):
+                result = self._purchase_quantities_by_account(column, account_id, codes)
+                if result:
+                    return result
+        return self._purchase_quantities_by_name(identifier, codes)
+
+    def _purchase_quantities_by_account(
+        self, column: str, account_id: int, codes: list[str]
+    ) -> dict[str, int]:
         query = text(
             'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
             "FROM salesorderdetails "
-            f"WHERE {where_clause} AND TRIM(\"ItemNumber\") IN :codes "
+            f'WHERE "{column}" = :account_id AND TRIM("ItemNumber") IN :codes '
             'GROUP BY TRIM("ItemNumber")'
         ).bindparams(bindparam("codes", expanding=True))
         with self.engine.connect() as connection:
-            rows = connection.execute(query, params).mappings()
-            return {
-                str(row["item_number"]): int(row["total_quantity"] or 0)
-                for row in rows
-            }
+            rows = connection.execute(query, {"account_id": account_id, "codes": codes}).mappings()
+            return {str(row["item_number"]): int(row["total_quantity"] or 0) for row in rows}
+
+    def _purchase_quantities_by_name(self, identifier: str, codes: list[str]) -> dict[str, int]:
+        like_op = "ILIKE" if self._is_postgres() else "LIKE"
+        escaped = identifier.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = text(
+            'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
+            "FROM salesorderdetails "
+            f'WHERE TRIM("BillToName") {like_op} :pattern ESCAPE \'\\\' '
+            'AND TRIM("ItemNumber") IN :codes '
+            'GROUP BY TRIM("ItemNumber")'
+        ).bindparams(bindparam("codes", expanding=True))
+        with self.engine.connect() as connection:
+            rows = connection.execute(query, {"pattern": f"%{escaped}%", "codes": codes}).mappings()
+            return {str(row["item_number"]): int(row["total_quantity"] or 0) for row in rows}
 
     def fetch_identifier_candidates(self, query: str, limit: int = 50) -> list[ProductRecord]:
         """Retrieve Productcode/name hits by compact token evidence, not exact equality."""
