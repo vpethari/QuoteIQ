@@ -106,6 +106,14 @@ def _top_product_columns(candidates: Sequence[dict], limit: int = TOP_ITEMS_LIMI
     return columns
 
 
+def _display_status(match_status: str | None) -> str:
+    """REVIEW_REQUIRED shows as "Validation Required" in the Full Results
+    CSV -- every other status is left as its raw enum value, unchanged."""
+    if (match_status or "").upper() == "REVIEW_REQUIRED":
+        return "Validation Required"
+    return match_status or ""
+
+
 def _full_results_row(view: ResultView) -> dict[str, str]:
     raw_row = view.raw_row
     if not raw_row:
@@ -114,7 +122,7 @@ def _full_results_row(view: ResultView) -> dict[str, str]:
             "Quantity": "" if view.quantity is None else str(view.quantity),
         }
     row = {str(key): ("" if value is None else str(value)) for key, value in raw_row.items()}
-    row["Status"] = view.match_status or ""
+    row["Status"] = _display_status(view.match_status)
     row.update(_top_product_columns(view.candidates))
     row["Matched Part Number"] = view.matched_part_number or ""
     row["Orderable Part Number"] = view.matched_orderable_part_number or ""

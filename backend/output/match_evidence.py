@@ -231,7 +231,11 @@ def build_match_evidence(result: Any) -> dict[str, Any]:
     separation = "Ambiguous" if status == "REVIEW_REQUIRED" else (
         "Strong" if status in MATCH_STATUSES else "Ambiguous"
     )
-    display_status = "MATCH" if status in MATCH_STATUSES else status
+    display_status = (
+        "MATCH"
+        if status in MATCH_STATUSES
+        else "VALIDATION REQUIRED" if status == "REVIEW_REQUIRED" else status
+    )
     return {
         "status_label": display_status,
         "matched_part_number": (productcode_as_text(matched_part) or None) if selected else None,

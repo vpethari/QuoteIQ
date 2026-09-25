@@ -209,7 +209,9 @@ def test_full_results_csv_mirrors_raw_row_and_appends_three_columns() -> None:
     # official_part_number rather than leaving that slot blank.
     assert rows[1]["Matched Part Number"] == ""
     assert rows[1]["Orderable Part Number"] == ""
-    assert rows[1]["Status"] == "REVIEW_REQUIRED"
+    # REVIEW_REQUIRED shows as "Validation Required" in this CSV -- every
+    # other status stays raw.
+    assert rows[1]["Status"] == "Validation Required"
     assert rows[1]["1st Top Product"] == "ORD-A1"
     assert rows[1]["2nd Top Product"] == "ORD-A2"
     assert rows[1]["3rd Top Product"] == "A3"
@@ -591,7 +593,7 @@ def test_quote_process_api_and_csv_export(tmp_path: Path) -> None:
             )
         assert ai_response.status_code == 200
         ai_rows = _parse_csv(ai_response.content)
-        assert all(row["Status"] == "REVIEW_REQUIRED" for row in ai_rows)
+        assert all(row["Status"] == "Validation Required" for row in ai_rows)
         assert all(row["Matched Part Number"] == "" for row in ai_rows)
 
         export = client.post(

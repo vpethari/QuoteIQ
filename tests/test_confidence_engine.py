@@ -60,7 +60,7 @@ def test_rr2ba_is_review_not_high_confidence_match() -> None:
     evidence = build_match_evidence(result)
     assert "Multiple possible Productcode" in evidence["headline"]
     assert evidence["candidate_separation"] == "Ambiguous"
-    assert evidence["status_label"] == "REVIEW_REQUIRED"
+    assert evidence["status_label"] == "VALIDATION REQUIRED"
 
 
 def test_rr_2ba_kr_exact_productcode_match() -> None:

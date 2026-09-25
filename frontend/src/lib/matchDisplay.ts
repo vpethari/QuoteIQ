@@ -15,7 +15,7 @@ export function statusBadge(status: MatchStatus): StatusBadge {
 export function statusLabel(status: MatchStatus): string {
   const badge = statusBadge(status);
   if (badge === "REVIEW_REQUIRED") {
-    return "REVIEW_REQUIRED";
+    return "VALIDATION REQUIRED";
   }
   if (badge === "NO_MATCH") {
     return "NO_MATCH";

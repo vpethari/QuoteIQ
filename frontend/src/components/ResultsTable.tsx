@@ -105,7 +105,7 @@ export function ResultsTable({
                         <div className="row-note">No matching Atkore part found</div>
                       ) : null}
                       {badge === "REVIEW_REQUIRED" ? (
-                        <div className="row-note">REVIEW REQUIRED — {row.candidate_count} possible products</div>
+                        <div className="row-note">VALIDATION REQUIRED — {row.candidate_count} possible products</div>
                       ) : null}
                     </td>
                     <td>{formatQuantity(row.quantity)}</td>

@@ -4,7 +4,7 @@ import { SummaryCards, type SummaryFilter } from "./SummaryCards";
 
 const FILTER_LABEL: Record<Exclude<SummaryFilter, "ALL">, string> = {
   MATCHED: "Matched",
-  REVIEW_REQUIRED: "Review Required",
+  REVIEW_REQUIRED: "Validation Required",
   NO_MATCH: "No Match",
 };
 

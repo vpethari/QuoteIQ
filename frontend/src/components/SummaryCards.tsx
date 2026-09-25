@@ -8,7 +8,7 @@ export type SummaryFilter = StatusBadge | "ALL";
 const ICONS = {
   "Total Lines": IconDoc,
   Matched: IconCheck,
-  "Review Required": IconWarn,
+  "Validation Required": IconWarn,
   "No Match": IconX,
   "Match Rate": IconChart,
 } as const;
@@ -24,7 +24,7 @@ export function SummaryCards({ summary, activeFilter, onFilterChange }: Props) {
     { label: "Total Lines", value: summary ? String(summary.total) : "—", tone: "green", filter: "ALL" },
     { label: "Matched", value: summary ? String(summary.matched) : "—", tone: "green", filter: "MATCHED" },
     {
-      label: "Review Required",
+      label: "Validation Required",
       value: summary ? String(summary.review_required) : "—",
       tone: "orange",
       filter: "REVIEW_REQUIRED",

@@ -112,7 +112,7 @@ export function CandidateDetails({
         </div>
       ) : null}
 
-      {review ? <p className="review-callout">REVIEW REQUIRED — select the correct product</p> : null}
+      {review ? <p className="review-callout">VALIDATION REQUIRED — select the correct product</p> : null}
 
       {badge === "NO_MATCH" ? (
         <p className="nomatch-callout">No matching Atkore part found</p>

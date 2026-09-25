@@ -166,7 +166,7 @@ describe("QuoteIQ app", () => {
     expect(screen.getByText("Confidence")).toBeInTheDocument();
     expect(screen.getByText("Why")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.getByText("REVIEW REQUIRED — 3 possible products")).toBeInTheDocument();
+    expect(screen.getByText("VALIDATION REQUIRED — 3 possible products")).toBeInTheDocument();
     expect(screen.getByText("No part selected")).toBeInTheDocument();
     expect(screen.getByText("Multiple products have equivalent description matches")).toBeInTheDocument();
 
