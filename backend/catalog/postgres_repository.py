@@ -839,19 +839,38 @@ class PostgresCatalogRepository:
         source system (confirmed live), so both sides are TRIM()'d before
         comparing. A net-negative sum (returns exceeding purchases) is
         floored at 0 by the caller, not here -- this returns the raw sum.
+
+        `customer_name` is matched as a case-insensitive *prefix*, not
+        required to equal one exact BillToName -- confirmed live, every
+        BillToName is a fully-qualified branch string (e.g.
+        "GRAYBAR*ZJIL*JOLIET IL*GBUS", one of 234 distinct branches), so a
+        user typing just the distributor name ("GRAYBAR") previously
+        matched nothing at all and silently got no purchase-history signal.
+        Per explicit user direction, this now sums across every branch
+        sharing that prefix -- "GRAYBAR" aggregates all 234 Graybar
+        branches together, while a fully-qualified branch string (typed or
+        picked from the datalist) still matches only that one branch, since
+        it's already the longest possible prefix of itself. LIKE
+        metacharacters in the typed text ("%", "_") are escaped so they're
+        matched literally, not interpreted as wildcards.
         """
         codes = [str(code).strip() for code in orderable_part_numbers if code and str(code).strip()]
         name = (customer_name or "").strip()
         if not codes or not name:
             return {}
+        like_op = "ILIKE" if self._is_postgres() else "LIKE"
+        escaped_name = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         query = text(
             'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
             "FROM salesorderdetails "
-            'WHERE TRIM("BillToName") = :customer_name AND TRIM("ItemNumber") IN :codes '
+            f'WHERE TRIM("BillToName") {like_op} :prefix ESCAPE \'\\\' '
+            "AND TRIM(\"ItemNumber\") IN :codes "
             'GROUP BY TRIM("ItemNumber")'
         ).bindparams(bindparam("codes", expanding=True))
         with self.engine.connect() as connection:
-            rows = connection.execute(query, {"customer_name": name, "codes": codes}).mappings()
+            rows = connection.execute(
+                query, {"prefix": f"{escaped_name}%", "codes": codes}
+            ).mappings()
             return {
                 str(row["item_number"]): int(row["total_quantity"] or 0)
                 for row in rows
