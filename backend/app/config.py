@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     match_ambiguous_confidence_cap: float = 86.0
     match_numeric_conflict_cap: float = 40.0
     match_partial_max_confidence: float = 78.0
+    match_customer_purchase_bonus: float = 5.0
     match_confidence_weight_productcode: float = 0.50
     match_confidence_weight_name: float = 0.15
     match_confidence_weight_description: float = 0.20

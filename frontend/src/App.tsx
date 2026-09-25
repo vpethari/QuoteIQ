@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BackToTop } from "./components/BackToTop";
 import { ErrorCard } from "./components/ErrorCard";
 import { Footer } from "./components/Footer";
@@ -18,6 +18,7 @@ import {
   downloadBlob,
   downloadCpqReadyCsv,
   downloadResultsCsv,
+  fetchCustomers,
   processQuote,
   selectQuoteMatch,
 } from "./services/api";
@@ -46,6 +47,8 @@ function summarize(results: QuoteMatchResult[]): QuoteProcessResponse["summary"]
 export default function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [useAI, setUseAI] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customers, setCustomers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<QuoteProcessResponse | null>(null);
@@ -53,6 +56,18 @@ export default function App() {
   const [selectingIndex, setSelectingIndex] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<SummaryFilter>("ALL");
   const [warningsDismissed, setWarningsDismissed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCustomers().then((names) => {
+      if (!cancelled) {
+        setCustomers(names);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const visibleIndices = useMemo(() => {
     if (!results) {
@@ -81,7 +96,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const payload = await processQuote(selectedFile, useAI);
+      const payload = await processQuote(selectedFile, useAI, customerName.trim() || undefined);
       setResults(payload);
       setExpandedRows(new Set());
       setActiveFilter("ALL");
@@ -188,6 +203,9 @@ export default function App() {
                 loading={loading}
                 useAI={useAI}
                 onUseAI={setUseAI}
+                customerName={customerName}
+                customers={customers}
+                onCustomerName={setCustomerName}
                 onProcess={() => void onProcess()}
                 onFile={handleFile}
               />

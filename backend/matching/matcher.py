@@ -214,6 +214,7 @@ class ProductMatcher:
                 source_file=line.source_file,
                 source_sheet=line.source_sheet,
                 source_row=line.source_row,
+                customer_name=line.customer_name,
             )
             result = self._attach_identity(result, requested_description, interpreted)
         published = prepare_published_result(result, self.config)
@@ -286,6 +287,7 @@ class ProductMatcher:
         source_file: str | None,
         source_sheet: str | None,
         source_row: int | None,
+        customer_name: str | None = None,
     ) -> MatchResult:
         product = None
         source = None
@@ -310,6 +312,7 @@ class ProductMatcher:
                 source_row=source_row,
                 match_source=source,
                 description_for_scoring=scoring_description,
+                customer_name=customer_name,
             )
         if source == "ambiguous":
             return self._match_description_only(
@@ -327,6 +330,7 @@ class ProductMatcher:
                 ],
                 force_review=True,
                 has_description_signal=interpreted.has_description,
+                customer_name=customer_name,
             )
         if interpreted.has_identifier:
             extras = [PN_NOT_FOUND]
@@ -343,6 +347,7 @@ class ProductMatcher:
                     extra_reasons=extras,
                     force_review=True,
                     has_description_signal=True,
+                    customer_name=customer_name,
                 )
             return self._empty_result(
                 requested_description=raw_description,
@@ -365,6 +370,7 @@ class ProductMatcher:
                 requested_part_number=None,
                 description_for_scoring=scoring_description,
                 has_description_signal=True,
+                customer_name=customer_name,
             )
         return self._empty_result(
             requested_description=raw_description,
@@ -468,7 +474,34 @@ class ProductMatcher:
             cache.candidates[key] = tuple(products)
         return products
 
-    def _score_description_candidates(self, requested_description: str) -> list[MatchCandidate]:
+    def _customer_purchase_signal(
+        self, customer_name: str | None, pool: Sequence[ProductRecord]
+    ) -> tuple[dict[str, int], int]:
+        """Net historical purchase quantity per candidate (keyed by
+        orderable part number, falling back to product_code), for the
+        given customer, across exactly the candidates in `pool` -- see
+        MatchingConfig.customer_purchase_bonus. Returns ({}, 0) whenever
+        customer_name is unset or the injected catalog_search doesn't
+        support the lookup (e.g. a test fixture, or the in-memory-only
+        fallback path with no database at all), so this is a pure no-op
+        everywhere the feature isn't wired up. A single batched query for
+        the whole candidate pool, not one per candidate."""
+        if not customer_name or self.catalog_search is None:
+            return {}, 0
+        lookup = getattr(self.catalog_search, "customer_purchase_quantities", None)
+        if lookup is None:
+            return {}, 0
+        codes = {product.orderable_part_number or product.product_code for product in pool}
+        codes.discard("")
+        if not codes:
+            return {}, 0
+        raw = lookup(customer_name, sorted(codes))
+        quantities = {code: qty for code, qty in raw.items() if qty and qty > 0}
+        return quantities, sum(quantities.values())
+
+    def _score_description_candidates(
+        self, requested_description: str, *, customer_name: str | None = None
+    ) -> list[MatchCandidate]:
         cache = get_request_cache()
         key = candidate_cache_key(requested_description)
         if cache is not None and key in cache.scored:
@@ -500,6 +533,7 @@ class ProductMatcher:
                 for product in pool
                 if product.description
             )
+        purchase_quantities, purchase_total = self._customer_purchase_signal(customer_name, pool)
         query_prep = prepare_scoring_text(query, prep_cache)
         scoring_query_prep = prepare_scoring_text(scoring_query, prep_cache)
         score_started = perf_counter()
@@ -529,6 +563,22 @@ class ProductMatcher:
             if product.preferred:
                 breakdown = dataclasses.replace(
                     breakdown, final=clamp_score(breakdown.final + self.config.preferred_score_bonus)
+                )
+            # See MatchingConfig.customer_purchase_bonus -- same slot and
+            # same reasoning as the preferred bonus above (after the
+            # variant-conflict cap, before the candidate_floor cut), except
+            # scaled by this candidate's share of the customer's total
+            # purchase volume across the whole candidate pool, not flat --
+            # a customer who buys every size about equally shouldn't have
+            # their ranking reshuffled, only one who clearly favors this
+            # specific candidate.
+            candidate_key = product.orderable_part_number or product.product_code
+            purchase_quantity = purchase_quantities.get(candidate_key, 0) if purchase_total > 0 else 0
+            if purchase_quantity > 0:
+                share = purchase_quantity / purchase_total
+                breakdown = dataclasses.replace(
+                    breakdown,
+                    final=clamp_score(breakdown.final + self.config.customer_purchase_bonus * share),
                 )
             if breakdown.final < self.config.candidate_floor and not identifier_hit:
                 continue
@@ -564,6 +614,7 @@ class ProductMatcher:
                 description2=product.description2,
                 orderable_part_number=product.orderable_part_number,
                 preferred=product.preferred,
+                customer_purchase_quantity=purchase_quantity,
             )
             scored.append(candidate)
             if session is not None and loop_started is not None:
@@ -642,9 +693,14 @@ class ProductMatcher:
         force_review: bool = False,
         description_for_scoring: str | None = None,
         has_description_signal: bool = True,
+        customer_name: str | None = None,
     ) -> MatchResult:
         query = description_for_scoring if description_for_scoring is not None else requested_description
-        scored = self._score_description_candidates(query) if fold_whitespace(query) else []
+        scored = (
+            self._score_description_candidates(query, customer_name=customer_name)
+            if fold_whitespace(query)
+            else []
+        )
         decision_started = perf_counter()
         candidates = scored[: self.config.max_candidates]
         scores = [item.score for item in scored]
@@ -920,6 +976,7 @@ class ProductMatcher:
         source_row: int | None,
         match_source: str,
         description_for_scoring: str = "",
+        customer_name: str | None = None,
     ) -> MatchResult:
         scoring_query = strip_quantity_and_noise(fold_whitespace(description_for_scoring))
         description_blank = not scoring_query
@@ -989,7 +1046,7 @@ class ProductMatcher:
         if not description_blank:
             description_candidates = [
                 item
-                for item in self._score_description_candidates(scoring_query)
+                for item in self._score_description_candidates(scoring_query, customer_name=customer_name)
                 if item.official_part_number != product.product_code
             ]
         decision_started = perf_counter()

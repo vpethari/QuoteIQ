@@ -66,6 +66,7 @@ class QuoteMatchRequest(BaseModel):
     lines: list[QuoteLineRequest] | None = None
     source_path: str | None = None
     use_ai: bool | None = None
+    customer_name: str | None = None
 
     @model_validator(mode="after")
     def require_lines_or_path(self) -> QuoteMatchRequest:
@@ -98,6 +99,7 @@ def _cached_catalog_and_matcher() -> tuple[list, ProductMatcher]:
         ambiguous_confidence_cap=settings.match_ambiguous_confidence_cap,
         numeric_conflict_cap=settings.match_numeric_conflict_cap,
         partial_match_max_confidence=settings.match_partial_max_confidence,
+        customer_purchase_bonus=settings.match_customer_purchase_bonus,
         confidence_weight_productcode=settings.match_confidence_weight_productcode,
         confidence_weight_name=settings.match_confidence_weight_name,
         confidence_weight_description=settings.match_confidence_weight_description,
@@ -191,7 +193,7 @@ def _quote_lines_from_payload(payload: QuoteMatchRequest) -> Sequence[QuoteLine]
         if not path.is_file():
             raise HTTPException(status_code=400, detail="Quote file not found.")
         try:
-            return line_items_to_quote_lines(parse_quote_file(path))
+            return line_items_to_quote_lines(parse_quote_file(path), customer_name=payload.customer_name)
         except QuoteParseError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     assert payload.lines is not None
@@ -203,6 +205,7 @@ def _quote_lines_from_payload(payload: QuoteMatchRequest) -> Sequence[QuoteLine]
             requested_description=item.requested_description,
             quantity=item.quantity,
             requested_part_number=item.requested_part_number,
+            customer_name=payload.customer_name,
         )
         for item in payload.lines
     ]
@@ -258,6 +261,21 @@ def catalog_test():
         "count": len(rows),
         "products": [_catalog_sample_payload(row) for row in rows],
     }
+
+
+@app.get("/api/customers")
+def list_customers():
+    """Distinct customer names (salesorderdetails.BillToName) for the manual
+    customer-selection control at quote-upload time -- see
+    MatchingConfig.customer_purchase_bonus."""
+    settings = get_settings()
+    if normalized_catalog_source(settings.catalog_source) != "postgresql":
+        return {"customers": []}
+    repository = postgres_catalog_repository(settings)
+    try:
+        return {"customers": repository.distinct_customer_names()}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Customer list query failed: {exc}") from exc
 
 
 @app.get("/health")
@@ -385,10 +403,11 @@ def export_cpq_csv(payload: CsvExportRequest) -> Response:
 def process_quote(
     file: UploadFile = File(...),
     use_ai: bool = Form(False),
+    customer_name: str | None = Form(None),
     matcher: ProductMatcher = Depends(get_matcher),
     service: AIMatchingService = Depends(get_ai_service),
 ) -> Response:
-    csv_bytes = _process_upload_csv(file, use_ai, matcher, service)
+    csv_bytes = _process_upload_csv(file, use_ai, matcher, service, customer_name=customer_name)
     return _csv_response(csv_bytes)
 
 
@@ -396,10 +415,11 @@ def process_quote(
 def process_quote_cpq(
     file: UploadFile = File(...),
     use_ai: bool = Form(False),
+    customer_name: str | None = Form(None),
     matcher: ProductMatcher = Depends(get_matcher),
     service: AIMatchingService = Depends(get_ai_service),
 ) -> Response:
-    csv_bytes = _process_upload_cpq_csv(file, use_ai, matcher, service)
+    csv_bytes = _process_upload_cpq_csv(file, use_ai, matcher, service, customer_name=customer_name)
     return _csv_response(csv_bytes, filename=CPQ_DOWNLOAD_FILENAME)
 
 
@@ -407,12 +427,13 @@ def process_quote_cpq(
 def process_quote_results_endpoint(
     file: UploadFile = File(...),
     use_ai: bool = Form(False),
+    customer_name: str | None = Form(None),
     matcher: ProductMatcher = Depends(get_matcher),
     service: AIMatchingService = Depends(get_ai_service),
 ) -> dict:
     session = _start_timing("POST /api/quote/process/results")
     try:
-        results = _process_upload_results(file, use_ai, matcher, service)
+        results = _process_upload_results(file, use_ai, matcher, service, customer_name=customer_name)
         with span("serialize_ms", on_session=True):
             payload_out = [serialize_process_result(item) for item in results]
             return {
@@ -441,6 +462,8 @@ def _process_upload_results(
     use_ai: bool,
     matcher: ProductMatcher,
     service: AIMatchingService,
+    *,
+    customer_name: str | None = None,
 ):
     temp_path = _store_upload(upload)
     try:
@@ -450,6 +473,7 @@ def _process_upload_results(
             use_ai=use_ai,
             ai_service=service if use_ai else None,
             source_name=upload.filename or "quote.xlsx",
+            customer_name=customer_name,
         )
     except QuoteParseError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -464,8 +488,10 @@ def _process_upload_csv(
     use_ai: bool,
     matcher: ProductMatcher,
     service: AIMatchingService,
+    *,
+    customer_name: str | None = None,
 ) -> bytes:
-    results = _process_upload_results(upload, use_ai, matcher, service)
+    results = _process_upload_results(upload, use_ai, matcher, service, customer_name=customer_name)
     return render_full_results_csv_bytes(results)
 
 
@@ -474,8 +500,10 @@ def _process_upload_cpq_csv(
     use_ai: bool,
     matcher: ProductMatcher,
     service: AIMatchingService,
+    *,
+    customer_name: str | None = None,
 ) -> bytes:
-    results = _process_upload_results(upload, use_ai, matcher, service)
+    results = _process_upload_results(upload, use_ai, matcher, service, customer_name=customer_name)
     return render_cpq_csv_bytes(results)
 
 

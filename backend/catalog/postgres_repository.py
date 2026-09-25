@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -817,6 +818,54 @@ class PostgresCatalogRepository:
                     },
                 ).mappings()
             ]
+
+    def customer_purchase_quantities(
+        self, customer_name: str, orderable_part_numbers: Sequence[str]
+    ) -> dict[str, int]:
+        """Net historical purchase quantity (SUM("OrderQuantity")) per
+        orderable part number, for one customer -- used to rank otherwise-
+        valid match candidates by how much this specific customer actually
+        buys each one (see MatchingConfig.customer_purchase_bonus). Reads
+        salesorderdetails, a separate sales-history table (not part of the
+        catalog schema this class otherwise wraps -- kept here rather than
+        a new repository class since ProductMatcher already holds exactly
+        one injected `catalog_search` dependency and this is the natural
+        place callers already reach for a DB-backed lookup).
+
+        Only the given orderable_part_numbers are considered -- callers
+        pass exactly the candidate set already retrieved for one query, so
+        this never has to scan the whole sales history. Both
+        "BillToName" and "ItemNumber" are fixed-width, space-padded in the
+        source system (confirmed live), so both sides are TRIM()'d before
+        comparing. A net-negative sum (returns exceeding purchases) is
+        floored at 0 by the caller, not here -- this returns the raw sum.
+        """
+        codes = [str(code).strip() for code in orderable_part_numbers if code and str(code).strip()]
+        name = (customer_name or "").strip()
+        if not codes or not name:
+            return {}
+        query = text(
+            'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
+            "FROM salesorderdetails "
+            'WHERE TRIM("BillToName") = :customer_name AND TRIM("ItemNumber") IN :codes '
+            'GROUP BY TRIM("ItemNumber")'
+        ).bindparams(bindparam("codes", expanding=True))
+        with self.engine.connect() as connection:
+            rows = connection.execute(query, {"customer_name": name, "codes": codes}).mappings()
+            return {
+                str(row["item_number"]): int(row["total_quantity"] or 0)
+                for row in rows
+            }
+
+    def distinct_customer_names(self, limit: int = 500) -> list[str]:
+        """Every distinct salesorderdetails.BillToName, trimmed and sorted --
+        backs the manual customer-selection control at upload time."""
+        query = text(
+            'SELECT DISTINCT TRIM("BillToName") AS name FROM salesorderdetails '
+            'WHERE TRIM("BillToName") <> \'\' ORDER BY 1 LIMIT :limit'
+        )
+        with self.engine.connect() as connection:
+            return [str(row["name"]) for row in connection.execute(query, {"limit": limit}).mappings()]
 
     def fetch_identifier_candidates(self, query: str, limit: int = 50) -> list[ProductRecord]:
         """Retrieve Productcode/name hits by compact token evidence, not exact equality."""

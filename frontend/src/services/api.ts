@@ -57,10 +57,13 @@ async function readError(response: Response): Promise<string> {
   return friendlyMessage(response.status, "");
 }
 
-function buildForm(file: File, useAI: boolean): FormData {
+function buildForm(file: File, useAI: boolean, customerName?: string): FormData {
   const form = new FormData();
   form.append("file", file);
   form.append("use_ai", useAI ? "true" : "false");
+  if (customerName) {
+    form.append("customer_name", customerName);
+  }
   return form;
 }
 
@@ -75,19 +78,23 @@ function asProcessResponse(body: unknown): QuoteProcessResponse {
   return payload as QuoteProcessResponse;
 }
 
-async function postForm(path: string, file: File, useAI: boolean): Promise<Response> {
+async function postForm(path: string, file: File, useAI: boolean, customerName?: string): Promise<Response> {
   try {
     return await fetch(apiUrl(path), {
       method: "POST",
-      body: buildForm(file, useAI),
+      body: buildForm(file, useAI, customerName),
     });
   } catch {
     throw new ApiError(friendlyMessage(0, ""), 0);
   }
 }
 
-export async function processQuote(file: File, useAI: boolean): Promise<QuoteProcessResponse> {
-  const response = await postForm("/api/quote/process/results", file, useAI);
+export async function processQuote(
+  file: File,
+  useAI: boolean,
+  customerName?: string,
+): Promise<QuoteProcessResponse> {
+  const response = await postForm("/api/quote/process/results", file, useAI, customerName);
   if (!response.ok) {
     throw new ApiError(await readError(response), response.status);
   }
@@ -98,6 +105,25 @@ export async function processQuote(file: File, useAI: boolean): Promise<QuotePro
       throw err;
     }
     throw new ApiError("Unable to process this file. Please verify that it is a valid Excel or PDF quote.", response.status);
+  }
+}
+
+// Backs the manual customer-selection control at upload time -- resolves to
+// [] on any failure (unreachable backend, no salesorderdetails data) rather
+// than throwing, since a missing customer list shouldn't block uploading and
+// processing a quote at all; purchase-history ranking is a bonus, not a
+// requirement.
+export async function fetchCustomers(): Promise<string[]> {
+  try {
+    const response = await fetch(apiUrl("/api/customers"));
+    if (!response.ok) {
+      return [];
+    }
+    const body: unknown = await response.json();
+    const names = body && typeof body === "object" ? (body as { customers?: unknown }).customers : null;
+    return Array.isArray(names) ? names.filter((name): name is string => typeof name === "string") : [];
+  } catch {
+    return [];
   }
 }
 

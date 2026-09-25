@@ -29,9 +29,10 @@ def process_quote_results(
     use_ai: bool = False,
     ai_service: AIMatchingService | None = None,
     source_name: str | None = None,
+    customer_name: str | None = None,
 ) -> list[QuoteProcessResult]:
     items = _parse_line_items(path, source_name)
-    lines = line_items_to_quote_lines(items)
+    lines = line_items_to_quote_lines(items, customer_name=customer_name)
     if use_ai:
         if ai_service is None:
             raise ValueError("AI matching was requested but no AI service was provided.")

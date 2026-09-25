@@ -10,7 +10,7 @@ from catalog.excel_loader import load_catalog_records
 from matching.matcher import ProductMatcher
 from matching.models import MatchStatus, ProductRecord, QuoteLine
 from matching.normalizer import normalize_part_number
-from quotes.parser import parse_quote_file
+from quotes.parser import line_items_to_quote_lines, parse_quote_file
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = ROOT / "data" / "Atkorepartsfile.xlsx"
@@ -169,7 +169,7 @@ def test_name_column_salsify_quote_file(tmp_path: Path, matcher: ProductMatcher)
     path = tmp_path / "name-mixed.xlsx"
     workbook.save(path)
     workbook.close()
-    items = parse_quote_file(path)
+    items = line_items_to_quote_lines(parse_quote_file(path))
     results = matcher.match_quote(items)
     assert results[0].match_status == MatchStatus.EXACT_MATCH
     assert results[0].matched_part_number == "1EEC"

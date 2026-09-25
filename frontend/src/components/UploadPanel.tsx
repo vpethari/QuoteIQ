@@ -1,5 +1,6 @@
 import { formatFileSize } from "../lib/matchDisplay";
 import { AiToggle } from "./AiToggle";
+import { CustomerSelect } from "./CustomerSelect";
 
 interface Props {
   file: File | null;
@@ -7,11 +8,25 @@ interface Props {
   loading: boolean;
   useAI: boolean;
   onUseAI: (value: boolean) => void;
+  customerName: string;
+  customers: string[];
+  onCustomerName: (value: string) => void;
   onProcess: () => void;
   onFile: (file: File | null, error?: string) => void;
 }
 
-export function UploadPanel({ file, lineCount, loading, useAI, onUseAI, onProcess, onFile }: Props) {
+export function UploadPanel({
+  file,
+  lineCount,
+  loading,
+  useAI,
+  onUseAI,
+  customerName,
+  customers,
+  onCustomerName,
+  onProcess,
+  onFile,
+}: Props) {
   return (
     <section className="upload-panel" aria-label="Selected file and processing options">
       {file ? (
@@ -39,6 +54,12 @@ export function UploadPanel({ file, lineCount, loading, useAI, onUseAI, onProces
       ) : null}
       <div className="upload-actions">
         <AiToggle enabled={useAI} disabled={loading} onChange={onUseAI} />
+        <CustomerSelect
+          value={customerName}
+          customers={customers}
+          disabled={loading}
+          onChange={onCustomerName}
+        />
         <button type="button" className="btn-orange process-btn" disabled={!file || loading} onClick={onProcess}>
           {loading ? "Processing Quote..." : "Process Quote →"}
         </button>

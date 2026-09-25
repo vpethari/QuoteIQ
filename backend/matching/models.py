@@ -93,6 +93,25 @@ class MatchingConfig:
     # differently-sized candidates) so it can't promote a preferred item
     # that's a clearly worse match over a clearly better non-preferred one.
     preferred_score_bonus: float = 5.0
+    # Rewards a candidate this specific customer has actually bought before,
+    # scaled by how much of their buying within *this matched family* went
+    # to this exact candidate -- not a flat bonus like preferred_score_bonus,
+    # since the whole point is to tell "customer always buys the 10ft
+    # version" apart from "customer buys 8ft/10ft/20ft about equally" (the
+    # latter should barely move the ranking at all). Computed as
+    # customer_purchase_bonus * (this candidate's historical quantity /
+    # total historical quantity across every candidate scored for this
+    # line), so it's 0 when the customer has no history for any candidate
+    # in the family, and approaches the full bonus only when they've bought
+    # almost exclusively this one variant. Applied in the same slot as
+    # preferred_score_bonus (after the variant_conflict cap, before the
+    # candidate_floor cut) so purchase history can only re-rank among
+    # candidates that already passed genuine product matching -- it can
+    # never rescue a candidate the description/spec matching already
+    # rejected. No date column exists yet in salesorderdetails, so this is
+    # based on total historical quantity only, not recency -- revisit once
+    # that data exists.
+    customer_purchase_bonus: float = 5.0
 
     def __post_init__(self) -> None:
         total = (
@@ -143,6 +162,10 @@ class QuoteLine:
     quantity: int | float | None = None
     requested_part_number: str | None = None
     raw_row: dict[str, str] = field(default_factory=dict)
+    # Manually selected at upload time (matches salesorderdetails.BillToName)
+    # -- one value applies to every line of a given quote, not parsed from
+    # the file itself. See MatchingConfig.customer_purchase_bonus.
+    customer_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -171,6 +194,10 @@ class MatchCandidate:
     rank: int | None = None
     orderable_part_number: str | None = None
     preferred: bool = False
+    # Net historical quantity this specific customer has ordered of this
+    # exact product (0 when no customer was selected, or no history
+    # exists) -- see MatchingConfig.customer_purchase_bonus.
+    customer_purchase_quantity: int = 0
 
 
 @dataclass

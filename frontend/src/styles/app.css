@@ -759,6 +759,32 @@ a:focus-visible,
   line-height: 1.4;
 }
 
+.customer-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-select-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.customer-select-input:focus {
+  outline: 2px solid var(--orange);
+  outline-offset: 1px;
+}
+
+.customer-select-input:disabled {
+  background: var(--bg);
+  color: var(--muted);
+}
+
 .switch {
   position: relative;
   display: inline-block;

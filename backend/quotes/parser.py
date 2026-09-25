@@ -127,7 +127,9 @@ def parse_quote_file(path: str | Path, source_name: str | None = None) -> list[L
     return items
 
 
-def line_items_to_quote_lines(items: list[LineItem]) -> list[QuoteLine]:
+def line_items_to_quote_lines(
+    items: list[LineItem], *, customer_name: str | None = None
+) -> list[QuoteLine]:
     return [
         QuoteLine(
             source_file=item.source_file,
@@ -137,6 +139,7 @@ def line_items_to_quote_lines(items: list[LineItem]) -> list[QuoteLine]:
             quantity=item.quantity,
             requested_part_number=item.requested_part_number,
             raw_row=item.raw_row,
+            customer_name=customer_name,
         )
         for item in items
     ]
