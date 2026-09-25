@@ -14,7 +14,8 @@ export function CustomerSelect({ value, customers, disabled, onChange }: Props) 
       <div className="option-copy">
         <p className="option-title">Customer (optional)</p>
         <p id="customer-select-help">
-          Ranks matches by this customer&apos;s own purchase history when available.
+          Ranks matches by this customer&apos;s own purchase history when available. Enter any part
+          of a customer name, or a Bill-To / Ship-To account number.
         </p>
       </div>
       <input
@@ -23,7 +24,7 @@ export function CustomerSelect({ value, customers, disabled, onChange }: Props) 
         list="customer-select-options"
         value={value}
         disabled={disabled}
-        placeholder="Start typing a customer name..."
+        placeholder="Customer name, Bill-To #, or Ship-To #..."
         aria-describedby="customer-select-help"
         onChange={(event) => onChange(event.target.value)}
       />

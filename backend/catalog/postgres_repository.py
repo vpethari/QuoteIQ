@@ -840,37 +840,43 @@ class PostgresCatalogRepository:
         comparing. A net-negative sum (returns exceeding purchases) is
         floored at 0 by the caller, not here -- this returns the raw sum.
 
-        `customer_name` is matched as a case-insensitive *prefix*, not
-        required to equal one exact BillToName -- confirmed live, every
-        BillToName is a fully-qualified branch string (e.g.
-        "GRAYBAR*ZJIL*JOLIET IL*GBUS", one of 234 distinct branches), so a
-        user typing just the distributor name ("GRAYBAR") previously
-        matched nothing at all and silently got no purchase-history signal.
-        Per explicit user direction, this now sums across every branch
-        sharing that prefix -- "GRAYBAR" aggregates all 234 Graybar
-        branches together, while a fully-qualified branch string (typed or
-        picked from the datalist) still matches only that one branch, since
-        it's already the longest possible prefix of itself. LIKE
-        metacharacters in the typed text ("%", "_") are escaped so they're
-        matched literally, not interpreted as wildcards.
+        `customer_name` is a single free-form field accepting three
+        different identifier types, auto-detected by shape (per explicit
+        user direction):
+        - all-digits -> matched as an *exact* account number against
+          either "BillTo" or "ShipTo" (both bigint columns) -- a numeric
+          account id is unambiguous, so no fuzzy matching applies here.
+        - anything else -> matched as a case-insensitive *contains* search
+          against BillToName (upgraded from a prefix-only match -- every
+          BillToName is a fully-qualified branch string, e.g.
+          "GRAYBAR*ZJIL*JOLIET IL*GBUS", one of 234 distinct branches, and
+          a customer typing any substring of one -- not just its leading
+          text -- expects it to be found), aggregating across every branch
+          whose name contains it. LIKE metacharacters ("%", "_") are
+          escaped so they're matched literally, not interpreted as
+          wildcards.
         """
         codes = [str(code).strip() for code in orderable_part_numbers if code and str(code).strip()]
-        name = (customer_name or "").strip()
-        if not codes or not name:
+        identifier = (customer_name or "").strip()
+        if not codes or not identifier:
             return {}
-        like_op = "ILIKE" if self._is_postgres() else "LIKE"
-        escaped_name = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        params: dict[str, object] = {"codes": codes}
+        if identifier.isdigit():
+            where_clause = '("BillTo" = :account_id OR "ShipTo" = :account_id)'
+            params["account_id"] = int(identifier)
+        else:
+            like_op = "ILIKE" if self._is_postgres() else "LIKE"
+            escaped = identifier.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            where_clause = f'TRIM("BillToName") {like_op} :pattern ESCAPE \'\\\''
+            params["pattern"] = f"%{escaped}%"
         query = text(
             'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
             "FROM salesorderdetails "
-            f'WHERE TRIM("BillToName") {like_op} :prefix ESCAPE \'\\\' '
-            "AND TRIM(\"ItemNumber\") IN :codes "
+            f"WHERE {where_clause} AND TRIM(\"ItemNumber\") IN :codes "
             'GROUP BY TRIM("ItemNumber")'
         ).bindparams(bindparam("codes", expanding=True))
         with self.engine.connect() as connection:
-            rows = connection.execute(
-                query, {"prefix": f"{escaped_name}%", "codes": codes}
-            ).mappings()
+            rows = connection.execute(query, params).mappings()
             return {
                 str(row["item_number"]): int(row["total_quantity"] or 0)
                 for row in rows
