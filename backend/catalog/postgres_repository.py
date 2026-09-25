@@ -822,23 +822,34 @@ class PostgresCatalogRepository:
     def customer_purchase_quantities(
         self, customer_name: str, orderable_part_numbers: Sequence[str]
     ) -> dict[str, int]:
-        """Net historical purchase quantity (SUM("OrderQuantity")) per
-        orderable part number, for one customer -- used to rank otherwise-
-        valid match candidates by how much this specific customer actually
-        buys each one (see MatchingConfig.customer_purchase_bonus). Reads
-        salesorderdetails, a separate sales-history table (not part of the
-        catalog schema this class otherwise wraps -- kept here rather than
-        a new repository class since ProductMatcher already holds exactly
-        one injected `catalog_search` dependency and this is the natural
-        place callers already reach for a DB-backed lookup).
+        """Net historical purchase quantity per orderable part number, for
+        one customer -- used to rank otherwise-valid match candidates by
+        how much this specific customer actually buys each one (see
+        MatchingConfig.customer_purchase_bonus).
+
+        Reads three materialized views (mv_purchase_by_shipto,
+        mv_purchase_by_billto, mv_purchase_by_billtoname -- migration
+        20260926_0008), not salesorderdetails directly. salesorderdetails
+        is expected to hold ~1 year of data, steady-state around 2.5
+        million rows in production -- live-aggregating straight from it
+        scales fine for an exact Ship-To/Bill-To lookup (an indexed point
+        read), but not for the BillToName substring case ("GRAYBAR" sums
+        every branch sharing that substring): at that scale a single
+        branch family's own order history can run to tens of thousands of
+        rows, re-summed on every quote line that selects a customer by
+        partial name. Each view pre-aggregates down to exactly the grain
+        its tier queries, confirmed identical to the previous live
+        aggregation before switching over.
+
+        IMPORTANT: these views are a snapshot, not live -- they only
+        reflect salesorderdetails as of the last `REFRESH MATERIALIZED
+        VIEW CONCURRENTLY <view>`. Refresh cadence/scheduling is handled
+        externally (not by this codebase) -- see migration 20260926_0008
+        for the exact refresh commands. A purchase made after the last
+        refresh simply won't influence ranking yet.
 
         Only the given orderable_part_numbers are considered -- callers
-        pass exactly the candidate set already retrieved for one query, so
-        this never has to scan the whole sales history. Both
-        "BillToName" and "ItemNumber" are fixed-width, space-padded in the
-        source system (confirmed live), so both sides are TRIM()'d before
-        comparing. A net-negative sum (returns exceeding purchases) is
-        floored at 0 by the caller, not here -- this returns the raw sum.
+        pass exactly the candidate set already retrieved for one query.
 
         `customer_name` is a single free-form field accepting three
         different identifier types. A non-numeric value is matched as a
@@ -865,20 +876,21 @@ class PostgresCatalogRepository:
             return {}
         if identifier.isdigit():
             account_id = int(identifier)
-            for column in ("ShipTo", "BillTo"):
-                result = self._purchase_quantities_by_account(column, account_id, codes)
+            for view, column in (
+                ("mv_purchase_by_shipto", "ship_to"),
+                ("mv_purchase_by_billto", "bill_to"),
+            ):
+                result = self._purchase_quantities_by_account(view, column, account_id, codes)
                 if result:
                     return result
         return self._purchase_quantities_by_name(identifier, codes)
 
     def _purchase_quantities_by_account(
-        self, column: str, account_id: int, codes: list[str]
+        self, view: str, column: str, account_id: int, codes: list[str]
     ) -> dict[str, int]:
         query = text(
-            'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
-            "FROM salesorderdetails "
-            f'WHERE "{column}" = :account_id AND TRIM("ItemNumber") IN :codes '
-            'GROUP BY TRIM("ItemNumber")'
+            f"SELECT item_number, total_quantity FROM {view} "
+            f"WHERE {column} = :account_id AND item_number IN :codes"
         ).bindparams(bindparam("codes", expanding=True))
         with self.engine.connect() as connection:
             rows = connection.execute(query, {"account_id": account_id, "codes": codes}).mappings()
@@ -888,11 +900,10 @@ class PostgresCatalogRepository:
         like_op = "ILIKE" if self._is_postgres() else "LIKE"
         escaped = identifier.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         query = text(
-            'SELECT TRIM("ItemNumber") AS item_number, SUM("OrderQuantity") AS total_quantity '
-            "FROM salesorderdetails "
-            f'WHERE TRIM("BillToName") {like_op} :pattern ESCAPE \'\\\' '
-            'AND TRIM("ItemNumber") IN :codes '
-            'GROUP BY TRIM("ItemNumber")'
+            "SELECT item_number, SUM(total_quantity) AS total_quantity "
+            "FROM mv_purchase_by_billtoname "
+            f"WHERE bill_to_name {like_op} :pattern ESCAPE '\\' AND item_number IN :codes "
+            "GROUP BY item_number"
         ).bindparams(bindparam("codes", expanding=True))
         with self.engine.connect() as connection:
             rows = connection.execute(query, {"pattern": f"%{escaped}%", "codes": codes}).mappings()
